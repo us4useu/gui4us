@@ -6,7 +6,7 @@ NAME = "GUI4us"
 import sys
 import time
 import numpy as np
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import (
@@ -30,8 +30,17 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 
 from model import MockedModel
-from controller import Controller
+from controller import (
+    Controller,
+    Event,
+    SetVoltageEvent,
+    SetTgcCurveEvent,
+    SetDrMaxEvent,
+    SetDrMinEvent
+)
+import logging
 
+logging.basicConfig(filename="gui4us.log", level=logging.DEBUG)
 
 # states
 _INIT = "INIT"
@@ -169,13 +178,13 @@ class MainWindow(QtWidgets.QMainWindow):
         init_dr_max = self._controller.settings["initial_max_dynamic_range"]
 
         self._dr_min_spin_box = self._create_spin_box(
-            range=(_DYNAMIC_RANGE[0], init_dr_max-_DYNAMIC_RANGE_MIN_DIFF),
+            range=(_DYNAMIC_RANGE[0], init_dr_max - _DYNAMIC_RANGE_MIN_DIFF),
             value=init_dr_min, step=_VOLTAGE_STEP,
             on_change=self._on_dr_min_change,
             line_edit_read_only=True
         )
         self._dr_max_spin_box = self._create_spin_box(
-            range=(init_dr_min+_DYNAMIC_RANGE_MIN_DIFF, _DYNAMIC_RANGE[1]),
+            range=(init_dr_min + _DYNAMIC_RANGE_MIN_DIFF, _DYNAMIC_RANGE[1]),
             value=init_dr_max, step=_DYNAMIC_RANGE_STEP,
             on_change=self._on_dr_max_change,
             line_edit_read_only=True
@@ -184,7 +193,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._add_setting_form_field(
             layout=settings_form_layout,
             name="Transmit voltage", unit="V",
-            widget= self._voltage_spin_box)
+            widget=self._voltage_spin_box)
         self._add_setting_form_field(
             layout=settings_form_layout,
             name="Dynamic Range min", unit="dB",
@@ -214,7 +223,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                              self._on_tgc_slider_change)
             self._tgc_sliders.append(slider)
             control_panel_tgc_layout.addRow(
-                f"{int(round((sample*1e3)))} [mm]", slider)
+                f"{int(round((sample * 1e3)))} [mm]", slider)
         settings_layout.addStretch()
         return control_panel
 
@@ -229,8 +238,8 @@ class MainWindow(QtWidgets.QMainWindow):
         ax = img_canvas.figure.subplots()
         ax.set_xlabel("Azimuth [mm]")
         ax.set_ylabel("Depth [mm]")
-        extent_ox = np.array(settings["image_extent_ox"])*1e3
-        extent_oz = np.array(settings["image_extent_oz"])*1e3
+        extent_ox = np.array(settings["image_extent_ox"]) * 1e3
+        extent_oz = np.array(settings["image_extent_oz"]) * 1e3
 
         self.img_canvas = ax.imshow(self._controller.get_bmode(),
                                     cmap="gray", vmin=20, vmax=80,
@@ -250,7 +259,8 @@ class MainWindow(QtWidgets.QMainWindow):
             layout.addWidget(button)
         return button
 
-    def _add_setting_form_field(self, layout, widget, name: str, unit: str=""):
+    def _add_setting_form_field(self, layout, widget, name: str,
+                                unit: str = ""):
         label = name
         if unit:
             label = f"{name} [{unit}]:"
@@ -276,7 +286,7 @@ class MainWindow(QtWidgets.QMainWindow):
         slider = QSlider(Qt.Horizontal)
 
         def rescale(value):
-            return int(round(value * 10**_TGC_SLIDER_PRECISION))
+            return int(round(value * 10 ** _TGC_SLIDER_PRECISION))
 
         # range
         slider.setMinimum(rescale(range[0]))
@@ -434,21 +444,22 @@ class MainWindow(QtWidgets.QMainWindow):
         return transition["dst_state"]
 
     def _on_voltage_change(self, value):
-        print(f"Voltage change: {value}")
+        controller.send(SetVoltageEvent(value))
 
     def _on_dr_min_change(self, value):
         self._dr_max_spin_box.setRange(
             value + _DYNAMIC_RANGE_MIN_DIFF, _DYNAMIC_RANGE[1])
-        print(f"Dynamic range min: {value}")
+        controller.send(SetDrMinEvent(value))
 
     def _on_dr_max_change(self, value):
         self._dr_min_spin_box.setRange(
-            _DYNAMIC_RANGE[0], value-_DYNAMIC_RANGE_MIN_DIFF)
-        print(f"Dynamic range max: {value}")
+            _DYNAMIC_RANGE[0], value - _DYNAMIC_RANGE_MIN_DIFF)
+        controller.send(SetDrMaxEvent(value))
 
     def _on_tgc_slider_change(self):
-        print([slider.value()/(10**_TGC_SLIDER_PRECISION)
-               for slider in self._tgc_sliders])
+        tgc_curve = [slider.value() / (10 ** _TGC_SLIDER_PRECISION)
+                     for slider in self._tgc_sliders]
+        controller.send(SetTgcCurveEvent(np.array(tgc_curve)))
 
     def _show_error(self, msg):
         box = QMessageBox()
@@ -457,6 +468,10 @@ class MainWindow(QtWidgets.QMainWindow):
         box.setWindowTitle("Error")
         box.setStandardButtons(QMessageBox.Ok)
         box.exec_()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self._controller.close()
+        event.accept()
 
 
 if __name__ == "__main__":

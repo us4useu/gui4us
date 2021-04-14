@@ -32,6 +32,21 @@ class Model:
     def get_rf(self):
         raise ValueError("Abstract class")
 
+    def set_tgc_curve(self, tgc_curve: np.ndarray):
+        raise ValueError("Abstract class")
+
+    def set_dr_min(self, dr_min: float):
+        raise ValueError("Abstract class")
+
+    def set_dr_max(self, dr_max: float):
+        raise ValueError("Abstract class")
+
+    def set_tx_voltage(self, voltage: float):
+        raise ValueError("Abstract class")
+
+    def close(self):
+        raise ValueError("Abstract class")
+
 
 def compute_tgc_curve_linear(oz_min, oz_max, tgc_start, tgc_slope,
                              tgc_sampling_step):
@@ -86,4 +101,19 @@ class MockedModel(Model):
 
     def get_rf(self):
         return self._rf_data_source.get()
+
+    def set_tgc_curve(self, tgc_curve: np.ndarray):
+        print(f"Setting TGC: {tgc_curve}")
+
+    def set_dr_min(self, dr_min: float):
+        print(f"Setting DR min: {dr_min}")
+
+    def set_dr_max(self, dr_max: float):
+        print(f"Setting DR max: {dr_max}")
+
+    def set_tx_voltage(self, voltage: float):
+        print(f"Setting TX voltage: {voltage}")
+
+    def close(self):
+        print("Closing model")
 
