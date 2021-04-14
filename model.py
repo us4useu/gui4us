@@ -98,6 +98,7 @@ class Model:
         # Required
         self._speed_of_sound = self._sequence_settings["speed_of_sound"]
         # Optional:
+        self._tx_angles = self._sequence_settings.get("angles", _TX_ANGLES)
         self._rx_sample_range = (
             self._sequence_settings.get("rx_sample_range_start",
                                         _RX_SAMPLE_START),
@@ -176,7 +177,7 @@ class ArrusModel(Model):
 
         # Determine sequence
         self._sequence = PwiSequence(
-            angles=settings.get("angles", _TX_ANGLES),
+            angles=self._tx_angles,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
                 n_periods=self._tx_n_periods,
