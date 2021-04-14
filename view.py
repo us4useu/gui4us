@@ -6,6 +6,7 @@ NAME = "GUI4us"
 import sys
 import time
 import numpy as np
+import yaml
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -40,7 +41,10 @@ from controller import (
 )
 import logging
 
-logging.basicConfig(filename="gui4us.log", level=logging.DEBUG)
+logging_file_handler = logging.FileHandler(filename="gui4us.log")
+logging_stderr_handler = logging.StreamHandler(sys.stderr)
+logging_handlers = [logging_file_handler, logging_stderr_handler]
+logging.basicConfig(level=logging.INFO, handlers=logging_handlers)
 
 # states
 _INIT = "INIT"
@@ -171,14 +175,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._voltage_spin_box = self._create_spin_box(
             range=(self._controller.settings["min_voltage"],
                    self._controller.settings["max_voltage"]),
-            value=self._controller.settings["initial_voltage"],
+            value=self._controller.settings["tx_voltage"],
             step=5,
             on_change=self._on_voltage_change,
             line_edit_read_only=True
         )
 
-        init_dr_min = self._controller.settings["initial_min_dynamic_range"]
-        init_dr_max = self._controller.settings["initial_max_dynamic_range"]
+        init_dr_min = self._controller.settings["dynamic_range_min"]
+        init_dr_max = self._controller.settings["dynamic_range_max"]
 
         self._dr_min_spin_box = self._create_spin_box(
             range=(_DYNAMIC_RANGE[0], init_dr_max - _DYNAMIC_RANGE_MIN_DIFF),
@@ -481,7 +485,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    model = MockedModel(np.load("pwi_64_lri.npy"))
+    with open("settings.yml", "r") as f:
+        settings = yaml.safe_load(f)
+    model = MockedModel(np.load("pwi_64_lri.npy"), settings)
     controller = Controller(model)
     window = MainWindow(f"{NAME} {__version__}", controller=controller)
     window.show()
