@@ -104,32 +104,35 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.statusBar().showMessage('Configuring...')
         self._controller = controller
+        try:
+            self.rf_buffer_size = rf_buffer_size
+            self._text_format = Qt.MarkdownText
+            self.setWindowTitle(title)
+            # Main layout
+            self._central_widget = QWidget()
+            self.setCentralWidget(self._central_widget)
+            self._main_layout = QHBoxLayout(self._central_widget)
+            # Control panel
+            self._control_panel = self._create_control_panel()
+            # Display panel
+            self._display_panel = self._create_display_panel()
+            # Main layout
+            # Left
+            self._main_layout.addWidget(self._control_panel)
+            # Right
+            self._main_layout.addWidget(self._display_panel)
 
-        self.rf_buffer_size = rf_buffer_size
-        self._text_format = Qt.MarkdownText
-        self.setWindowTitle(title)
-        # Main layout
-        self._central_widget = QWidget()
-        self.setCentralWidget(self._central_widget)
-        self._main_layout = QHBoxLayout(self._central_widget)
-        # Control panel
-        self._control_panel = self._create_control_panel()
-        # Display panel
-        self._display_panel = self._create_display_panel()
-        # Main layout
-        # Left
-        self._main_layout.addWidget(self._control_panel)
-        # Right
-        self._main_layout.addWidget(self._display_panel)
+            # Application state graph
+            self._create_state_graph()
+            self._current_state = _STARTED
+            self._on_started()
 
-        # Application state graph
-        self._create_state_graph()
-        self._current_state = _STARTED
-        self._on_started()
-
-        # Buffer state graph
-        self._create_buffer_state_graph()
-        self._reset_capture_buffer()
+            # Buffer state graph
+            self._create_buffer_state_graph()
+            self._reset_capture_buffer()
+        except Exception as e:
+            logging.exception(e)
+            self._controller.close()
 
     def _create_control_panel(self):
         control_panel = QGroupBox("Control panel")
@@ -293,6 +296,8 @@ class MainWindow(QtWidgets.QMainWindow):
         slider.setMaximum(rescale(range[1]))
         # value
         slider.setValue(rescale(value))
+        # Do not signal each slider move
+        slider.setTracking(False)
         if on_change is not None:
             slider.valueChanged.connect(on_change)
         return slider
