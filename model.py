@@ -118,6 +118,9 @@ class Model:
         # non-modifiable:
         self._downsampling_factor = _DOWNSAMPLING_FACTOR
 
+    def start(self):
+        pass
+
     @property
     def settings(self):
         return self._settings
@@ -238,6 +241,8 @@ class ArrusModel(Model):
                 placement="/GPU:0"
             )
         )
+
+    def start(self):
         # Set initial values
         self.set_tx_voltage(self._initial_voltage)
         # Upload sequence on the us4r-lite device.
@@ -291,6 +296,7 @@ class MockedModel(Model):
     def __init__(self, lri_data, settings: dict):
         super().__init__(settings)
         self._rf_data = lri_data
+        _, n_pix_ox, n_pix_oz = lri_data.shape
         self._rf_data_source = CineloopDataSource(self._rf_data)
         self._bmode_data = np.sum(self._rf_data, axis=1)
         self._bmode_data = 20 * np.log10(np.abs(self._bmode_data))
@@ -300,6 +306,8 @@ class MockedModel(Model):
         self._settings = {**self._settings, **{
             "image_extent_ox": [-19e-3, 19e-3],
             "image_extent_oz": [10e-3, 45e-3],
+            "n_pix_ox": n_pix_ox,
+            "n_pix_oz": n_pix_oz
         }}
         # Compute TGC samples, for a given TGC step.
         tgc_sampling_depths, tgc_curve = compute_tgc_curve_linear(
@@ -311,6 +319,9 @@ class MockedModel(Model):
         )
         self._settings["tgc_sampling_depths"] = tgc_sampling_depths
         self._settings["tgc_curve"] = tgc_curve
+
+    def start(self):
+        print("Starting")
 
     @property
     def settings(self):

@@ -101,6 +101,18 @@ class CaptureBuffer:
         return self._data
 
 
+def close_model_and_controller(model, controller):
+    if model is not None:
+        try:
+            model.close()
+        except Exception as e:
+            logging.exception(e)
+        try:
+            controller.close()
+        except Exception as e:
+            logging.exception(e)
+
+
 class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, title, controller: Controller, rf_buffer_size=100):
@@ -128,8 +140,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Application state graph
             self._create_state_graph()
-            self._current_state = _STARTED
-            self._on_started()
+            self._current_state = _INIT
+            self._on_init()
 
             # Buffer state graph
             self._create_buffer_state_graph()
@@ -247,11 +259,13 @@ class MainWindow(QtWidgets.QMainWindow):
         ax.set_ylabel("Depth [mm]")
         extent_ox = np.array(settings["image_extent_ox"]) * 1e3
         extent_oz = np.array(settings["image_extent_oz"]) * 1e3
-        init_dr_min = self._controller.settings["dynamic_range_min"]
-        init_dr_max = self._controller.settings["dynamic_range_max"]
+        init_dr_min = settings["dynamic_range_min"]
+        init_dr_max = settings["dynamic_range_max"]
 
-        bmode = self._controller.get_bmode()
-        self.img_canvas = ax.imshow(bmode, cmap="gray", vmin=init_dr_min,
+        # TODO use const_metadata
+        empty_bmode = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]),
+                               dtype=np.float32)
+        self.img_canvas = ax.imshow(empty_bmode, cmap="gray", vmin=init_dr_min,
                                     vmax=init_dr_max,
                                     extent=[extent_ox[0], extent_ox[1],
                                             extent_oz[1], extent_oz[0]])
@@ -324,6 +338,12 @@ class MainWindow(QtWidgets.QMainWindow):
     # Application state.
     def _create_state_graph(self):
         self._state_transitions = {
+            _INIT: {
+                _START: {
+                    "callback": self._on_init_start,
+                    "dst_state": _STARTED
+                }
+            },
             _STOPPED: {
                 _START: {
                     "callback": self._on_started,
@@ -339,11 +359,25 @@ class MainWindow(QtWidgets.QMainWindow):
         }
 
     def _on_start_stop_button_pressed(self):
-        # TODO lock
-        if self._current_state == _STOPPED:
+        if self._current_state in {_INIT, _STOPPED}:
             self._update_graph_state(_START)
         else:
             self._update_graph_state(_STOP)
+
+    def _on_init(self):
+        self._settings_panel.setEnabled(False)
+        self._buffer_panel.setEnabled(False)
+        self._reset_capture_buffer()
+        self._start_stop_button.setText("Start")
+        self.statusBar().showMessage(
+            "Ready, press 'Start' button to start the hardware.")
+        return True
+
+    def _on_init_start(self):
+        self.statusBar().showMessage("Starting system.")
+        self._controller.start()
+        self._on_started()
+        return True
 
     def _on_started(self):
         self._settings_panel.setEnabled(True)
@@ -501,12 +535,5 @@ if __name__ == "__main__":
         window.show()
         sys.exit(app.exec_())
     finally:
-        if model is not None:
-            try:
-                model.close()
-            except Exception as e:
-                logging.exception(e)
-            try:
-                controller.close()
-            except Exception as e:
-                logging.exception(e)
+        close_model_and_controller(model, controller)
+

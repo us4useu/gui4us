@@ -67,6 +67,10 @@ class Controller:
     def close(self):
         self._event_queue.put(CloseEvent())
 
+    def start(self):
+        # TODO event
+        self.model.start()
+
     def _controller_thread(self):
         while True:
             try:
