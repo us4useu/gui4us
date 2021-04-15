@@ -30,7 +30,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-from model import MockedModel
+from model import MockedModel, ArrusModel
 from controller import (
     Controller,
     Event,
@@ -247,9 +247,13 @@ class MainWindow(QtWidgets.QMainWindow):
         ax.set_ylabel("Depth [mm]")
         extent_ox = np.array(settings["image_extent_ox"]) * 1e3
         extent_oz = np.array(settings["image_extent_oz"]) * 1e3
+        init_dr_min = self._controller.settings["dynamic_range_min"]
+        init_dr_max = self._controller.settings["dynamic_range_max"]
 
         self.img_canvas = ax.imshow(self._controller.get_bmode(),
-                                    cmap="gray", vmin=20, vmax=80,
+                                    cmap="gray",
+                                    vmin=init_dr_min,
+                                    vmax=init_dr_max,
                                     extent=[extent_ox[0], extent_ox[1],
                                             extent_oz[1], extent_oz[0]])
         self.img_canvas.figure.colorbar(self.img_canvas)
@@ -478,17 +482,28 @@ class MainWindow(QtWidgets.QMainWindow):
         box.setStandardButtons(QMessageBox.Ok)
         box.exec_()
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self._controller.close()
-        event.accept()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    model = None
+    controller = None
     with open("settings.yml", "r") as f:
         settings = yaml.safe_load(f)
-    model = MockedModel(np.load("pwi_64_lri.npy"), settings)
-    controller = Controller(model)
-    window = MainWindow(f"{NAME} {__version__}", controller=controller)
-    window.show()
-    sys.exit(app.exec_())
+    try:
+        # model = MockedModel(np.load("pwi_64_lri.npy"), settings)
+        model = ArrusModel(settings)
+        controller = Controller(model)
+        window = MainWindow(f"{NAME} {__version__}", controller=controller)
+        window.show()
+        sys.exit(app.exec_())
+    finally:
+        if model is not None:
+            try:
+                model.close()
+            except Exception as e:
+                logging.exception(e)
+            try:
+                controller.close()
+            except Exception as e:
+                logging.exception(e)

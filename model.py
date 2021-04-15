@@ -42,7 +42,7 @@ _RX_SAMPLE_START = 0
 _RX_SAMPLE_END = 4096
 _DOWNSAMPLING_FACTOR = 1
 _IMG_START_DEPTH = 5e-3 # [m]
-_IMG_PIXEL_STEP = 1e-3 # [m]
+_IMG_PIXEL_STEP = 0.1e-3 # [m]
 
 # APEX probe + us4R-Lite specific parameters
 _PROBE_MIN_TX_VOLTAGE = 5  # [V]
@@ -105,7 +105,7 @@ class Model:
             self._sequence_settings.get("rx_sample_range_end", _RX_SAMPLE_END),
         )
         self._tx_frequency = self._sequence_settings.get(
-            "tx_frequency", _TX_FREQUENCY),
+            "tx_frequency", _TX_FREQUENCY)
         self._tx_n_periods = self._sequence_settings.get(
             "tx_n_periods", _TX_N_PERIODS)
         self._tx_inverse = self._sequence_settings.get(
@@ -148,6 +148,15 @@ def compute_tgc_curve_linear(oz_min, oz_max, tgc_start, tgc_slope,
     return tgc_sampling_depths, tgc_curve
 
 
+def interpolate_to_device_tgc(input_sampling_depths, input_tgc_values,
+                              end_sample, downsampling_factor, fs, c):
+    output_sampling_depths = np.arange(
+        start=round(400/downsampling_factor), stop=end_sample,
+        step=round(150/downsampling_factor))/fs*c
+    return np.interp(output_sampling_depths, input_sampling_depths,
+                     input_tgc_values)
+
+
 class ArrusModel(Model):
 
     def __init__(self, settings: dict):
@@ -161,19 +170,26 @@ class ArrusModel(Model):
 
         # Update settings with image extent
         self._settings["image_extent_ox"] = [np.min(x_grid), np.max(x_grid)]
-        # intentionally max, min (matplotlib bottom/top depth)
-        self._settings["image_extent_oz"] = [np.max(z_grid), np.min(x_grid)]
+        self._settings["image_extent_oz"] = [np.min(z_grid), np.max(z_grid)]
+        self._settings["n_pix_ox"] = len(x_grid)
+        self._settings["n_pix_oz"] = len(z_grid)
 
         # Compute TGC curve
         oz_min, oz_max = self._settings["image_extent_oz"]
-        tgc_sampling_depths, tgc_curve = compute_tgc_curve_linear(
+        self._tgc_sampling_depths, tgc_curve = compute_tgc_curve_linear(
             oz_min, oz_max,
             tgc_start=self._settings["tgc_start"],
             tgc_slope=self._settings["tgc_slope"],
             tgc_sampling_step=_TGC_SAMPLING_STEP)
+        actual_tgc_curve = interpolate_to_device_tgc(
+            self._tgc_sampling_depths, tgc_curve, self._rx_sample_range[1],
+            self._downsampling_factor,
+            self._sampling_frequency/self._downsampling_factor,
+            self._speed_of_sound)
+
         # Update settings with the TGC curve
         self._settings["tgc_curve"] = tgc_curve
-        self._settings["tgc_sampling_depths"] = tgc_sampling_depths
+        self._settings["tgc_sampling_depths"] = self._tgc_sampling_depths
 
         # Determine sequence
         self._sequence = PwiSequence(
@@ -186,7 +202,7 @@ class ArrusModel(Model):
             downsampling_factor=self._downsampling_factor,
             speed_of_sound=self._speed_of_sound,
             pri=self._pri, sri=self._sri,
-            tgc_curve=tgc_curve)
+            tgc_curve=actual_tgc_curve)
 
         # TODO use dequeue instead? is it thread safe?
         self._bmode_queue = queue.Queue(1)
@@ -228,7 +244,12 @@ class ArrusModel(Model):
         return self._rf_queue.get()
 
     def set_tgc_curve(self, tgc_curve: np.ndarray):
-        return super().set_tgc_curve(tgc_curve)
+        actual_tgc_curve = interpolate_to_device_tgc(
+            self._tgc_sampling_depths, tgc_curve, self._rx_sample_range[1],
+            self._downsampling_factor,
+            self._sampling_frequency/self._downsampling_factor,
+            self._speed_of_sound)
+        self._us4r.set_tgc(actual_tgc_curve)
 
     def set_dr_min(self, dr_min: float):
         return super().set_dr_min(dr_min)
@@ -237,7 +258,7 @@ class ArrusModel(Model):
         return super().set_dr_max(dr_max)
 
     def set_tx_voltage(self, voltage: float):
-        self.set_tx_voltage(voltage)
+        self._us4r.set_hv_voltage(voltage)
 
     def close(self):
         self._session.stop_scheme()
@@ -245,8 +266,8 @@ class ArrusModel(Model):
     def _compute_image_grid(self):
         # OZ
         c = self._speed_of_sound
-        fs = self._downsampling_factor
-        max_depth = c*fs*self._rx_sample_range[1]/2
+        fs = _SAMPLING_FREQUENCY/self._downsampling_factor
+        max_depth = (c/fs)*self._rx_sample_range[1]/2
         z_grid = np.arange(self._img_start_depth, max_depth,
                            step=_IMG_PIXEL_STEP)
         # OX
