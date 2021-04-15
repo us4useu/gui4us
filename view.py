@@ -250,9 +250,8 @@ class MainWindow(QtWidgets.QMainWindow):
         init_dr_min = self._controller.settings["dynamic_range_min"]
         init_dr_max = self._controller.settings["dynamic_range_max"]
 
-        self.img_canvas = ax.imshow(self._controller.get_bmode(),
-                                    cmap="gray",
-                                    vmin=init_dr_min,
+        bmode = self._controller.get_bmode()
+        self.img_canvas = ax.imshow(bmode, cmap="gray", vmin=init_dr_min,
                                     vmax=init_dr_max,
                                     extent=[extent_ox[0], extent_ox[1],
                                             extent_oz[1], extent_oz[0]])
@@ -457,7 +456,11 @@ class MainWindow(QtWidgets.QMainWindow):
         return transition["dst_state"]
 
     def _on_voltage_change(self, value):
+        # TODO make the setting voltage operation cheap (implement session controller)
+        self._voltage_spin_box.setDisabled(True)
         controller.send(SetVoltageEvent(value))
+        self._voltage_spin_box.setDisabled(False)
+        self._voltage_spin_box.setFocus()
 
     def _on_dr_min_change(self, value):
         self._dr_max_spin_box.setRange(

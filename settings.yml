@@ -1,4 +1,4 @@
-tx_voltage: 5 # [V]
+tx_voltage: 40 # [V]
 dynamic_range_min: 20 # [dB]
 dynamic_range_max: 80 # [dB]
 tgc_start: 14 # [dB]

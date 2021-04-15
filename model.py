@@ -1,6 +1,8 @@
 import numpy as np
 import arrus
 import queue
+import scipy.signal
+import time
 
 from arrus.ops.us4r import (
     Scheme,
@@ -20,7 +22,9 @@ from arrus.utils.imaging import (
     LogCompression,
     Enqueue,
     ReconstructLri,
-    Mean
+    Mean,
+    Squeeze,
+    FirFilter
 )
 from arrus.utils.us4r import (
     RemapToLogicalOrder
@@ -30,13 +34,12 @@ from arrus.utils.gui import (
 )
 
 
-
 # DEFAULT PWI sequence parameters
-_TX_ANGLES = np.asarray([0]) * np.pi / 180
+_TX_ANGLES = np.linspace(-10, 10, 11).tolist()  # [deg]
 _TX_FREQUENCY = 6e6
 _TX_N_PERIODS = 2
 _TX_INVERSE = False
-_PRI = 200e-6
+_PRI = 300e-6
 _SRI = 50e-3
 _RX_SAMPLE_START = 0
 _RX_SAMPLE_END = 4096
@@ -46,7 +49,7 @@ _IMG_PIXEL_STEP = 0.1e-3 # [m]
 
 # APEX probe + us4R-Lite specific parameters
 _PROBE_MIN_TX_VOLTAGE = 5  # [V]
-_PROBE_MAX_TX_VOLTAGE = 75  # [V]
+_PROBE_MAX_TX_VOLTAGE = 50  # [V]
 _MIN_TGC = 14
 _MAX_TGC = 54
 _TGC_SAMPLING_STEP = 5e-3  # [m]
@@ -151,8 +154,8 @@ def compute_tgc_curve_linear(oz_min, oz_max, tgc_start, tgc_slope,
 def interpolate_to_device_tgc(input_sampling_depths, input_tgc_values,
                               end_sample, downsampling_factor, fs, c):
     output_sampling_depths = np.arange(
-        start=round(400/downsampling_factor), stop=end_sample,
-        step=round(150/downsampling_factor))/fs*c
+        start=round(200/downsampling_factor), stop=end_sample,
+        step=round(65/downsampling_factor))/fs*c
     return np.interp(output_sampling_depths, input_sampling_depths,
                      input_tgc_values)
 
@@ -193,7 +196,7 @@ class ArrusModel(Model):
 
         # Determine sequence
         self._sequence = PwiSequence(
-            angles=self._tx_angles,
+            angles=np.asarray(self._tx_angles)*np.pi/180,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
                 n_periods=self._tx_n_periods,
@@ -208,6 +211,10 @@ class ArrusModel(Model):
         self._bmode_queue = queue.Queue(1)
         self._rf_queue = queue.Queue(1)
 
+        self._fir_filter_taps = scipy.signal.firwin(64, np.array(
+            [0.5, 1.5]) * self._tx_frequency, pass_zero=False,
+            fs=self._sampling_frequency/self._downsampling_factor)
+
         self._scheme = Scheme(
             tx_rx_sequence=self._sequence,
             rx_buffer_size=2,
@@ -218,7 +225,7 @@ class ArrusModel(Model):
                     RemapToLogicalOrder(),
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
                     Transpose(axes=(0, 2, 1)),
-                    BandpassFilter(),
+                    FirFilter(self._fir_filter_taps),
                     QuadratureDemodulation(),
                     Decimation(decimation_factor=4, cic_order=2),
                     ReconstructLri(x_grid=x_grid, z_grid=z_grid),
@@ -275,7 +282,7 @@ class ArrusModel(Model):
         pitch = self._probe_model.pitch
         ox_l = -(n_elements-1)/2*pitch
         ox_r = (n_elements-1)/2*pitch
-        x_grid = (ox_l, ox_r)
+        x_grid = np.arange(ox_l, ox_r, step=_IMG_PIXEL_STEP)
         return x_grid, z_grid
 
 
