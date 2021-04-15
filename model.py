@@ -296,7 +296,7 @@ class MockedModel(Model):
     def __init__(self, lri_data, settings: dict):
         super().__init__(settings)
         self._rf_data = lri_data
-        _, n_pix_ox, n_pix_oz = lri_data.shape
+        _, _, n_pix_ox, n_pix_oz = lri_data.shape
         self._rf_data_source = CineloopDataSource(self._rf_data)
         self._bmode_data = np.sum(self._rf_data, axis=1)
         self._bmode_data = 20 * np.log10(np.abs(self._bmode_data))
