@@ -40,6 +40,8 @@ from controller import (
     SetDrMinEvent
 )
 import logging
+import os
+import scipy.io
 
 logging_file_handler = logging.FileHandler(filename="gui4us.log")
 logging_stderr_handler = logging.StreamHandler(sys.stderr)
@@ -74,7 +76,7 @@ _VOLTAGE_STEP = 10
 _TGC_SLIDER_PRECISION = 2
 
 # Supported file extensions
-_NUMPY_FILE_EXTENSION = "Numpy file (*.npy)"
+_NUMPY_FILE_EXTENSION = "Numpy file (*.npz)"
 _MAT_FILE_EXTENSION = "MATLAB file (*.mat)"
 
 _FILE_EXTENSION_STR = ";;".join([_NUMPY_FILE_EXTENSION, _MAT_FILE_EXTENSION])
@@ -329,11 +331,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # Shift the sinusoid as a function of time.
         if self._current_state == _STARTED:
             # RF buffer update, if necessary
+            data, dr_min, dr_max = self._controller.get_bmode()
+            # TODO use deque in model for RF data instead
+            rf = self._controller.get_rf()
             if self._rf_buffer_state == _CAPTURING:
-                self._rf_buffer.append(self._controller.get_rf())
+                self._rf_buffer.append((data, rf))
                 if self._rf_buffer.is_ready():
                     self._update_buffer_state_graph(_CAPTURE_DONE)
-            data, dr_min, dr_max = self._controller.get_bmode()
             self.img_canvas.set_data(data)
             if self._current_dr_min == dr_min or self._current_dr_max == dr_max:
                 self.img_canvas.set_clim(vmin=dr_min, vmax=dr_max)
@@ -459,10 +463,19 @@ class MainWindow(QtWidgets.QMainWindow):
         if extension == "":
             return False
         filename = filename.strip()
+        bmodes, rfs = zip(*self._rf_buffer.data)
+        rfs = np.stack(rfs)
+        bmodes = np.stack(bmodes)
+        data = {"rf": rfs, "bmode": bmodes}
+
         if extension == _NUMPY_FILE_EXTENSION:
-            if not filename.endswith(".npy"):
-                filename = filename + ".npy"
-            np.save(filename, self._rf_buffer.data)
+            if not filename.endswith(".npz"):
+                filename = filename + ".npz"
+            np.savez(filename, **data)
+        elif extension == _MAT_FILE_EXTENSION:
+            if not filename.endswith(".mat"):
+                filename = filename + ".mat"
+            scipy.io.savemat(filename, data)
         else:
             self._show_error(f"Unsupported data type for file {filename}")
             return False
