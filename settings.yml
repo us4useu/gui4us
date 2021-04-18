@@ -1,8 +1,18 @@
-tx_voltage: 40 # [V]
-dynamic_range_min: 20 # [dB]
-dynamic_range_max: 80 # [dB]
-tgc_start: 14 # [dB]
+# Initial transmit voltage [V]
+tx_voltage: 40
+# Initial dynamic range minimum [dB]
+dynamic_range_min: 20
+# Initial dynamic range maximum [dB]
+dynamic_range_max: 80
+# Initial TGC curve start value [dB]
+tgc_start: 14
+# Initial TGC curve slope [dB]
 tgc_slope: 500 # [dB/m]
+# How many frames should be captured.
+capture_buffer_size: 5
 
 sequence:
-  speed_of_sound: 1450 # [m/s]
+  # Assumed speed of sound [m/s]
+  speed_of_sound: 1450
+  # Transmit voltage [Hz]
+  tx_frequency: 6000000
