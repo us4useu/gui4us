@@ -9,7 +9,7 @@ tgc_start: 14
 # Initial TGC curve slope [dB]
 tgc_slope: 500 # [dB/m]
 # How many frames should be captured.
-capture_buffer_size: 5
+capture_buffer_size: 10
 
 sequence:
   # Assumed speed of sound [m/s]

@@ -115,13 +115,13 @@ def close_model_and_controller(model, controller):
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, title, controller: Controller, rf_buffer_size=100):
+    def __init__(self, title, controller: Controller):
         super().__init__()
 
         self.statusBar().showMessage('Configuring...')
         self._controller = controller
         try:
-            self.rf_buffer_size = rf_buffer_size
+            self.rf_buffer_size = self._controller.settings["capture_buffer_size"]
             self._text_format = Qt.MarkdownText
             self.setWindowTitle(title)
             # Main layout
