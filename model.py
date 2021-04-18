@@ -44,8 +44,8 @@ _SRI = 50e-3
 _RX_SAMPLE_START = 0
 _RX_SAMPLE_END = 4096
 _DOWNSAMPLING_FACTOR = 1
-_IMG_START_DEPTH = 5e-3 # [m]
-_IMG_PIXEL_STEP = 0.1e-3 # [m]
+_IMG_START_DEPTH = 5e-3  # [m]
+_IMG_PIXEL_STEP = 0.1e-3  # [m]
 
 # APEX probe + us4R-Lite specific parameters
 _PROBE_MIN_TX_VOLTAGE = 5  # [V]
@@ -157,8 +157,8 @@ def compute_tgc_curve_linear(oz_min, oz_max, tgc_start, tgc_slope,
 def interpolate_to_device_tgc(input_sampling_depths, input_tgc_values,
                               end_sample, downsampling_factor, fs, c):
     output_sampling_depths = np.arange(
-        start=round(200/downsampling_factor), stop=end_sample,
-        step=round(65/downsampling_factor))/fs*c
+        start=round(150/downsampling_factor), stop=end_sample,
+        step=round(75/downsampling_factor))/fs*c
     return np.interp(output_sampling_depths, input_sampling_depths,
                      input_tgc_values)
 
@@ -241,6 +241,9 @@ class ArrusModel(Model):
                 placement="/GPU:0"
             )
         )
+        # initial dynamic range
+        self._dr_min = self._settings["dynamic_range_min"]
+        self._dr_max = self._settings["dynamic_range_max"]
 
     def start(self):
         # Set initial values
@@ -250,7 +253,11 @@ class ArrusModel(Model):
         self._session.start_scheme()
 
     def get_bmode(self):
-        return self._bmode_queue.get()
+        bmode = self._bmode_queue.get()
+        dr_min = self._dr_min
+        dr_max = self._dr_max
+        bmode = np.clip(bmode, dr_min, dr_max)
+        return bmode, dr_min, dr_max
 
     def get_rf(self):
         return self._rf_queue.get()
@@ -264,10 +271,10 @@ class ArrusModel(Model):
         self._us4r.set_tgc(actual_tgc_curve)
 
     def set_dr_min(self, dr_min: float):
-        return super().set_dr_min(dr_min)
+        self._dr_min = dr_min
 
     def set_dr_max(self, dr_max: float):
-        return super().set_dr_max(dr_max)
+        self._dr_max = dr_max
 
     def set_tx_voltage(self, voltage: float):
         self._us4r.set_hv_voltage(voltage)
@@ -319,6 +326,8 @@ class MockedModel(Model):
         )
         self._settings["tgc_sampling_depths"] = tgc_sampling_depths
         self._settings["tgc_curve"] = tgc_curve
+        self._dr_min = self._settings["dynamic_range_min"]
+        self._dr_max = self._settings["dynamic_range_max"]
 
     def start(self):
         print("Starting")
@@ -328,7 +337,11 @@ class MockedModel(Model):
         return self._settings
 
     def get_bmode(self):
-        return self._bmode_data_source.get()
+        bmode = self._bmode_data_source.get()
+        dr_min = self._dr_min
+        dr_max = self._dr_max
+        bmode = np.clip(bmode, dr_min, dr_max)
+        return (bmode, dr_min, dr_max)
 
     def get_rf(self):
         return self._rf_data_source.get()
@@ -337,10 +350,10 @@ class MockedModel(Model):
         print(f"Setting TGC: {tgc_curve}")
 
     def set_dr_min(self, dr_min: float):
-        print(f"Setting DR min: {dr_min}")
+        self._dr_min = dr_min
 
     def set_dr_max(self, dr_max: float):
-        print(f"Setting DR max: {dr_max}")
+        self._dr_max = dr_max
 
     def set_tx_voltage(self, voltage: float):
         print(f"Setting TX voltage: {voltage}")

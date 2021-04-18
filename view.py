@@ -68,9 +68,9 @@ _SAVE = "save"
 _CAPTURE_DONE = "capture_done"
 
 _DYNAMIC_RANGE = (0, 120)
-_DYNAMIC_RANGE_MIN_DIFF = 5
-_DYNAMIC_RANGE_STEP = 5
-_VOLTAGE_STEP = 5
+_DYNAMIC_RANGE_MIN_DIFF = 10
+_DYNAMIC_RANGE_STEP = 10
+_VOLTAGE_STEP = 10
 _TGC_SLIDER_PRECISION = 2
 
 # Supported file extensions
@@ -261,6 +261,8 @@ class MainWindow(QtWidgets.QMainWindow):
         extent_oz = np.array(settings["image_extent_oz"]) * 1e3
         init_dr_min = settings["dynamic_range_min"]
         init_dr_max = settings["dynamic_range_max"]
+        self._current_dr_min = init_dr_min
+        self._current_dr_max = init_dr_max
 
         # TODO use const_metadata
         empty_bmode = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]),
@@ -331,8 +333,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._rf_buffer.append(self._controller.get_rf())
                 if self._rf_buffer.is_ready():
                     self._update_buffer_state_graph(_CAPTURE_DONE)
-            data = self._controller.get_bmode()
+            data, dr_min, dr_max = self._controller.get_bmode()
             self.img_canvas.set_data(data)
+            if self._current_dr_min == dr_min or self._current_dr_max == dr_max:
+                self.img_canvas.set_clim(vmin=dr_min, vmax=dr_max)
+                self._current_dr_min = dr_min
+                self._current_dr_max = dr_max
             self.img_canvas.figure.canvas.draw()
 
     # Application state.
