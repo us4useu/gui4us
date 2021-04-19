@@ -1,4 +1,4 @@
-from model import Model
+from gui4us.model import Model
 import dataclasses
 import numpy as np
 import threading

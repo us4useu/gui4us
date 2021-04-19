@@ -30,8 +30,8 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-from model import MockedModel, ArrusModel
-from controller import (
+from gui4us.model import MockedModel, ArrusModel
+from gui4us.controller import (
     Controller,
     Event,
     SetVoltageEvent,
