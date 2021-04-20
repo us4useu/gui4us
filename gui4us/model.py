@@ -167,6 +167,7 @@ class ArrusModel(Model):
 
     def __init__(self, settings: dict):
         super().__init__(settings)
+        arrus.logging.add_log_file("arrus.log", arrus.logging.DEBUG)
 
         self._session = arrus.Session("us4r.prototxt")
         self._us4r = self._session.get_device("/Us4R:0")

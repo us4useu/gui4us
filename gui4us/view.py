@@ -44,8 +44,8 @@ import os
 import scipy.io
 
 logging_file_handler = logging.FileHandler(filename="gui4us.log")
-logging_stderr_handler = logging.StreamHandler(sys.stderr)
-logging_handlers = [logging_file_handler, logging_stderr_handler]
+# logging_stderr_handler = logging.StreamHandler(sys.stderr)
+logging_handlers = [logging_file_handler]# , logging_stderr_handler]
 logging.basicConfig(level=logging.INFO, handlers=logging_handlers)
 
 # states
@@ -148,6 +148,8 @@ class MainWindow(QtWidgets.QMainWindow):
             # Buffer state graph
             self._create_buffer_state_graph()
             self._reset_capture_buffer()
+            self.adjustSize()
+            self.setFixedSize(self.size())
         except Exception as e:
             logging.exception(e)
             self._controller.close()
@@ -190,7 +192,7 @@ class MainWindow(QtWidgets.QMainWindow):
             range=(self._controller.settings["min_voltage"],
                    self._controller.settings["max_voltage"]),
             value=self._controller.settings["tx_voltage"],
-            step=5,
+            step=_VOLTAGE_STEP,
             on_change=self._on_voltage_change,
             line_edit_read_only=True
         )
@@ -276,6 +278,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.img_canvas.figure.colorbar(self.img_canvas)
         self.timer = img_canvas.new_timer(_INTERVAL)
         self.timer.add_callback(self._update_canvas)
+        self.img_canvas.figure.tight_layout()
         self.timer.start()
         return display_panel_widget
 

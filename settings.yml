@@ -1,5 +1,5 @@
 # Initial transmit voltage [V]
-tx_voltage: 40
+tx_voltage: 10
 # Initial dynamic range minimum [dB]
 dynamic_range_min: 20
 # Initial dynamic range maximum [dB]

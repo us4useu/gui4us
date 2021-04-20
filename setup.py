@@ -22,6 +22,10 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Medical Science Apps."
     ],
-    install_requires=[],
-    python_requires='>=3.7'
+    install_requires=[
+        "arrus>=0.5.11",
+        "pyyaml",
+        "PyQt5"
+    ],
+    python_requires='>=3.8'
 )
