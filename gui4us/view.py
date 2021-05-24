@@ -28,6 +28,8 @@ from PyQt5.QtWidgets import (
 )
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.backends.qt_compat import QtCore, QtWidgets
+
 from matplotlib.figure import Figure
 
 from gui4us.model import ArrusModel
@@ -224,6 +226,8 @@ class MainWindow(QtWidgets.QMainWindow):
         display_panel_layout = QHBoxLayout()
         display_panel_widget.setLayout(display_panel_layout)
         img_canvas = FigureCanvas(Figure(figsize=(4.5, 9)))
+        self.addToolBar(QtCore.Qt.BottomToolBarArea,
+                        NavigationToolbar(img_canvas, self))
 
         display_panel_layout.addWidget(img_canvas)
         ax = img_canvas.figure.subplots()
@@ -238,11 +242,9 @@ class MainWindow(QtWidgets.QMainWindow):
                                     vmin=-16000, vmax=16000,
                                     extent=[extent_ox[0], extent_ox[1],
                                             extent_oz[1], extent_oz[0]])
-        empty_input[1024:2048, 8:16] = 16000
         alphas = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
-        alphas[1024:2048, 8:16] = 1
-        self.img_canvas2 = ax.imshow(empty_input, cmap="viridis", vmin=-16000, vmax=16000, extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]],
-                                     alpha=alphas)
+        self.img_canvas2 = ax.imshow(empty_input, cmap="YlOrRd", vmin=0, vmax=2,
+                                     extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]])
         # self.img_canvas.figure.colorbar(self.img_canvas)
         self.timer = img_canvas.new_timer(_INTERVAL)
         self.timer.add_callback(self._update_canvas)
@@ -299,19 +301,18 @@ class MainWindow(QtWidgets.QMainWindow):
         return slider
 
     def _update_canvas(self):
-        # Shift the sinusoid as a function of time.
         if self._current_state == _STARTED:
-            # RF buffer update, if necessary
-            rf_sum = self._controller.get_rf_sum().T
             data_mask = self._controller.get_defect_mask().T
-            data = rf_sum # + data_mask
-            # TODO blend with alpha color
+            rf_sum = self._controller.get_rf_sum().T
             rf = self._controller.get_rf()
             if self._rf_buffer_state == _CAPTURING:
-                self._rf_buffer.append((data, rf))
+                self._rf_buffer.append((rf_sum, data_mask, rf))
                 if self._rf_buffer.is_ready():
                     self._update_buffer_state_graph(_CAPTURE_DONE)
-            self.img_canvas.set_data(data_mask)
+            self.img_canvas.set_data(rf_sum)
+            self.img_canvas2.set_data(data_mask)
+            alpha = (data_mask != 0.0).astype(np.float32)
+            self.img_canvas2.set_alpha(alpha)
             self.img_canvas.figure.canvas.draw()
 
     # Application state.
@@ -484,7 +485,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_tgc_slider_change(self):
         gain_value = self._slider.value() / 10 ** _TGC_SLIDER_PRECISION
-        print("Slider moved")
         controller.send(SetGainEvent(gain_value))
 
     def _show_error(self, msg):

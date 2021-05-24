@@ -2,6 +2,7 @@ import numpy as np
 import arrus
 import queue
 import scipy.signal
+from collections import deque
 
 from arrus.ops.us4r import (
     Scheme,
@@ -40,7 +41,7 @@ _IMG_PIXEL_STEP = 0.1e-3  # [m]
 
 # APEX probe + us4R-Lite specific parameters
 _PROBE_MIN_TX_VOLTAGE = 5  # [V]
-_PROBE_MAX_TX_VOLTAGE = 50  # [V]
+_PROBE_MAX_TX_VOLTAGE = 90  # [V]
 _MIN_TGC = 14
 _MAX_TGC = 54
 _TGC_SAMPLING_STEP = 5e-3  # [m]
@@ -194,10 +195,10 @@ class ArrusModel(Model):
 
         class ComputeDefectMask(Operation):
 
-            def __init__(self, threshold1=0.75, threshold2=0.85):
+            def __init__(self, threshold1=0.50, threshold2=0.65):
                 self.threshold1 = threshold1
                 self.threshold2 = threshold2
-                self.output_data_queue = queue.Queue(10)
+                self.output_data_queue = deque()
                 self._max_amplitude1 = (2**14-1)*self.threshold1
                 self._max_amplitude2 = (2**14-1)*self.threshold2
                 self._output_mask = None
@@ -216,7 +217,7 @@ class ArrusModel(Model):
                 self._output_mask[level1] = 1
                 self._output_mask[level2] = 2
                 mask = cp.max(self._output_mask, axis=0)
-                self.output_data_queue.put(mask)
+                self.output_data_queue.append(mask.get())
                 return data
 
         self._compute_defect_mask_op = ComputeDefectMask()
@@ -254,7 +255,7 @@ class ArrusModel(Model):
         return self._rf_sum_queue.get()
 
     def get_defect_mask(self):
-        return self._compute_defect_mask_op.output_data_queue.get()
+        return self._compute_defect_mask_op.output_data_queue.pop()
 
     def get_rf(self):
         return self._rf_queue.get()

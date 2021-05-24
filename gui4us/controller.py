@@ -47,7 +47,7 @@ class Controller:
         return self.model.get_rf_sum()
 
     def get_defect_mask(self):
-        return self.model.get_rf_sum()
+        return self.model.get_defect_mask()
 
     def get_rf(self):
         return self.model.get_rf()
