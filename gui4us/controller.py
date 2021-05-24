@@ -13,18 +13,8 @@ class Event:
 
 
 @dataclasses.dataclass(frozen=True)
-class SetTgcCurveEvent(Event):
-    tgc_curve: np.ndarray
-
-
-@dataclasses.dataclass(frozen=True)
-class SetDrMinEvent(Event):
-    dr_min: float
-
-
-@dataclasses.dataclass(frozen=True)
-class SetDrMaxEvent(Event):
-    dr_max: float
+class SetGainEvent(Event):
+    gain_value: float
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,18 +35,19 @@ class Controller:
         self._event_queue_runner = threading.Thread(target=self._controller_thread)
         self._event_queue_runner.start()
         self._actions = {
-            SetTgcCurveEvent: self.model.set_tgc_curve,
+            SetGainEvent: self.model.set_gain_value,
             SetVoltageEvent: self.model.set_tx_voltage,
-            SetDrMinEvent: self.model.set_dr_min,
-            SetDrMaxEvent: self.model.set_dr_max
         }
 
     @property
     def settings(self):
         return self.model.settings
 
-    def get_bmode(self):
-        return self.model.get_bmode()
+    def get_rf_sum(self):
+        return self.model.get_rf_sum()
+
+    def get_defect_mask(self):
+        return self.model.get_rf_sum()
 
     def get_rf(self):
         return self.model.get_rf()

@@ -2,7 +2,6 @@ import numpy as np
 import arrus
 import queue
 import scipy.signal
-import time
 
 from arrus.ops.us4r import (
     Scheme,
@@ -10,32 +9,24 @@ from arrus.ops.us4r import (
     DataBufferSpec
 )
 from arrus.ops.imaging import (
-    PwiSequence
+    StaSequence
 )
 from arrus.utils.imaging import (
     Pipeline,
+    Operation,
     Transpose,
-    BandpassFilter,
-    Decimation,
-    QuadratureDemodulation,
-    EnvelopeDetection,
-    LogCompression,
     Enqueue,
-    ReconstructLri,
-    Mean,
+    FirFilter,
+    Sum,
     Squeeze,
-    FirFilter
+    Lambda,
+    SelectFrames
 )
 from arrus.utils.us4r import (
     RemapToLogicalOrder
 )
-from arrus.utils.gui import (
-    Display2D
-)
-
 
 # DEFAULT PWI sequence parameters
-_TX_ANGLES = np.linspace(-10, 10, 11).tolist()  # [deg]
 _TX_FREQUENCY = 6e6
 _TX_N_PERIODS = 2
 _TX_INVERSE = False
@@ -44,7 +35,7 @@ _SRI = 50e-3
 _RX_SAMPLE_START = 0
 _RX_SAMPLE_END = 4096
 _DOWNSAMPLING_FACTOR = 1
-_IMG_START_DEPTH = 5e-3  # [m]
+_IMG_START_DEPTH = 0e-3  # [m]
 _IMG_PIXEL_STEP = 0.1e-3  # [m]
 
 # APEX probe + us4R-Lite specific parameters
@@ -89,22 +80,16 @@ class Model:
         # General settings
         self._sampling_frequency = _SAMPLING_FREQUENCY
         self._initial_voltage = self._settings["tx_voltage"]
-        self._dynamic_range_min = self._settings["dynamic_range_min"]
-        self._dynamic_range_max = self._settings["dynamic_range_max"]
         self._tgc_start = self._settings["tgc_start"]
-        self._tgc_slope = self._settings["tgc_slope"]
-        self._img_start_depth = self._settings.get(
-            "img_start_depth", _IMG_START_DEPTH)
+        self._img_start_depth = self._settings.get("img_start_depth", _IMG_START_DEPTH)
 
         # Sequence settings
         self._sequence_settings = self._settings["sequence"]
         # Required
         self._speed_of_sound = self._sequence_settings["speed_of_sound"]
         # Optional:
-        self._tx_angles = self._sequence_settings.get("angles", _TX_ANGLES)
         self._rx_sample_range = (
-            self._sequence_settings.get("rx_sample_range_start",
-                                        _RX_SAMPLE_START),
+            self._sequence_settings.get("rx_sample_range_start",_RX_SAMPLE_START),
             self._sequence_settings.get("rx_sample_range_end", _RX_SAMPLE_END),
         )
         self._tx_frequency = self._sequence_settings.get(
@@ -114,7 +99,7 @@ class Model:
         self._tx_inverse = self._sequence_settings.get(
             "tx_inverse", _TX_INVERSE)
         self._pri = self._sequence_settings.get("pri", _PRI)
-        self._sri = self._sequence_settings.get("pri", _SRI)
+        self._sri = self._sequence_settings.get("sri", _SRI)
         # non-modifiable:
         self._downsampling_factor = _DOWNSAMPLING_FACTOR
 
@@ -125,19 +110,16 @@ class Model:
     def settings(self):
         return self._settings
 
-    def get_bmode(self):
+    def get_rf_sum(self):
+        raise ValueError("Abstract class")
+
+    def get_defect_mask(self):
         raise ValueError("Abstract class")
 
     def get_rf(self):
         raise ValueError("Abstract class")
 
-    def set_tgc_curve(self, tgc_curve: np.ndarray):
-        raise ValueError("Abstract class")
-
-    def set_dr_min(self, dr_min: float):
-        raise ValueError("Abstract class")
-
-    def set_dr_max(self, dr_max: float):
+    def set_gain_value(self, gain_value: float):
         raise ValueError("Abstract class")
 
     def set_tx_voltage(self, voltage: float):
@@ -178,6 +160,7 @@ class ArrusModel(Model):
         # Update settings with image extent
         self._settings["image_extent_ox"] = [np.min(x_grid), np.max(x_grid)]
         self._settings["image_extent_oz"] = [np.min(z_grid), np.max(z_grid)]
+        # Liczba probek wszerz, wzdluz
         self._settings["n_pix_ox"] = len(x_grid)
         self._settings["n_pix_oz"] = len(z_grid)
 
@@ -185,22 +168,14 @@ class ArrusModel(Model):
         oz_min, oz_max = self._settings["image_extent_oz"]
         self._tgc_sampling_depths, tgc_curve = compute_tgc_curve_linear(
             oz_min, oz_max,
-            tgc_start=self._settings["tgc_start"],
-            tgc_slope=self._settings["tgc_slope"],
+            tgc_start=self._settings["tgc_start"], tgc_slope=0,
             tgc_sampling_step=_TGC_SAMPLING_STEP)
-        actual_tgc_curve = interpolate_to_device_tgc(
-            self._tgc_sampling_depths, tgc_curve, self._rx_sample_range[1],
-            self._downsampling_factor,
-            self._sampling_frequency/self._downsampling_factor,
-            self._speed_of_sound)
-
-        # Update settings with the TGC curve
-        self._settings["tgc_curve"] = tgc_curve
-        self._settings["tgc_sampling_depths"] = self._tgc_sampling_depths
 
         # Determine sequence
-        self._sequence = PwiSequence(
-            angles=np.asarray(self._tx_angles)*np.pi/180,
+        self._sequence = StaSequence(
+            tx_aperture_center_element=np.arange(0, 32),
+            rx_aperture_center_element=16,
+            rx_aperture_size=32,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
                 n_periods=self._tx_n_periods,
@@ -209,14 +184,45 @@ class ArrusModel(Model):
             downsampling_factor=self._downsampling_factor,
             speed_of_sound=self._speed_of_sound,
             pri=self._pri, sri=self._sri,
-            tgc_curve=actual_tgc_curve)
+            tgc_start=self._settings["tgc_start"],
+            tgc_slope=0)
 
-        # TODO use dequeue instead? is it thread safe?
-        self._bmode_queue = queue.Queue(1)
+        self._rf_sum_queue = queue.Queue(1)
         self._rf_queue = queue.Queue(1)
 
-        self._fir_filter_taps = scipy.signal.firwin(64, np.array(
-            [0.5, 1.5]) * self._tx_frequency, pass_zero=False,
+        import cupy as cp
+
+        class ComputeDefectMask(Operation):
+
+            def __init__(self, threshold1=0.75, threshold2=0.85):
+                self.threshold1 = threshold1
+                self.threshold2 = threshold2
+                self.output_data_queue = queue.Queue(10)
+                self._max_amplitude1 = (2**14-1)*self.threshold1
+                self._max_amplitude2 = (2**14-1)*self.threshold2
+                self._output_mask = None
+
+            def _prepare(self, const_metadata):
+                print(const_metadata.input_shape)
+                self._output_mask = cp.zeros(const_metadata.input_shape, dtype=const_metadata.dtype)
+                return const_metadata
+
+            def _process(self, data):
+                self._output_mask = data.copy()
+                level0 = self._output_mask <= self._max_amplitude1
+                level1 = cp.logical_and(self._output_mask > self._max_amplitude1, self._output_mask <= self._max_amplitude2)
+                level2 = self._output_mask > self._max_amplitude2
+                self._output_mask[level0] = 0
+                self._output_mask[level1] = 1
+                self._output_mask[level2] = 2
+                mask = cp.max(self._output_mask, axis=0)
+                self.output_data_queue.put(mask)
+                return data
+
+        self._compute_defect_mask_op = ComputeDefectMask()
+
+        self._fir_filter_taps = scipy.signal.firwin(
+            64, np.array([0.5, 1.5]) * self._tx_frequency, pass_zero=False,
             fs=self._sampling_frequency/self._downsampling_factor)
 
         self._scheme = Scheme(
@@ -230,21 +236,12 @@ class ArrusModel(Model):
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
                     Transpose(axes=(0, 2, 1)),
                     FirFilter(self._fir_filter_taps),
-                    QuadratureDemodulation(),
-                    Decimation(decimation_factor=4, cic_order=2),
-                    ReconstructLri(x_grid=x_grid, z_grid=z_grid),
-                    Mean(axis=0),
-                    EnvelopeDetection(),
-                    Transpose(),
-                    LogCompression(),
-                    Enqueue(self._bmode_queue, block=False, ignore_full=True)
-                ),
-                placement="/GPU:0"
-            )
-        )
-        # initial dynamic range
-        self._dr_min = self._settings["dynamic_range_min"]
-        self._dr_max = self._settings["dynamic_range_max"]
+                    self._compute_defect_mask_op,
+                    Sum(axis=0),
+                    # SelectFrames([31]),
+                    Squeeze(),
+                    Enqueue(self._rf_sum_queue, block=False, ignore_full=True)),
+                placement="/GPU:0"))
 
     def start(self):
         # Set initial values
@@ -253,29 +250,26 @@ class ArrusModel(Model):
         self._buffer, self._const_metadata = self._session.upload(self._scheme)
         self._session.start_scheme()
 
-    def get_bmode(self):
-        bmode = self._bmode_queue.get()
-        dr_min = self._dr_min
-        dr_max = self._dr_max
-        bmode = np.clip(bmode, dr_min, dr_max)
-        return bmode, dr_min, dr_max
+    def get_rf_sum(self):
+        return self._rf_sum_queue.get()
+
+    def get_defect_mask(self):
+        return self._compute_defect_mask_op.output_data_queue.get()
 
     def get_rf(self):
         return self._rf_queue.get()
 
-    def set_tgc_curve(self, tgc_curve: np.ndarray):
+    def set_gain_value(self, gain_value):
+        oz_min, oz_max = self._settings["image_extent_oz"]
+        tgc_samples, tgc_curve = compute_tgc_curve_linear(
+            oz_min, oz_max,
+            gain_value, 0, _TGC_SAMPLING_STEP)
         actual_tgc_curve = interpolate_to_device_tgc(
             self._tgc_sampling_depths, tgc_curve, self._rx_sample_range[1],
             self._downsampling_factor,
             self._sampling_frequency/self._downsampling_factor,
             self._speed_of_sound)
         self._us4r.set_tgc(actual_tgc_curve)
-
-    def set_dr_min(self, dr_min: float):
-        self._dr_min = dr_min
-
-    def set_dr_max(self, dr_max: float):
-        self._dr_max = dr_max
 
     def set_tx_voltage(self, voltage: float):
         self._us4r.set_hv_voltage(voltage)
@@ -288,76 +282,13 @@ class ArrusModel(Model):
         c = self._speed_of_sound
         fs = _SAMPLING_FREQUENCY/self._downsampling_factor
         max_depth = (c/fs)*self._rx_sample_range[1]/2
-        z_grid = np.arange(self._img_start_depth, max_depth,
-                           step=_IMG_PIXEL_STEP)
+        start_sample, end_sample = self._rx_sample_range
+        z_grid = np.linspace(self._img_start_depth, max_depth, end_sample-start_sample)
         # OX
-        n_elements = self._probe_model.n_elements
+        n_elements = 32
         pitch = self._probe_model.pitch
         ox_l = -(n_elements-1)/2*pitch
         ox_r = (n_elements-1)/2*pitch
-        x_grid = np.arange(ox_l, ox_r, step=_IMG_PIXEL_STEP)
+        x_grid = np.linspace(ox_l, ox_r, n_elements)
         return x_grid, z_grid
 
-
-class MockedModel(Model):
-
-    def __init__(self, lri_data, settings: dict):
-        super().__init__(settings)
-        self._rf_data = lri_data
-        _, _, n_pix_ox, n_pix_oz = lri_data.shape
-        self._rf_data_source = CineloopDataSource(self._rf_data)
-        self._bmode_data = np.sum(self._rf_data, axis=1)
-        self._bmode_data = 20 * np.log10(np.abs(self._bmode_data))
-        self._bmode_data = np.transpose(self._bmode_data, (0, 2, 1))
-        self._bmode_data_source = CineloopDataSource(self._bmode_data)
-
-        self._settings = {**self._settings, **{
-            "image_extent_ox": [-19e-3, 19e-3],
-            "image_extent_oz": [10e-3, 45e-3],
-            "n_pix_ox": n_pix_ox,
-            "n_pix_oz": n_pix_oz
-        }}
-        # Compute TGC samples, for a given TGC step.
-        tgc_sampling_depths, tgc_curve = compute_tgc_curve_linear(
-            oz_min=self._settings["image_extent_oz"][0],
-            oz_max=self._settings["image_extent_oz"][1],
-            tgc_start=self._settings["tgc_start"],
-            tgc_slope=self._settings["tgc_slope"],
-            tgc_sampling_step=self._settings["tgc_step"]
-        )
-        self._settings["tgc_sampling_depths"] = tgc_sampling_depths
-        self._settings["tgc_curve"] = tgc_curve
-        self._dr_min = self._settings["dynamic_range_min"]
-        self._dr_max = self._settings["dynamic_range_max"]
-
-    def start(self):
-        print("Starting")
-
-    @property
-    def settings(self):
-        return self._settings
-
-    def get_bmode(self):
-        bmode = self._bmode_data_source.get()
-        dr_min = self._dr_min
-        dr_max = self._dr_max
-        bmode = np.clip(bmode, dr_min, dr_max)
-        return (bmode, dr_min, dr_max)
-
-    def get_rf(self):
-        return self._rf_data_source.get()
-
-    def set_tgc_curve(self, tgc_curve: np.ndarray):
-        print(f"Setting TGC: {tgc_curve}")
-
-    def set_dr_min(self, dr_min: float):
-        self._dr_min = dr_min
-
-    def set_dr_max(self, dr_max: float):
-        self._dr_max = dr_max
-
-    def set_tx_voltage(self, voltage: float):
-        print(f"Setting TX voltage: {voltage}")
-
-    def close(self):
-        print("Closing model")

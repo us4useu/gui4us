@@ -15,4 +15,4 @@ sequence:
   # Assumed speed of sound [m/s]
   speed_of_sound: 1450
   # Transmit voltage [Hz]
-  tx_frequency: 6000000
+  tx_frequency: 5000000

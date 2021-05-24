@@ -1,7 +1,7 @@
 """gui4us main script"""
 
 __version__ = "0.0.1"
-NAME = "GUI4us"
+NAME = "GUI4us-FMC"
 
 import sys
 import time
@@ -30,17 +30,14 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-from gui4us.model import MockedModel, ArrusModel
+from gui4us.model import ArrusModel
 from gui4us.controller import (
     Controller,
     Event,
     SetVoltageEvent,
-    SetTgcCurveEvent,
-    SetDrMaxEvent,
-    SetDrMinEvent
+    SetGainEvent
 )
 import logging
-import os
 import scipy.io
 
 logging_file_handler = logging.FileHandler(filename="gui4us.log")
@@ -197,65 +194,36 @@ class MainWindow(QtWidgets.QMainWindow):
             line_edit_read_only=True
         )
 
-        init_dr_min = self._controller.settings["dynamic_range_min"]
-        init_dr_max = self._controller.settings["dynamic_range_max"]
-
-        self._dr_min_spin_box = self._create_spin_box(
-            range=(_DYNAMIC_RANGE[0], init_dr_max - _DYNAMIC_RANGE_MIN_DIFF),
-            value=init_dr_min, step=_VOLTAGE_STEP,
-            on_change=self._on_dr_min_change,
-            line_edit_read_only=True
-        )
-        self._dr_max_spin_box = self._create_spin_box(
-            range=(init_dr_min + _DYNAMIC_RANGE_MIN_DIFF, _DYNAMIC_RANGE[1]),
-            value=init_dr_max, step=_DYNAMIC_RANGE_STEP,
-            on_change=self._on_dr_max_change,
-            line_edit_read_only=True
-        )
+        defect_threshold = 80
 
         self._add_setting_form_field(
             layout=settings_form_layout,
             name="Transmit voltage", unit="V",
             widget=self._voltage_spin_box)
-        self._add_setting_form_field(
-            layout=settings_form_layout,
-            name="Dynamic Range min", unit="dB",
-            widget=self._dr_min_spin_box
-        )
-        self._add_setting_form_field(
-            layout=settings_form_layout,
-            name="Dynamic Range max", unit="dB",
-            widget=self._dr_max_spin_box
-        )
 
         # TGC editor
         control_panel_tgc_layout = QFormLayout()
         settings_layout.addLayout(control_panel_tgc_layout)
-        control_panel_tgc_layout.addRow("TGC:", None)
+        control_panel_tgc_layout.addRow("", None)
 
-        tgc_sampling_depths = self._controller.settings["tgc_sampling_depths"]
-        tgc_curve = self._controller.settings["tgc_curve"]
-
-        self._tgc_sliders = []
         tgc_value_range = (
             self._controller.settings["min_tgc"],
             self._controller.settings["max_tgc"]
         )
-        for sample, value in zip(tgc_sampling_depths, tgc_curve):
-            slider = self._create_tgc_slider(tgc_value_range, value,
-                                             self._on_tgc_slider_change)
-            self._tgc_sliders.append(slider)
-            control_panel_tgc_layout.addRow(
-                f"{int(round((sample * 1e3)))} [mm]", slider)
+        self._slider = self._create_tgc_slider(
+            tgc_value_range,
+            self._controller.settings["tgc_start"],
+            self._on_tgc_slider_change)
+        control_panel_tgc_layout.addRow("Gain: ", self._slider)
         settings_layout.addStretch()
         return control_panel
 
     def _create_display_panel(self):
         settings = self._controller.settings
-        display_panel_widget = QGroupBox("B-mode display")
+        display_panel_widget = QGroupBox("RF data")
         display_panel_layout = QHBoxLayout()
         display_panel_widget.setLayout(display_panel_layout)
-        img_canvas = FigureCanvas(Figure(figsize=(6, 6)))
+        img_canvas = FigureCanvas(Figure(figsize=(4.5, 9)))
 
         display_panel_layout.addWidget(img_canvas)
         ax = img_canvas.figure.subplots()
@@ -263,19 +231,19 @@ class MainWindow(QtWidgets.QMainWindow):
         ax.set_ylabel("Depth [mm]")
         extent_ox = np.array(settings["image_extent_ox"]) * 1e3
         extent_oz = np.array(settings["image_extent_oz"]) * 1e3
-        init_dr_min = settings["dynamic_range_min"]
-        init_dr_max = settings["dynamic_range_max"]
-        self._current_dr_min = init_dr_min
-        self._current_dr_max = init_dr_max
 
-        # TODO use const_metadata
-        empty_bmode = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]),
-                               dtype=np.float32)
-        self.img_canvas = ax.imshow(empty_bmode, cmap="gray", vmin=init_dr_min,
-                                    vmax=init_dr_max,
+        empty_input = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
+        print(empty_input.shape)
+        self.img_canvas = ax.imshow(empty_input, cmap="gray",
+                                    vmin=-16000, vmax=16000,
                                     extent=[extent_ox[0], extent_ox[1],
                                             extent_oz[1], extent_oz[0]])
-        self.img_canvas.figure.colorbar(self.img_canvas)
+        empty_input[1024:2048, 8:16] = 16000
+        alphas = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
+        alphas[1024:2048, 8:16] = 1
+        self.img_canvas2 = ax.imshow(empty_input, cmap="viridis", vmin=-16000, vmax=16000, extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]],
+                                     alpha=alphas)
+        # self.img_canvas.figure.colorbar(self.img_canvas)
         self.timer = img_canvas.new_timer(_INTERVAL)
         self.timer.add_callback(self._update_canvas)
         self.img_canvas.figure.tight_layout()
@@ -291,7 +259,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return button
 
     def _add_setting_form_field(self, layout, widget, name: str,
-                                unit: str = ""):
+                                unit: str=""):
         label = name
         if unit:
             label = f"{name} [{unit}]:"
@@ -334,18 +302,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # Shift the sinusoid as a function of time.
         if self._current_state == _STARTED:
             # RF buffer update, if necessary
-            data, dr_min, dr_max = self._controller.get_bmode()
-            # TODO use deque in model for RF data instead
+            rf_sum = self._controller.get_rf_sum().T
+            data_mask = self._controller.get_defect_mask().T
+            data = rf_sum # + data_mask
+            # TODO blend with alpha color
             rf = self._controller.get_rf()
             if self._rf_buffer_state == _CAPTURING:
                 self._rf_buffer.append((data, rf))
                 if self._rf_buffer.is_ready():
                     self._update_buffer_state_graph(_CAPTURE_DONE)
-            self.img_canvas.set_data(data)
-            if self._current_dr_min == dr_min or self._current_dr_max == dr_max:
-                self.img_canvas.set_clim(vmin=dr_min, vmax=dr_max)
-                self._current_dr_min = dr_min
-                self._current_dr_max = dr_max
+            self.img_canvas.set_data(data_mask)
             self.img_canvas.figure.canvas.draw()
 
     # Application state.
@@ -466,10 +432,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if extension == "":
             return False
         filename = filename.strip()
-        bmodes, rfs = zip(*self._rf_buffer.data)
+        datas, rfs = zip(*self._rf_buffer.data)
         rfs = np.stack(rfs)
-        bmodes = np.stack(bmodes)
-        data = {"rf": rfs, "bmode": bmodes}
+        datas = np.stack(datas)
+        data = {"rf": rfs, "displayed_data": datas}
 
         if extension == _NUMPY_FILE_EXTENSION:
             if not filename.endswith(".npz"):
@@ -498,14 +464,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self._rf_buffer_state_transitions, self._rf_buffer_state, action)
 
     def _update_state(self, graph, state_from, action):
-        # TODO lock
         transition = None
         try:
             transition = graph[state_from][action]
         except KeyError:
             raise ValueError(
-                f"There is no transition from {state_from} "
-                f"using {action}.")
+                f"There is no transition from {state_from} using {action}.")
         should_change_state = transition["callback"]()
         if not should_change_state:
             return state_from
@@ -518,20 +482,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._voltage_spin_box.setDisabled(False)
         self._voltage_spin_box.setFocus()
 
-    def _on_dr_min_change(self, value):
-        self._dr_max_spin_box.setRange(
-            value + _DYNAMIC_RANGE_MIN_DIFF, _DYNAMIC_RANGE[1])
-        controller.send(SetDrMinEvent(value))
-
-    def _on_dr_max_change(self, value):
-        self._dr_min_spin_box.setRange(
-            _DYNAMIC_RANGE[0], value - _DYNAMIC_RANGE_MIN_DIFF)
-        controller.send(SetDrMaxEvent(value))
-
     def _on_tgc_slider_change(self):
-        tgc_curve = [slider.value() / (10 ** _TGC_SLIDER_PRECISION)
-                     for slider in self._tgc_sliders]
-        controller.send(SetTgcCurveEvent(np.array(tgc_curve)))
+        gain_value = self._slider.value() / 10 ** _TGC_SLIDER_PRECISION
+        print("Slider moved")
+        controller.send(SetGainEvent(gain_value))
 
     def _show_error(self, msg):
         box = QMessageBox()
@@ -550,7 +504,6 @@ if __name__ == "__main__":
     with open("settings.yml", "r") as f:
         settings = yaml.safe_load(f)
     try:
-        # model = MockedModel(np.load("pwi_64_lri.npy"), settings)
         model = ArrusModel(settings)
         controller = Controller(model)
         window = MainWindow(f"{NAME} {__version__}", controller=controller)
