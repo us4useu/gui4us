@@ -1,7 +1,9 @@
+dictionary_file: "C:/Users/pjarosik/src/arius-sdk/arrus/cfg/default.dict"
+
 us4r: {
     probe_id: {
-        manufacturer: "esaote"
-        name: "sl1543"
+        manufacturer: "olympus"
+        name: "10l32"
     }
 
     adapter_id: {

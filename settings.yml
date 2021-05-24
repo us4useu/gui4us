@@ -13,6 +13,6 @@ capture_buffer_size: 10
 
 sequence:
   # Assumed speed of sound [m/s]
-  speed_of_sound: 1450
+  speed_of_sound: 5900
   # Transmit voltage [Hz]
   tx_frequency: 5000000
