@@ -41,6 +41,7 @@ from gui4us.controller import (
 )
 import logging
 import scipy.io
+import traceback
 
 logging_file_handler = logging.FileHandler(filename="gui4us.log")
 # logging_stderr_handler = logging.StreamHandler(sys.stderr)
@@ -225,19 +226,20 @@ class MainWindow(QtWidgets.QMainWindow):
         display_panel_widget = QGroupBox("RF data")
         display_panel_layout = QHBoxLayout()
         display_panel_widget.setLayout(display_panel_layout)
-        img_canvas = FigureCanvas(Figure(figsize=(4.5, 9)))
+        img_canvas = FigureCanvas(Figure(figsize=(6, 6)))
         self.addToolBar(QtCore.Qt.BottomToolBarArea,
                         NavigationToolbar(img_canvas, self))
 
         display_panel_layout.addWidget(img_canvas)
         ax = img_canvas.figure.subplots()
         ax.set_xlabel("Azimuth [mm]")
-        ax.set_ylabel("Depth [mm]")
+        ax.set_ylabel("Acquisition time [us]")
+        ax.set_title("Press start button...")
         extent_ox = np.array(settings["image_extent_ox"]) * 1e3
-        extent_oz = np.array(settings["image_extent_oz"]) * 1e3
+        extent_oz = np.array(settings["image_extent_oz"])
+        self._current_gain_value = settings["tgc_start"]
 
         empty_input = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
-        print(empty_input.shape)
         self.img_canvas = ax.imshow(empty_input, cmap="gray",
                                     vmin=-16000, vmax=16000,
                                     extent=[extent_ox[0], extent_ox[1],
@@ -285,10 +287,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _create_tgc_slider(self, range, value, on_change=None):
         slider = QSlider(Qt.Horizontal)
-
         def rescale(value):
             return int(round(value * 10 ** _TGC_SLIDER_PRECISION))
-
         # range
         slider.setMinimum(rescale(range[0]))
         slider.setMaximum(rescale(range[1]))
@@ -309,6 +309,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._rf_buffer.append((rf_sum, data_mask, rf))
                 if self._rf_buffer.is_ready():
                     self._update_buffer_state_graph(_CAPTURE_DONE)
+            self.img_canvas.axes.set_title(f"FMC, gain: {self._current_gain_value} [dB]")
             self.img_canvas.set_data(rf_sum)
             self.img_canvas2.set_data(data_mask)
             alpha = (data_mask != 0.0).astype(np.float32)
@@ -484,8 +485,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._voltage_spin_box.setFocus()
 
     def _on_tgc_slider_change(self):
-        gain_value = self._slider.value() / 10 ** _TGC_SLIDER_PRECISION
-        controller.send(SetGainEvent(gain_value))
+        self._current_gain_value = self._slider.value() / 10 ** _TGC_SLIDER_PRECISION
+        controller.send(SetGainEvent(self._current_gain_value))
 
     def _show_error(self, msg):
         box = QMessageBox()
@@ -509,6 +510,11 @@ if __name__ == "__main__":
         window = MainWindow(f"{NAME} {__version__}", controller=controller)
         window.show()
         sys.exit(app.exec_())
+    except BaseException as e:
+        if not (isinstance(e, SystemExit) and e.code == 0):
+            print(f"Exception occurred: {e}")
+            traceback.print_exception(*sys.exc_info())
+            input("Press enter to exit...")
     finally:
         close_model_and_controller(model, controller)
 

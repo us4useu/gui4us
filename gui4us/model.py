@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import arrus
 import queue
@@ -34,7 +36,7 @@ _TX_INVERSE = False
 _PRI = 300e-6
 _SRI = 50e-3
 _RX_SAMPLE_START = 0
-_RX_SAMPLE_END = 1024
+_RX_SAMPLE_END = 1024/65 # [us]
 _DOWNSAMPLING_FACTOR = 1
 _IMG_START_DEPTH = 0e-3  # [m]
 _IMG_PIXEL_STEP = 0.1e-3  # [m]
@@ -77,7 +79,6 @@ class Model:
             "min_tgc": _MIN_TGC,  # [dB]
             "max_tgc": _MAX_TGC,  # [dB]
         }}
-
         # General settings
         self._sampling_frequency = _SAMPLING_FREQUENCY
         self._initial_voltage = self._settings["tx_voltage"]
@@ -89,9 +90,13 @@ class Model:
         # Required
         self._speed_of_sound = self._sequence_settings["speed_of_sound"]
         # Optional:
+        self._rx_sample_range_us = (
+            self._sequence_settings.get("rx_sample_range_start_us", _RX_SAMPLE_START),
+            self._sequence_settings.get("rx_sample_range_end_us", _RX_SAMPLE_END),
+        )
         self._rx_sample_range = (
-            self._sequence_settings.get("rx_sample_range_start",_RX_SAMPLE_START),
-            self._sequence_settings.get("rx_sample_range_end", _RX_SAMPLE_END),
+            int((self._rx_sample_range_us[0]*65+64-1)//64*64), # convert to number of samples, make it divisible by 64
+            int((self._rx_sample_range_us[1]*65+64-1)//64*64)
         )
         self._tx_frequency = self._sequence_settings.get(
             "tx_frequency", _TX_FREQUENCY)
@@ -188,6 +193,7 @@ class ArrusModel(Model):
             tgc_start=self._settings["tgc_start"],
             tgc_slope=0)
 
+        self.set_gain_value(self._settings["tgc_start"])
         self._rf_sum_queue = queue.Queue(1)
         self._rf_queue = queue.Queue(1)
 
@@ -195,21 +201,21 @@ class ArrusModel(Model):
 
         class ComputeDefectMask(Operation):
 
-            def __init__(self, threshold1=0.50, threshold2=0.65):
+            def __init__(self, threshold1=0.75, threshold2=0.85):
                 self.threshold1 = threshold1
                 self.threshold2 = threshold2
                 self.output_data_queue = deque()
-                self._max_amplitude1 = (2**14-1)*self.threshold1
-                self._max_amplitude2 = (2**14-1)*self.threshold2
+                self._max_amplitude1 = (2**15-1)*self.threshold1
+                self._max_amplitude2 = (2**15-1)*self.threshold2
                 self._output_mask = None
 
             def _prepare(self, const_metadata):
-                print(const_metadata.input_shape)
                 self._output_mask = cp.zeros(const_metadata.input_shape, dtype=const_metadata.dtype)
                 return const_metadata
 
             def _process(self, data):
-                self._output_mask = data.copy()
+                abs_data = cp.abs(data)
+                self._output_mask = abs_data.copy()
                 level0 = self._output_mask <= self._max_amplitude1
                 level1 = cp.logical_and(self._output_mask > self._max_amplitude1, self._output_mask <= self._max_amplitude2)
                 level2 = self._output_mask > self._max_amplitude2
@@ -236,10 +242,10 @@ class ArrusModel(Model):
                     RemapToLogicalOrder(),
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
                     Transpose(axes=(0, 2, 1)),
-                    FirFilter(self._fir_filter_taps),
                     self._compute_defect_mask_op,
-                    Sum(axis=0),
-                    # SelectFrames([31]),
+                    FirFilter(self._fir_filter_taps),
+                    # Sum(axis=0),
+                    SelectFrames([16]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue, block=False, ignore_full=True)),
                 placement="/GPU:0"))
@@ -250,6 +256,8 @@ class ArrusModel(Model):
         # Upload sequence on the us4r-lite device.
         self._buffer, self._const_metadata = self._session.upload(self._scheme)
         self._session.start_scheme()
+        time.sleep(1)
+        self.set_gain_value(self._settings["tgc_start"])
 
     def get_rf_sum(self):
         return self._rf_sum_queue.get()
@@ -270,6 +278,7 @@ class ArrusModel(Model):
             self._downsampling_factor,
             self._sampling_frequency/self._downsampling_factor,
             self._speed_of_sound)
+        print(f"Setting TGC curve with length: {len(actual_tgc_curve)}")
         self._us4r.set_tgc(actual_tgc_curve)
 
     def set_tx_voltage(self, voltage: float):
@@ -282,9 +291,10 @@ class ArrusModel(Model):
         # OZ
         c = self._speed_of_sound
         fs = _SAMPLING_FREQUENCY/self._downsampling_factor
-        max_depth = (c/fs)*self._rx_sample_range[1]/2
+        max_depth_us = self._rx_sample_range[1]/_SAMPLING_FREQUENCY*1e6  # [us]
+        start_depth_us = self._rx_sample_range[0]/_SAMPLING_FREQUENCY*1e6
         start_sample, end_sample = self._rx_sample_range
-        z_grid = np.linspace(self._img_start_depth, max_depth, end_sample-start_sample)
+        z_grid = np.linspace(start_depth_us, max_depth_us, end_sample-start_sample)
         # OX
         n_elements = 32
         pitch = self._probe_model.pitch
