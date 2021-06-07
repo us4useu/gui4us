@@ -434,10 +434,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if extension == "":
             return False
         filename = filename.strip()
-        datas, rfs = zip(*self._rf_buffer.data)
+        datas, mask, rfs = zip(*self._rf_buffer.data)
         rfs = np.stack(rfs)
         datas = np.stack(datas)
-        data = {"rf": rfs, "displayed_data": datas}
+        mask = np.stack(mask)
+        data = {"rf": rfs, "bmode": datas, "mask" : mask}
 
         if extension == _NUMPY_FILE_EXTENSION:
             if not filename.endswith(".npz"):

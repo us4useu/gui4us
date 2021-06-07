@@ -23,7 +23,8 @@ from arrus.utils.imaging import (
     Sum,
     Squeeze,
     Lambda,
-    SelectFrames
+    SelectFrames,
+    Mean
 )
 from arrus.utils.us4r import (
     RemapToLogicalOrder
@@ -180,7 +181,7 @@ class ArrusModel(Model):
         # Determine sequence
         self._sequence = StaSequence(
             tx_aperture_center_element=np.arange(0, 32),
-            rx_aperture_center_element=16,
+            rx_aperture_center_element=14,
             rx_aperture_size=32,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
@@ -244,8 +245,8 @@ class ArrusModel(Model):
                     Transpose(axes=(0, 2, 1)),
                     self._compute_defect_mask_op,
                     FirFilter(self._fir_filter_taps),
-                    # Sum(axis=0),
-                    SelectFrames([16]),
+                    Sum(axis=0),
+                    # SelectFrames([16]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue, block=False, ignore_full=True)),
                 placement="/GPU:0"))
@@ -256,7 +257,7 @@ class ArrusModel(Model):
         # Upload sequence on the us4r-lite device.
         self._buffer, self._const_metadata = self._session.upload(self._scheme)
         self._session.start_scheme()
-        time.sleep(1)
+        # time.sleep(1)
         self.set_gain_value(self._settings["tgc_start"])
 
     def get_rf_sum(self):
@@ -285,6 +286,7 @@ class ArrusModel(Model):
         self._us4r.set_hv_voltage(voltage)
 
     def close(self):
+        print("Stopping the system, please wait...")
         self._session.stop_scheme()
 
     def _compute_image_grid(self):
