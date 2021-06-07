@@ -180,7 +180,7 @@ class ArrusModel(Model):
         # Determine sequence
         self._sequence = StaSequence(
             tx_aperture_center_element=np.arange(0, 32),
-            rx_aperture_center_element=16,
+            rx_aperture_center_element=15,
             rx_aperture_size=32,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
@@ -244,8 +244,8 @@ class ArrusModel(Model):
                     Transpose(axes=(0, 2, 1)),
                     self._compute_defect_mask_op,
                     FirFilter(self._fir_filter_taps),
-                    # Sum(axis=0),
-                    SelectFrames([16]),
+                    Sum(axis=0),
+                    # SelectFrames([16]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue, block=False, ignore_full=True)),
                 placement="/GPU:0"))
