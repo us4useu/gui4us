@@ -84,6 +84,21 @@ _FILE_EXTENSION_STR = ";;".join([_NUMPY_FILE_EXTENSION, _MAT_FILE_EXTENSION])
 _INTERVAL = 50  # [ms]
 
 
+class ViewWorker(QObject):
+
+    def __init__(self, func):
+        super().__init__()
+        self.func = func
+        self.is_working = False
+
+    @pyqtSlot()
+    def run(self):
+        # TODO sync point
+        self.is_working = True
+        while self.is_working:
+            self.func()
+
+
 class CaptureBuffer:
 
     def __init__(self, size):
@@ -151,7 +166,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.adjustSize()
             self.setFixedSize(self.size())
 
+            # Create worker thread
+            self.thread = QThread()
+            self.worker = ViewWorker(self._update_canvas)
+            self.worker.moveToThread(self.thread)
+            self.thread.started.connect(self.worker.run)
             self._last_rf_trigger = None
+
         except Exception as e:
             logging.exception(e)
             self._controller.close()
@@ -198,8 +219,6 @@ class MainWindow(QtWidgets.QMainWindow):
             on_change=self._on_voltage_change,
             line_edit_read_only=True
         )
-
-        defect_threshold = 80
 
         self._add_setting_form_field(
             layout=settings_form_layout,
@@ -250,10 +269,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.img_canvas2 = ax.imshow(empty_input, cmap="YlOrRd", vmin=0, vmax=2,
                                      extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]])
         # self.img_canvas.figure.colorbar(self.img_canvas)
-        self.timer = img_canvas.new_timer(_INTERVAL)
-        self.timer.add_callback(self._update_canvas)
         self.img_canvas.figure.tight_layout()
-        self.timer.start()
         return display_panel_widget
 
     def _create_push_button(self, label, onpressed=None, layout=None):
@@ -305,23 +321,27 @@ class MainWindow(QtWidgets.QMainWindow):
     def _update_canvas(self):
         try:
             if self._current_state == _STARTED:
-                time.sleep(1)
                 data_mask = self._controller.get_defect_mask().T
                 rf_sum = self._controller.get_rf_sum().T
                 rf = self._controller.get_rf()
 
+                if self._current_state == _STOPPED or rf is None or rf_sum is None:
+                    # Just discard results if the current device now is stopped
+                    # (e.g. when the save button was pressed).
+                    return
+
                 if self._rf_buffer_state == _CAPTURING:
-                    current_trigger = rf[0, 0, 0]
+                    current_trigger = rf[0, 0]
 
                     data_correctness_msg = "correct"
                     if self._last_rf_trigger is not None:
                         trigger_diff = current_trigger - self._last_rf_trigger
                         if trigger_diff != 32:
                             data_correctness_msg = f"INCORRECT (trigger difference: {trigger_diff})"
-                    else:
-                        self._last_rf_trigger = current_trigger
 
-                    self.statusBar().showMessage(f"Captured {len(self._rf_buffer.data)} frames..., "
+                    self._last_rf_trigger = current_trigger
+
+                    self.statusBar().showMessage(f"Captured frame {len(self._rf_buffer.data)}, "
                                                  f"current trigger: {current_trigger}, "
                                                  f"data: {data_correctness_msg}")
 
@@ -335,7 +355,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 alpha = (data_mask != 0.0).astype(np.float32)
                 self.img_canvas2.set_alpha(alpha)
                 self.img_canvas.figure.canvas.draw()
-        except e:
+        except Exception as e:
             print(e)
 
     # Application state.
@@ -386,6 +406,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._settings_panel.setEnabled(True)
         self._buffer_panel.setEnabled(True)
         self._reset_capture_buffer()
+        self.thread.start(priority=QThread.TimeCriticalPriority)
         self._start_stop_button.setText("Freeze")
         self.statusBar().showMessage("Running.")
         return True
@@ -451,6 +472,10 @@ class MainWindow(QtWidgets.QMainWindow):
         return True
 
     def _on_save(self):
+        # Stop the processing thread, so we now the system is not running
+        # TODO sync
+        if self._current_state == _STARTED:
+            self._update_graph_state(_STOP)
         filename, extension = QFileDialog.getSaveFileName(
             self, "Save File", ".", _FILE_EXTENSION_STR)
         if extension == "":
@@ -476,6 +501,9 @@ class MainWindow(QtWidgets.QMainWindow):
             # Ends with error
         self._reset_capture_buffer()
         self.statusBar().showMessage(f"Saved file to {filename}. Ready.")
+        # Start the processing thread back
+        if self._current_state == _STOPPED:
+            self._update_graph_state(_START)
         return True
 
     def _reset_capture_buffer(self):
