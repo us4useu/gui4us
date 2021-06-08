@@ -1,4 +1,4 @@
-dictionary_file: "default.dict"
+# dictionary_file: "default.dict"
 
 us4r: {
     probe_id: {

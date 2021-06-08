@@ -232,6 +232,7 @@ class ArrusModel(Model):
             64, np.array([0.5, 1.5]) * self._tx_frequency, pass_zero=False,
             fs=self._sampling_frequency/self._downsampling_factor)
 
+        import cupy as cp
         self._scheme = Scheme(
             tx_rx_sequence=self._sequence,
             rx_buffer_size=2,
@@ -239,6 +240,7 @@ class ArrusModel(Model):
             work_mode="HOST",
             processing=Pipeline(
                 steps=(
+                    # Lambda(lambda data: (print(f"Max amplitude: {cp.max(cp.abs(data[100:5000, :]))}"), data)[1]),
                     RemapToLogicalOrder(),
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
                     Transpose(axes=(0, 2, 1)),
@@ -247,7 +249,7 @@ class ArrusModel(Model):
                     Sum(axis=0),
                     # SelectFrames([16]),
                     Squeeze(),
-                    Enqueue(self._rf_sum_queue, block=False, ignore_full=True)),
+                    Enqueue(self._rf_sum_queue)),
                 placement="/GPU:0"))
 
     def start(self):

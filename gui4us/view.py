@@ -150,6 +150,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._reset_capture_buffer()
             self.adjustSize()
             self.setFixedSize(self.size())
+
+            self._last_rf_trigger = None
         except Exception as e:
             logging.exception(e)
             self._controller.close()
@@ -301,20 +303,40 @@ class MainWindow(QtWidgets.QMainWindow):
         return slider
 
     def _update_canvas(self):
-        if self._current_state == _STARTED:
-            data_mask = self._controller.get_defect_mask().T
-            rf_sum = self._controller.get_rf_sum().T
-            rf = self._controller.get_rf()
-            if self._rf_buffer_state == _CAPTURING:
-                self._rf_buffer.append((rf_sum, data_mask, rf))
-                if self._rf_buffer.is_ready():
-                    self._update_buffer_state_graph(_CAPTURE_DONE)
-            self.img_canvas.axes.set_title(f"FMC, gain: {self._current_gain_value} [dB]")
-            self.img_canvas.set_data(rf_sum)
-            self.img_canvas2.set_data(data_mask)
-            alpha = (data_mask != 0.0).astype(np.float32)
-            self.img_canvas2.set_alpha(alpha)
-            self.img_canvas.figure.canvas.draw()
+        try:
+            if self._current_state == _STARTED:
+                time.sleep(1)
+                data_mask = self._controller.get_defect_mask().T
+                rf_sum = self._controller.get_rf_sum().T
+                rf = self._controller.get_rf()
+
+                if self._rf_buffer_state == _CAPTURING:
+                    current_trigger = rf[0, 0, 0]
+
+                    data_correctness_msg = "correct"
+                    if self._last_rf_trigger is not None:
+                        trigger_diff = current_trigger - self._last_rf_trigger
+                        if trigger_diff != 32:
+                            data_correctness_msg = f"INCORRECT (trigger difference: {trigger_diff})"
+                    else:
+                        self._last_rf_trigger = current_trigger
+
+                    self.statusBar().showMessage(f"Captured {len(self._rf_buffer.data)} frames..., "
+                                                 f"current trigger: {current_trigger}, "
+                                                 f"data: {data_correctness_msg}")
+
+                    self._rf_buffer.append((rf_sum, data_mask, rf))
+                    if self._rf_buffer.is_ready():
+                        self._last_rf_trigger = None
+                        self._update_buffer_state_graph(_CAPTURE_DONE)
+                self.img_canvas.axes.set_title(f"FMC, gain: {self._current_gain_value} [dB]")
+                self.img_canvas.set_data(rf_sum)
+                self.img_canvas2.set_data(data_mask)
+                alpha = (data_mask != 0.0).astype(np.float32)
+                self.img_canvas2.set_alpha(alpha)
+                self.img_canvas.figure.canvas.draw()
+        except e:
+            print(e)
 
     # Application state.
     def _create_state_graph(self):
