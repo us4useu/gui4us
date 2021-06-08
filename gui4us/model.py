@@ -23,7 +23,8 @@ from arrus.utils.imaging import (
     Sum,
     Squeeze,
     Lambda,
-    SelectFrames
+    SelectFrames,
+    Mean
 )
 from arrus.utils.us4r import (
     RemapToLogicalOrder
@@ -258,7 +259,7 @@ class ArrusModel(Model):
         # Upload sequence on the us4r-lite device.
         self._buffer, self._const_metadata = self._session.upload(self._scheme)
         self._session.start_scheme()
-        time.sleep(1)
+        # time.sleep(1)
         self.set_gain_value(self._settings["tgc_start"])
 
     def get_rf_sum(self):
@@ -287,6 +288,7 @@ class ArrusModel(Model):
         self._us4r.set_hv_voltage(voltage)
 
     def close(self):
+        print("Stopping the system, please wait...")
         self._session.stop_scheme()
 
     def _compute_image_grid(self):

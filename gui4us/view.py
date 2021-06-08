@@ -460,7 +460,7 @@ class MainWindow(QtWidgets.QMainWindow):
         rfs = np.stack(rfs)
         datas = np.stack(datas)
         mask = np.stack(mask)
-        data = {"rf": rfs, "bmode": datas, "mask": mask}
+        data = {"rf": rfs, "bmode": datas, "mask" : mask}
 
         if extension == _NUMPY_FILE_EXTENSION:
             if not filename.endswith(".npz"):
