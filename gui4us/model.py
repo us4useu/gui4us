@@ -154,11 +154,11 @@ def interpolate_to_device_tgc(input_sampling_depths, input_tgc_values,
 
 class ArrusModel(Model):
 
-    def __init__(self, settings: dict):
+    def __init__(self, settings: dict, us4r_settings_file: str):
         super().__init__(settings)
         arrus.logging.add_log_file("arrus.log", arrus.logging.DEBUG)
 
-        self._session = arrus.Session("us4r.prototxt")
+        self._session = arrus.Session(us4r_settings_file)
         self._us4r = self._session.get_device("/Us4R:0")
         self._probe_model = self._us4r.get_probe_model()
 
@@ -236,8 +236,8 @@ class ArrusModel(Model):
         import cupy as cp
         self._scheme = Scheme(
             tx_rx_sequence=self._sequence,
-            rx_buffer_size=2,
-            output_buffer=DataBufferSpec(type="FIFO", n_elements=4),
+            rx_buffer_size=20,
+            output_buffer=DataBufferSpec(type="FIFO", n_elements=40),
             work_mode="HOST",
             processing=Pipeline(
                 steps=(

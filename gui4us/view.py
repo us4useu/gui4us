@@ -256,18 +256,19 @@ class MainWindow(QtWidgets.QMainWindow):
         ax.set_xlabel("Azimuth [mm]")
         ax.set_ylabel("Acquisition time [us]")
         ax.set_title("Press start button...")
-        extent_ox = np.array(settings["image_extent_ox"]) * 1e3
-        extent_oz = np.array(settings["image_extent_oz"])
+        self.extent_ox = np.array(settings["image_extent_ox"]) * 1e3
+        self.extent_oz = np.array(settings["image_extent_oz"])
         self._current_gain_value = settings["tgc_start"]
 
         empty_input = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
         self.img_canvas = ax.imshow(empty_input, cmap="gray",
                                     vmin=-16000, vmax=16000,
-                                    extent=[extent_ox[0], extent_ox[1],
-                                            extent_oz[1], extent_oz[0]])
+                                    extent=[self.extent_ox[0], self.extent_ox[1],
+                                            self.extent_oz[1], self.extent_oz[0]])
         alphas = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
         self.img_canvas2 = ax.imshow(empty_input, cmap="YlOrRd", vmin=0, vmax=2,
-                                     extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]])
+                                     extent=[self.extent_ox[0], self.extent_ox[1],
+                                             self.extent_oz[1], self.extent_oz[0]])
         # self.img_canvas.figure.colorbar(self.img_canvas)
         self.img_canvas.figure.tight_layout()
         return display_panel_widget
@@ -331,7 +332,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
 
                 if self._rf_buffer_state == _CAPTURING:
-                    current_trigger = rf[0, 0]
+                    current_trigger = rf[0, 0, 0]
 
                     data_correctness_msg = "correct"
                     if self._last_rf_trigger is not None:
@@ -345,7 +346,9 @@ class MainWindow(QtWidgets.QMainWindow):
                                                  f"current trigger: {current_trigger}, "
                                                  f"data: {data_correctness_msg}")
 
-                    self._rf_buffer.append((rf_sum, data_mask, rf))
+                    # bmode, mask, RF, gain, voltage
+                    self._rf_buffer.append((rf_sum, data_mask, rf, self._current_gain_value,
+                                            self._voltage_spin_box.value()))
                     if self._rf_buffer.is_ready():
                         self._last_rf_trigger = None
                         self._update_buffer_state_graph(_CAPTURE_DONE)
@@ -481,11 +484,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if extension == "":
             return False
         filename = filename.strip()
-        datas, mask, rfs = zip(*self._rf_buffer.data)
+        datas, mask, rfs, gain, voltage = zip(*self._rf_buffer.data)
         rfs = np.stack(rfs)
         datas = np.stack(datas)
         mask = np.stack(mask)
-        data = {"rf": rfs, "bmode": datas, "mask" : mask}
+        gain = np.stack(gain)
+        voltage = np.stack(voltage)
+        data = {"rf": rfs, "bmode": datas, "mask": mask,
+                "gain": gain, "voltage": voltage,
+                "extent_ox": self.extent_ox, "extent_oz": self.extent_oz,
+                "tx_frequency": self._controller.settings["sequence"]["tx_frequency"]}
 
         if extension == _NUMPY_FILE_EXTENSION:
             if not filename.endswith(".npz"):
@@ -549,6 +557,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == "__main__":
+    us4r_settings_file = sys.argv[1]
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     model = None
@@ -556,7 +565,7 @@ if __name__ == "__main__":
     with open("settings.yml", "r") as f:
         settings = yaml.safe_load(f)
     try:
-        model = ArrusModel(settings)
+        model = ArrusModel(settings, us4r_settings_file)
         controller = Controller(model)
         window = MainWindow(f"{NAME} {__version__}", controller=controller)
         window.show()
