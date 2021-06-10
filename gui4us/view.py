@@ -5,8 +5,10 @@ NAME = "GUI4us-FMC"
 
 import sys
 import time
+import datetime
 import numpy as np
 import yaml
+import glob, os
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -79,7 +81,7 @@ _TGC_SLIDER_PRECISION = 2
 _NUMPY_FILE_EXTENSION = "Numpy file (*.npz)"
 _MAT_FILE_EXTENSION = "MATLAB file (*.mat)"
 
-_FILE_EXTENSION_STR = ";;".join([_NUMPY_FILE_EXTENSION, _MAT_FILE_EXTENSION])
+_FILE_EXTENSION_STR = ";;".join([_NUMPY_FILE_EXTENSION])
 
 _INTERVAL = 50  # [ms]
 
@@ -332,7 +334,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
 
                 if self._rf_buffer_state == _CAPTURING:
-                    current_trigger = rf[0, 0, 0]
+                    current_trigger = rf[0, 0]
 
                     data_correctness_msg = "correct"
                     if self._last_rf_trigger is not None:
@@ -435,9 +437,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 }
             },
             _CAPTURING: {
+                # Reset the capture buffer
+                _CAPTURE: {
+                    "callback": self._on_capture_start,
+                    "dst_state": _CAPTURING
+                },
                 _CAPTURE_DONE: {
                     "callback": self._on_capture_end,
                     "dst_state": _CAPTURED
+                },
+                _SAVE: {
+                    "callback": self._on_save,
+                    "dst_state": _EMPTY
                 }
             },
             _CAPTURED: {
@@ -461,8 +472,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self._rf_buffer_state_transitions, self._rf_buffer_state, _SAVE)
 
     def _on_capture_start(self):
-        self._capture_button.setEnabled(False)
-        self._save_data_button.setEnabled(False)
+        self._capture_button.setEnabled(True)
+        self._save_data_button.setEnabled(True)
+        # Discard the previous buffer
+        self._rf_buffer = None
+        # Create new buffer
         self._rf_buffer = CaptureBuffer(self.rf_buffer_size)
         self.statusBar().showMessage("Capturing RF frames...")
         return True
@@ -483,6 +497,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self, "Save File", ".", _FILE_EXTENSION_STR)
         if extension == "":
             return False
+        date_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         filename = filename.strip()
         datas, mask, rfs, gain, voltage = zip(*self._rf_buffer.data)
         rfs = np.stack(rfs)
@@ -490,25 +505,17 @@ class MainWindow(QtWidgets.QMainWindow):
         mask = np.stack(mask)
         gain = np.stack(gain)
         voltage = np.stack(voltage)
-        data = {"rf": rfs, "bmode": datas, "mask": mask,
+        data = {"time": date_time, "rf": rfs, "bmode": datas, "mask": mask,
                 "gain": gain, "voltage": voltage,
                 "extent_ox": self.extent_ox, "extent_oz": self.extent_oz,
                 "tx_frequency": self._controller.settings["sequence"]["tx_frequency"]}
 
-        if extension == _NUMPY_FILE_EXTENSION:
-            if not filename.endswith(".npz"):
-                filename = filename + ".npz"
-            np.savez(filename, **data)
-        elif extension == _MAT_FILE_EXTENSION:
-            if not filename.endswith(".mat"):
-                filename = filename + ".mat"
-            scipy.io.savemat(filename, data)
-        else:
-            self._show_error(f"Unsupported data type for file {filename}")
-            return False
-            # Ends with error
+        self.statusBar().showMessage(f"Saving file to {filename}, please wait...")
+        time.sleep(1)
+        np.savez(filename, **data)
         self._reset_capture_buffer()
         self.statusBar().showMessage(f"Saved file to {filename}. Ready.")
+        time.sleep(1)
         # Start the processing thread back
         if self._current_state == _STOPPED:
             self._update_graph_state(_START)

@@ -1,6 +1,9 @@
+import pickle
 import time
 
 import numpy as np
+import pickle
+import datetime
 import arrus
 import queue
 import scipy.signal
@@ -242,13 +245,13 @@ class ArrusModel(Model):
             processing=Pipeline(
                 steps=(
                     # Lambda(lambda data: (print(f"Max amplitude: {cp.max(cp.abs(data[100:5000, :]))}"), data)[1]),
-                    RemapToLogicalOrder(),
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
+                    RemapToLogicalOrder(),
                     Transpose(axes=(0, 2, 1)),
                     self._compute_defect_mask_op,
                     FirFilter(self._fir_filter_taps),
                     Sum(axis=0),
-                    # SelectFrames([16]),
+                    # SelectFrames([0]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue)),
                 placement="/GPU:0"))
@@ -258,8 +261,9 @@ class ArrusModel(Model):
         self.set_tx_voltage(self._initial_voltage)
         # Upload sequence on the us4r-lite device.
         self._buffer, self._const_metadata = self._session.upload(self._scheme)
+        current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        pickle.dump(self._const_metadata, open(f"gui4us_run_metadata_{current_timestamp}.pkl", "wb"))
         self._session.start_scheme()
-        # time.sleep(1)
         self.set_gain_value(self._settings["tgc_start"])
 
     def get_rf_sum(self):
