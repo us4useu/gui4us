@@ -37,11 +37,11 @@ from arrus.utils.us4r import (
 _TX_FREQUENCY = 6e6
 _TX_N_PERIODS = 2
 _TX_INVERSE = False
-_PRI = 300e-6
-_SRI = 50e-3
+_PRI = 200e-6
+_SRI = 7e-3
 _RX_SAMPLE_START = 0
 _RX_SAMPLE_END = 1024/65 # [us]
-_DOWNSAMPLING_FACTOR = 1
+_DOWNSAMPLING_FACTOR = 2
 _IMG_START_DEPTH = 0e-3  # [m]
 _IMG_PIXEL_STEP = 0.1e-3  # [m]
 
@@ -159,7 +159,7 @@ class ArrusModel(Model):
 
     def __init__(self, settings: dict, us4r_settings_file: str):
         super().__init__(settings)
-        arrus.logging.add_log_file("arrus.log", arrus.logging.DEBUG)
+        arrus.logging.add_log_file("arrus-bez-set-tgc-po.log", arrus.logging.TRACE)
 
         self._session = arrus.Session(us4r_settings_file)
         self._us4r = self._session.get_device("/Us4R:0")
@@ -239,8 +239,8 @@ class ArrusModel(Model):
         import cupy as cp
         self._scheme = Scheme(
             tx_rx_sequence=self._sequence,
-            rx_buffer_size=20,
-            output_buffer=DataBufferSpec(type="FIFO", n_elements=40),
+            rx_buffer_size=2,
+            output_buffer=DataBufferSpec(type="FIFO", n_elements=2),
             work_mode="HOST",
             processing=Pipeline(
                 steps=(
@@ -250,8 +250,8 @@ class ArrusModel(Model):
                     Transpose(axes=(0, 2, 1)),
                     self._compute_defect_mask_op,
                     FirFilter(self._fir_filter_taps),
-                    Sum(axis=0),
-                    # SelectFrames([0]),
+                    # Sum(axis=0),
+                    SelectFrames([15]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue)),
                 placement="/GPU:0"))
@@ -264,7 +264,7 @@ class ArrusModel(Model):
         current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         pickle.dump(self._const_metadata, open(f"gui4us_run_metadata_{current_timestamp}.pkl", "wb"))
         self._session.start_scheme()
-        self.set_gain_value(self._settings["tgc_start"])
+        # self.set_gain_value(self._settings["tgc_start"])
 
     def get_rf_sum(self):
         return self._rf_sum_queue.get()

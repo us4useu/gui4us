@@ -264,7 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         empty_input = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
         self.img_canvas = ax.imshow(empty_input, cmap="gray",
-                                    vmin=-16000, vmax=16000,
+                                    vmin=-100, vmax=100,
                                     extent=[self.extent_ox[0], self.extent_ox[1],
                                             self.extent_oz[1], self.extent_oz[0]])
         alphas = np.zeros((settings["n_pix_oz"], settings["n_pix_ox"]), dtype=np.float32)
@@ -511,11 +511,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 "tx_frequency": self._controller.settings["sequence"]["tx_frequency"]}
 
         self.statusBar().showMessage(f"Saving file to {filename}, please wait...")
-        time.sleep(1)
         np.savez(filename, **data)
         self._reset_capture_buffer()
         self.statusBar().showMessage(f"Saved file to {filename}. Ready.")
-        time.sleep(1)
         # Start the processing thread back
         if self._current_state == _STOPPED:
             self._update_graph_state(_START)
