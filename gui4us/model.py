@@ -27,9 +27,7 @@ from arrus.utils.imaging import (
     Squeeze,
     Lambda,
     SelectFrames,
-    Mean
-)
-from arrus.utils.us4r import (
+    Mean,
     RemapToLogicalOrder
 )
 
@@ -186,6 +184,7 @@ class ArrusModel(Model):
             tx_aperture_center_element=np.arange(0, 32),
             rx_aperture_center_element=15,
             rx_aperture_size=32,
+            tx_focus=0.0,
             pulse=Pulse(
                 center_frequency=self._tx_frequency,
                 n_periods=self._tx_n_periods,
@@ -213,11 +212,11 @@ class ArrusModel(Model):
                 self._max_amplitude2 = (2**15-1)*self.threshold2
                 self._output_mask = None
 
-            def _prepare(self, const_metadata):
+            def prepare(self, const_metadata):
                 self._output_mask = cp.zeros(const_metadata.input_shape, dtype=const_metadata.dtype)
                 return const_metadata
 
-            def _process(self, data):
+            def process(self, data):
                 abs_data = cp.abs(data)
                 self._output_mask = abs_data.copy()
                 level0 = self._output_mask <= self._max_amplitude1
