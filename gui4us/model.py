@@ -24,11 +24,10 @@ from arrus.utils.imaging import (
     ReconstructLri,
     Mean,
     Squeeze,
-    FirFilter
-)
-from arrus.utils.us4r import (
+    FirFilter,
     RemapToLogicalOrder
 )
+
 from arrus.utils.gui import (
     Display2D
 )
