@@ -14,7 +14,6 @@ sequence = PwiSequence(
     tgc_start=14,
     tgc_slope=2e2)
 
-
 # Imaging output grid.
 x_grid = np.arange(-7, 7, 0.05) * 1e-3
 z_grid = np.arange(2, 10, 0.05) * 1e-3

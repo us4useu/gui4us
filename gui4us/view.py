@@ -1,7 +1,6 @@
 """gui4us main script"""
 
-__version__ = "0.0.1"
-NAME = "GUI4us"
+
 
 import sys
 import time
@@ -30,7 +29,6 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-from gui4us.model import MockedModel, ArrusModel
 from gui4us.controller import (
     Controller,
     Event,
@@ -103,18 +101,6 @@ class CaptureBuffer:
         return self._data
 
 
-def close_model_and_controller(model, controller):
-    if model is not None:
-        try:
-            model.close()
-        except Exception as e:
-            logging.exception(e)
-        try:
-            controller.close()
-        except Exception as e:
-            logging.exception(e)
-
-
 class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, title, controller: Controller):
@@ -123,7 +109,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage('Configuring...')
         self._controller = controller
         try:
-            self.rf_buffer_size = self._controller.settings["capture_buffer_size"]
+            self.buffer_size = self._controller.settings["capture_buffer_size"]
             self._text_format = Qt.MarkdownText
             self.setWindowTitle(title)
             # Main layout
@@ -449,7 +435,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_capture_start(self):
         self._capture_button.setEnabled(False)
         self._save_data_button.setEnabled(False)
-        self._rf_buffer = CaptureBuffer(self.rf_buffer_size)
+        self._rf_buffer = CaptureBuffer(self.buffer_size)
         self.statusBar().showMessage("Capturing RF frames...")
         return True
 
@@ -490,7 +476,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _reset_capture_buffer(self):
         self._capture_button.setEnabled(True)
         self._save_data_button.setEnabled(False)
-        self._rf_buffer = CaptureBuffer(self.rf_buffer_size)
+        self._rf_buffer = CaptureBuffer(self.buffer_size)
         self._rf_buffer_state = _EMPTY
 
     def _update_buffer_state_graph(self, action):
@@ -542,18 +528,5 @@ class MainWindow(QtWidgets.QMainWindow):
         box.exec_()
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    model = None
-    controller = None
-    try:
-        # model = MockedModel(np.load("pwi_64_lri.npy"), settings)
-        model = ArrusModel(sys.argv[1])
-        controller = Controller(model)
-        window = MainWindow(f"{NAME} {__version__}", controller=controller)
-        window.show()
-        sys.exit(app.exec_())
-    finally:
-        close_model_and_controller(model, controller)
+
 
