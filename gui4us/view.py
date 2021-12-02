@@ -547,11 +547,9 @@ if __name__ == "__main__":
     app.setStyle("Fusion")
     model = None
     controller = None
-    with open("settings.yml", "r") as f:
-        settings = yaml.safe_load(f)
     try:
         # model = MockedModel(np.load("pwi_64_lri.npy"), settings)
-        model = ArrusModel(settings)
+        model = ArrusModel(sys.argv[1])
         controller = Controller(model)
         window = MainWindow(f"{NAME} {__version__}", controller=controller)
         window.show()

@@ -3,50 +3,12 @@ import arrus
 import queue
 import scipy.signal
 import time
+import importlib
+import sys
 
-from arrus.ops.us4r import (
-    Scheme,
-    Pulse,
-    DataBufferSpec
-)
-from arrus.ops.imaging import (
-    PwiSequence
-)
-from arrus.utils.imaging import (
-    Pipeline,
-    Transpose,
-    BandpassFilter,
-    Decimation,
-    QuadratureDemodulation,
-    EnvelopeDetection,
-    LogCompression,
-    Enqueue,
-    ReconstructLri,
-    Mean,
-    Squeeze,
-    FirFilter,
-    RemapToLogicalOrder
-)
-
-from arrus.utils.gui import (
-    Display2D
-)
-
-
-# DEFAULT PWI sequence parameters
-_TX_ANGLES = np.linspace(-10, 10, 11).tolist()  # [deg]
-_TX_FREQUENCY = 6e6
-_TX_N_PERIODS = 2
-_TX_INVERSE = False
-_PRI = 300e-6
-_SRI = 50e-3
-_RX_SAMPLE_START = 0
-_RX_SAMPLE_END = 4096
-_DOWNSAMPLING_FACTOR = 1
-_IMG_START_DEPTH = 5e-3  # [m]
-_IMG_PIXEL_STEP = 0.1e-3  # [m]
 
 # APEX probe + us4R-Lite specific parameters
+# TODO read the below information using ARRUS
 _PROBE_MIN_TX_VOLTAGE = 5  # [V]
 _PROBE_MAX_TX_VOLTAGE = 50  # [V]
 _MIN_TGC = 14
@@ -74,8 +36,8 @@ class CineloopDataSource(DataSource):
 
 
 class Model:
-    def __init__(self, settings: dict):
-        self._settings = settings.copy()
+    def __init__(self, cfg_path):
+        self._settings = self.load_settings_module(cfg_path)
 
         self._settings = {**self._settings, **{
             "min_voltage": _PROBE_MIN_TX_VOLTAGE,  # [V]
@@ -95,27 +57,12 @@ class Model:
         self._img_start_depth = self._settings.get(
             "img_start_depth", _IMG_START_DEPTH)
 
-        # Sequence settings
-        self._sequence_settings = self._settings["sequence"]
-        # Required
-        self._speed_of_sound = self._sequence_settings["speed_of_sound"]
-        # Optional:
-        self._tx_angles = self._sequence_settings.get("angles", _TX_ANGLES)
-        self._rx_sample_range = (
-            self._sequence_settings.get("rx_sample_range_start",
-                                        _RX_SAMPLE_START),
-            self._sequence_settings.get("rx_sample_range_end", _RX_SAMPLE_END),
-        )
-        self._tx_frequency = self._sequence_settings.get(
-            "tx_frequency", _TX_FREQUENCY)
-        self._tx_n_periods = self._sequence_settings.get(
-            "tx_n_periods", _TX_N_PERIODS)
-        self._tx_inverse = self._sequence_settings.get(
-            "tx_inverse", _TX_INVERSE)
-        self._pri = self._sequence_settings.get("pri", _PRI)
-        self._sri = self._sequence_settings.get("pri", _SRI)
-        # non-modifiable:
-        self._downsampling_factor = _DOWNSAMPLING_FACTOR
+    def load_settings_module(self, settings_path):
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
 
     def start(self):
         pass
@@ -198,50 +145,8 @@ class ArrusModel(Model):
         self._settings["tgc_sampling_depths"] = self._tgc_sampling_depths
 
         # Determine sequence
-        self._sequence = PwiSequence(
-            angles=np.asarray(self._tx_angles)*np.pi/180,
-            pulse=Pulse(
-                center_frequency=self._tx_frequency,
-                n_periods=self._tx_n_periods,
-                inverse=self._tx_inverse),
-            rx_sample_range=self._rx_sample_range,
-            downsampling_factor=self._downsampling_factor,
-            speed_of_sound=self._speed_of_sound,
-            pri=self._pri, sri=self._sri,
-            tgc_curve=actual_tgc_curve)
+        self._scheme = self._cf
 
-        # TODO use dequeue instead? is it thread safe?
-        self._bmode_queue = queue.Queue(1)
-        self._rf_queue = queue.Queue(1)
-
-        self._fir_filter_taps = scipy.signal.firwin(64, np.array(
-            [0.5, 1.5]) * self._tx_frequency, pass_zero=False,
-            fs=self._sampling_frequency/self._downsampling_factor)
-
-        self._scheme = Scheme(
-            tx_rx_sequence=self._sequence,
-            rx_buffer_size=2,
-            output_buffer=DataBufferSpec(type="FIFO", n_elements=4),
-            work_mode="HOST",
-            processing=Pipeline(
-                steps=(
-                    RemapToLogicalOrder(),
-                    Enqueue(self._rf_queue, block=False, ignore_full=True),
-                    Transpose(axes=(0, 2, 1)),
-                    FirFilter(self._fir_filter_taps),
-                    QuadratureDemodulation(),
-                    Decimation(decimation_factor=4, cic_order=2),
-                    ReconstructLri(x_grid=x_grid, z_grid=z_grid),
-                    Mean(axis=0),
-                    EnvelopeDetection(),
-                    Transpose(),
-                    LogCompression(),
-                    Enqueue(self._bmode_queue, block=False, ignore_full=True)
-                ),
-                placement="/GPU:0"
-            )
-        )
-        # initial dynamic range
         self._dr_min = self._settings["dynamic_range_min"]
         self._dr_max = self._settings["dynamic_range_max"]
 
