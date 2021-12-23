@@ -18,8 +18,10 @@ class CaptureBufferComponent(Panel):
         # Action buttons
         self.capture_button = PushButton("Capture")
         self.save_button = PushButton("Save")
+        self.state_label = Label("Press capture ...")
         self.add_component(self.capture_button)
         self.add_component(self.save_button)
+        self.add_component(self.state_label)
         self.capture_button.on_pressed(self.__on_capture_button_press)
         self.save_button.on_pressed(self.__on_save_button_press)
 
@@ -69,14 +71,16 @@ class CaptureBufferComponent(Panel):
     def update(self):
         try:
             event = self.buffer_state_output.get()
-            print(event)
             if event is None:
                 # event buffer closed
                 return
             else:
                 capture_size, is_done = event
                 if is_done:
+                    self.state_label.set_text(f"Done, captured: {capture_size}")
                     self.state.do("capture_done")
+                else:
+                    self.state_label.set_text(f"Captured frame {capture_size}")
         except Exception as e:
             print(e)
 

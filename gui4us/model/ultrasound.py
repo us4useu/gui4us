@@ -226,9 +226,9 @@ class HardwareEnv(UltrasoundEnv):
                 capture_buffer_output = self.outputs["capture_buffer_events"]
                 if self.capture_buffer.is_ready():
                     self.stop_capture()
-                # else:
-                    # for callback in capture_buffer_output.callbacks:
-                    #     callback((self.capture_buffer.get_current_size(), False))
+                else:
+                    for callback in capture_buffer_output.callbacks:
+                        callback((self.capture_buffer.get_current_size(), False))
         except Exception as e:
             print(e)
             print(traceback.format_exc())

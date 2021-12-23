@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import (
+    QLabel,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -42,6 +43,15 @@ class Form(Widget):
 
     def add_field(self, field: FormField):
         self.backend_widget.addRow(field.label, field.widget.backend_widget)
+
+
+class Label(Widget):
+
+    def __init__(self, label):
+        super().__init__(QLabel(label))
+
+    def set_text(self, text):
+        self.backend_widget.setText(text)
 
 
 class PushButton(Widget):
