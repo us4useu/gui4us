@@ -22,14 +22,14 @@ __device__ float xRefract(float const zElem, float const xElem,
     xRefractHi = xElem - zElem * (xPix - xElem) / (zPix - zElem);
     sinRatioHi = 1.f;
 
-    timeOld = ownHypotf(xRefractHi - xElem, zElem) / sosInterface
-            + ownHypotf(xPix - xRefractHi, zPix ) / sosSample;
+    timeOld = hypotf(xRefractHi - xElem, zElem) / sosInterface
+            + hypotf(xPix - xRefractHi, zPix ) / sosSample;
 
     // Iterations
     do {
         xRefractNew = xRefractLo + (xRefractHi-xRefractLo)*(cRatio-sinRatioLo)/(sinRatioHi-sinRatioLo);
-        distInterf  = ownHypotf(xRefractNew - xElem, zElem);
-        distSample  = ownHypotf(xPix - xRefractNew, zPix);
+        distInterf  = hypotf(xRefractNew - xElem, zElem);
+        distSample  = hypotf(xPix - xRefractNew, zPix);
         sinRatioNew = ((xRefractNew - xElem) / distInterf)
                 / ((xPix - xRefractNew) / distSample);
         timeNew     = distInterf / sosInterface + distSample / sosSample;

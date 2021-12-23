@@ -6,6 +6,16 @@ from arrus.ops.imaging import *
 import numpy as np
 import scipy.signal
 
+# Utility methods
+
+def _get_const_memory_array(module, name, input_array):
+    import cupy as cp
+    const_arr_ptr = module.get_global(name)
+    const_arr = cp.ndarray(shape=input_array.shape, dtype=input_array.dtype,
+                           memptr=const_arr_ptr)
+    const_arr.set(input_array)
+    return const_arr
+
 
 # ------------------------------------------ CONFIG
 
@@ -36,6 +46,8 @@ import cupy as cp
 # Reconstruction code
 class ReconstructLriWedge(Operation):
     """
+    NOTE: This implementation works correctly only with SSTA.
+
     Rx beamforming for synthetic aperture imaging.
 
     Expected input data shape: n_emissions, n_rx, n_samples
@@ -136,16 +148,17 @@ class ReconstructLriWedge(Operation):
         # NOTE: this will work only with sequences which as the
         # tx_aperture_center_element set.
         tx_center_z = np.interp(seq.tx_aperture_center_element,
-                                np.arange(0, n_elements),
+                                np.arange(0, self.n_elements),
                                 np.squeeze(element_pos_z))
         tx_center_x = np.interp(seq.tx_aperture_center_element,
-                                np.arange(0, n_elements),
+                                np.arange(0, self.n_elements),
                                 np.squeeze(element_pos_x))
         self.tx_ap_cent_x = self.num_pkg.asarray(tx_center_x, dtype=self.num_pkg.float32)
         self.tx_ap_cent_z = self.num_pkg.asarray(tx_center_z, dtype=self.num_pkg.float32)
 
         # first/last probe element in TX aperture
-        rx_ap_origin = np.round(rx_centers-(rx_sizes-1)/2 + 1e-9).astype(np.int32)
+        # NOTE: this will work only with full RX aperture
+        rx_ap_origin = 0 # np.round(rx_centers-(rx_sizes-1)/2 + 1e-9).astype(np.int32)
         self.rx_ap_origin = self.num_pkg.asarray(rx_ap_origin, dtype=self.num_pkg.int32)
 
         # Min/max tang
@@ -155,6 +168,8 @@ class ReconstructLriWedge(Operation):
             # Default:
             self.min_tang, self.max_tang = -0.5, 0.5
 
+        # NOTE: this will work only with SSTA
+        tx_center_delay = 0.0
         self.min_tang = self.num_pkg.float32(self.min_tang)
         self.max_tang = self.num_pkg.float32(self.max_tang)
         burst_factor = seq.pulse.n_periods / (2*self.fn)
@@ -186,8 +201,8 @@ class ReconstructLriWedge(Operation):
         self._kernel(self.grid_size, self.block_size, params)
         return self.output_buffer
 
-x_grid = np.arange(-15, 15, 0.1) * 1e-3
-z_grid = np.arange(5, 35, 0.1) * 1e-3
+x_grid = np.arange(-40, 40, 0.2) * 1e-3
+z_grid = np.arange(0, 40, 0.2) * 1e-3
 
 environment = HardwareEnvironment(
     session_cfg="/home/pjarosik/us4r.prototxt",
@@ -211,7 +226,10 @@ environment = HardwareEnvironment(
             QuadratureDemodulation(),
             Decimation(decimation_factor=4, cic_order=2),
             # Data beamforming.
-            ReconstructLri(x_grid=x_grid, z_grid=z_grid),
+            ReconstructLriWedge(x_grid=x_grid, z_grid=z_grid,
+                                wedge_speed_of_sound=2320,
+                                wedge_size=21e-3,
+                                wedge_angle=35.8*np.pi/180),
             # TODO Phase coherence weighting
             # IQ compounding
             Mean(axis=1),  # Along tx axis.

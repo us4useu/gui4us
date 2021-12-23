@@ -111,7 +111,6 @@ class DisplayPanel(Panel):
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
-                print("Setting data")
                 self.img_canvas.set_data(data)
                 self.img_canvas.figure.canvas.draw()
         except Exception as e:
