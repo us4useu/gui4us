@@ -20,8 +20,11 @@ from PyQt5.QtWidgets import (
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backends.qt_compat import QtCore, QtWidgets
-
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+import matplotlib
+matplotlib.use("tkagg")
 
 from gui4us.view.widgets import Panel
 from gui4us.view.common import *
@@ -44,9 +47,10 @@ class DisplayPanel(Panel):
         self.layer_cfg = cfg.layers[0]
         self.controller = controller
         image_metadata = self.controller.get_image_metadata(0).get_result()
-        img_canvas = FigureCanvas(Figure(figsize=(6, 6)))
-        self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
+        self.figure = Figure(figsize=(6, 6))
+        img_canvas = FigureCanvas(self.figure)
         self.layout.addWidget(img_canvas)
+        self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
         # Create a single Ax.
         ax = img_canvas.figure.subplots()
         # Ax parameters
@@ -74,6 +78,7 @@ class DisplayPanel(Panel):
             init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
             extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]])
         self.img_canvas.figure.tight_layout()
+        self.figure.colorbar(self.img_canvas)
         # View worker
         self.thread = QThread()
         self.worker = ViewWorker(self.update)
@@ -84,7 +89,11 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.thread.start(priority=QThread.TimeCriticalPriority)
+        self.anim = FuncAnimation(self.figure, self.update,
+                                   interval=0.01)
+        # plt.show()
+        # self.figure.canvas.start_event_loop(0.01)
+        # self.thread.start(priority=QThread.TimeCriticalPriority)
 
     def stop(self):
         self.is_started = False
@@ -93,7 +102,7 @@ class DisplayPanel(Panel):
         self.worker.stop()
         self.worker.wait_for_stop()
 
-    def update(self):
+    def update(self, frame):
         try:
             if self.is_started:
                 data = self.input.get()  # Data index
@@ -102,6 +111,7 @@ class DisplayPanel(Panel):
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
+                print("Setting data")
                 self.img_canvas.set_data(data)
                 self.img_canvas.figure.canvas.draw()
         except Exception as e:

@@ -235,7 +235,7 @@ displays = {
         title=f"RF frame: {frame}",
         layers=(
             Layer2D(
-                # value_range=(20, 80),
+                value_range=(20, 80),
                 cmap="gray",
                 input=LiveDataId("default", 0),
                 # extent=(
