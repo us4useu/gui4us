@@ -5,7 +5,7 @@ import numpy as np
 
 # Supported file extensions
 _FILE_EXTENSIONS = ";;".join([
-    "Numpy file (*.npz)",
+    "Python pickle dataset (*.pkl)",
     # "MATLAB file (*.mat)"
 ])
 

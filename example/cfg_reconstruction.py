@@ -221,6 +221,13 @@ environment = HardwareEnvironment(
     pipeline=Pipeline(
         steps=(
             RemapToLogicalOrder(),
+            # Output # 1
+            Pipeline(
+                steps=(
+                    Lambda(lambda data: data),
+                ),
+                placement="/GPU:0"
+            ),
             Transpose(axes=(0, 1, 3, 2)),
             BandpassFilter(),
             QuadratureDemodulation(),
@@ -239,6 +246,7 @@ environment = HardwareEnvironment(
             Mean(axis=0),
             Transpose(),
             LogCompression()
+            # Output #0
         ),
         placement="/GPU:0"),
     work_mode="HOST",
