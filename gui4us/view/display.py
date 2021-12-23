@@ -61,7 +61,10 @@ class DisplayPanel(Panel):
         else:
             label_oz, label_ox = image_metadata.ids
         unit_oz, unit_ox = image_metadata.units
-        ax_vmin, ax_vmax = self.layer_cfg.value_range
+        ax_vmin, ax_vmax = None, None
+        if self.layer_cfg.value_range is not None:
+            ax_vmin, ax_vmax = self.layer_cfg.value_range
+
         cmap = self.layer_cfg.cmap
 
         ax.set_xlabel(self.get_ax_label(label_ox, unit_ox))
@@ -77,7 +80,7 @@ class DisplayPanel(Panel):
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.is_started = False  # TODO state_graph
-        self.input = self.controller.get_output(0)
+        self.input = self.controller.get_output("out_0")
 
     def start(self):
         self.is_started = True

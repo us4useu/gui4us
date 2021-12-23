@@ -98,6 +98,7 @@ class View(QtWidgets.QMainWindow):
         self.control_panel.settings_panel.enable()
         self.control_panel.buffer_panel.enable()
         self.display_panel.start()
+        self.control_panel.buffer_panel.start()
         self.statusBar().showMessage("Running.")
 
     def on_stopped(self, event):

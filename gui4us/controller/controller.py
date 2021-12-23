@@ -129,6 +129,8 @@ class Controller:
                     print("Closing controller")
                     self.model.close()
                     return
+                print("EVENT")
+                print(event)
                 result = self.model.__getattribute__(event.name)(*event.args,
                                                                 **event.kwargs)
                 task.set_result(result)

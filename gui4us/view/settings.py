@@ -22,7 +22,6 @@ class SettingsPanel(Panel):
             form_field = self.__convert_to_field(setting)
             self.main_form.add_field(form_field)
 
-
     def __convert_to_field(self, setting):
         # Label
         # TODO i18n
@@ -62,9 +61,8 @@ class SettingsPanel(Panel):
             raise ValueError("Settings panel supports only scalar and"
                              "vector settings.")
 
-        def setter():
-            new_value = widget.get_value()
-            self.controller.set_setting(key=setting.id, value=new_value)
+        def setter(value):
+            self.controller.set_setting(setting.id, [value])
 
         widget.set_on_change(setter)
         return widget

@@ -57,10 +57,20 @@ class CaptureBufferComponent(Panel):
         self.worker = ViewWorker(self.update)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
+        self.is_started = False
+
+    def start(self):
+        self.is_started = True
+        self.thread.start(priority=QThread.TimeCriticalPriority)
+
+    def stop(self):
+        self.is_started = False
 
     def update(self):
         try:
+            print("CAPTURE BUFFER WAITING FOR NEW EVENTS")
             event = self.buffer_state_output.get()
+            print(event)
             if event is None:
                 # event buffer closed
                 return

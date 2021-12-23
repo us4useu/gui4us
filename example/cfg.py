@@ -14,7 +14,7 @@ speed_of_sound = 5900
 
 # TX/RX parameters
 tx_frequency = 2.25e6
-rx_sample_range_us = (10e-6, 31.5e-6)  # [s]
+rx_sample_range_us = (0e-6, 61.5e-6)  # [s]
 rx_sample_range = np.array(rx_sample_range_us)*65e6
 rx_sample_range = np.round(rx_sample_range).astype(np.int32)
 rx_sample_range = ((rx_sample_range+64-1)//64)*64

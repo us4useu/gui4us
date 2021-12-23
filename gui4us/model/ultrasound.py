@@ -16,6 +16,8 @@ from arrus.utils.imaging import (
     Pipeline
 )
 from collections.abc import Iterable
+import traceback
+
 
 
 class UltrasoundEnv:
@@ -26,7 +28,7 @@ class CaptureBuffer:
     def __init__(self, capacity):
         self.capacity = capacity
         self._counter = 0
-        self._data = []*self.capacity
+        self._data = [None]*self.capacity
 
     def append(self, data):
         if self.is_ready():
@@ -96,7 +98,7 @@ class HardwareEnv(UltrasoundEnv):
             "capture_buffer_events": Output()
         }
         for i in range(len(self.metadata)):
-            self.outputs[i] = Output()
+            self.outputs[f"out_{i}"] = Output()
 
     def get_image_metadata(self, ordinal):
         image_metadata = self._determine_image_metadata(ordinal)
@@ -104,7 +106,7 @@ class HardwareEnv(UltrasoundEnv):
         return ImageMetadata(
             shape=self.metadata[ordinal].input_shape,
             dtype=self.metadata[ordinal].dtype,
-            extents=self._get_image_extent((x_grid, z_grid)),
+            extents=self._get_image_extent((z_grid, x_grid)),
             units=units,
             ids=ids)
 
@@ -132,6 +134,7 @@ class HardwareEnv(UltrasoundEnv):
         Stop manually capturing data.
         """
         self.is_capturing = False
+        print("Stopping capture")
         for callback in self.outputs["capture_buffer_events"].callbacks:
             callback((self.capture_buffer.get_current_size(), True))
 
@@ -187,7 +190,7 @@ class HardwareEnv(UltrasoundEnv):
             grid_steps = [step for step in self.cfg.pipeline.steps
                           if hasattr(step, "x_grid") and hasattr(step, "z_grid")
                           ]
-            if len(grid_steps) > 1:
+            if len(grid_steps) > 0:
                 grid_step = grid_steps[-1]
                 return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OX", "OZ")
 
@@ -211,19 +214,24 @@ class HardwareEnv(UltrasoundEnv):
             if is_capturing:
                 out_data = []
             for i, element in enumerate(elements):
-                output = self.outputs[i]
+                output = self.outputs[f"out_{i}"]
                 for callback in output.callbacks:
                     callback(element.data)
                     if is_capturing:
                         out_data.append(element.data.copy())
                     element.release()
             if is_capturing:
+                # print(f"CAPTURING, size: {self.capture_buffer.get_current_size()}")
+                self.capture_buffer.append(out_data)
                 capture_buffer_output = self.outputs["capture_buffer_events"]
-                for callback in capture_buffer_output.callbacks:
-                    callback((self.capture_buffer.capacity,
-                              self.capture_buffer.is_ready()))
+                if self.capture_buffer.is_ready():
+                    self.stop_capture()
+                # else:
+                    # for callback in capture_buffer_output.callbacks:
+                    #     callback((self.capture_buffer.get_current_size(), False))
         except Exception as e:
-            print(f"Exception: {type(e)}")
+            print(e)
+            print(traceback.format_exc())
         except:
             print("Unknown exception")
 
