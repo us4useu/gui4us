@@ -249,8 +249,8 @@ class ArrusModel(Model):
                     Transpose(axes=(0, 2, 1)),
                     self._compute_defect_mask_op,
                     FirFilter(self._fir_filter_taps),
-                    # Sum(axis=0),
-                    SelectFrames([15]),
+                    #Sum(axis=0),
+                    SelectFrames([0]),
                     Squeeze(),
                     Enqueue(self._rf_sum_queue)),
                 placement="/GPU:0"))

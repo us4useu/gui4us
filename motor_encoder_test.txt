@@ -1,0 +1,35 @@
+def read_iq_data(self):
+        if self.us_acquiring:
+            counter = 0
+            previous_pulse_counter = 0
+            while True:
+                try:
+                    iq_data, metadata = self.us4r.get_iq_data(timeout=0.0001)
+                    counter += 1
+                    if not isinstance(iq_data, np.ndarray):
+                        raise Exception('US instrument returned no data')
+                    probe_metadata = get_magprobe_metadata(metadata)
+                    self.log.info(probe_metadata)
+                    diff = probe_metadata.pulseCounter - previous_pulse_counter
+                    if not diff in {0, 1}:
+                        self.log.error(f"!!!!!!!!!!!!!!!!! found diff {diff}. previous: {previous_pulse_counter}, "
+                                       f"current: {probe_metadata.pulseCounter}, "
+                                       f"current trigger counter: {probe_metadata.triggerCounter}")
+                    previous_pulse_counter = probe_metadata.pulseCounter
+                    print(f"previous pulse counter: {previous_pulse_counter}")
+                    # Enable the code below to stop the magnet after each full round when the pulse counter trigger
+                    # This can be useful to see the magnet position when the pulse counter is increased, see #273
+                    #if probe_metadata.pulseCounter == self.old_pulse + 1 and self.old_pulse > 3:
+                    #    self.log.info(f'Stopping magnet at pulse count:[{probe_metadata.pulseCounter}]')
+                    #    self.motor.set_magnet_frequency(0)
+                    #self.old_pulse = probe_metadata.pulseCounter
+                    metadata = np.atleast_2d(metadata.custom['frame_metadata_view'])
+                    self.ntrace_controller.read_magnet_position(probe_metadata)
+                    self.ntrace_controller.append_frame(iq_data, metadata)
+                    if self.recording:
+                        self.record_iq_data(iq_data, metadata)
+                except queue.Empty:
+                    if counter > 50:
+                        self.log.info(f'IQ buffer entries read: {counter}')
+                    metrics_report(self.metrics_queue, MetricType.IQ_DATA_QUEUE_SIZE, counter)
+                    continue
