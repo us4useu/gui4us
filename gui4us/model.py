@@ -227,13 +227,14 @@ class ArrusModel(Model):
                 steps=(
                     RemapToLogicalOrder(),
                     Enqueue(self._rf_queue, block=False, ignore_full=True),
-                    Transpose(axes=(0, 2, 1)),
+                    Transpose(axes=(0, 1, 3, 2)),
                     FirFilter(self._fir_filter_taps),
                     QuadratureDemodulation(),
                     Decimation(decimation_factor=4, cic_order=2),
                     ReconstructLri(x_grid=x_grid, z_grid=z_grid),
-                    Mean(axis=0),
+                    Mean(axis=1),
                     EnvelopeDetection(),
+                    Mean(axis=0),
                     Transpose(),
                     LogCompression(),
                     Enqueue(self._bmode_queue, block=False, ignore_full=True)
@@ -293,7 +294,7 @@ class ArrusModel(Model):
         n_elements = self._probe_model.n_elements
         pitch = self._probe_model.pitch
         ox_l = -(n_elements-1)/2*pitch
-        ox_r = (n_elements-1)/2*pitch
+        ox_r = (n_elements-1)/2*pitch-5e-3
         x_grid = np.arange(ox_l, ox_r, step=_IMG_PIXEL_STEP)
         return x_grid, z_grid
 
