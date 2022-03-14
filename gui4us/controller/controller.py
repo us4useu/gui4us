@@ -1,6 +1,5 @@
-from gui4us.model import Model
+from gui4us.model.model import Model
 import dataclasses
-import numpy as np
 import threading
 import queue
 import logging

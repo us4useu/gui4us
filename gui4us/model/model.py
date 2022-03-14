@@ -31,33 +31,6 @@ from arrus.utils.imaging import (
     RemapToLogicalOrder
 )
 
-# DEFAULT PWI sequence parameters
-_TX_FREQUENCY = 6e6
-_TX_N_PERIODS = 2
-_TX_INVERSE = False
-_PRI = 200e-6
-_SRI = 7e-3
-_RX_SAMPLE_START = 0
-_RX_SAMPLE_END = 1024/65 # [us]
-_DOWNSAMPLING_FACTOR = 2
-_IMG_START_DEPTH = 0e-3  # [m]
-_IMG_PIXEL_STEP = 0.1e-3  # [m]
-
-# APEX probe + us4R-Lite specific parameters
-_PROBE_MIN_TX_VOLTAGE = 5  # [V]
-_PROBE_MAX_TX_VOLTAGE = 90  # [V]
-_MIN_TGC = 14
-_MAX_TGC = 54
-_TGC_SAMPLING_STEP = 5e-3  # [m]
-_SAMPLING_FREQUENCY = 65e6
-
-
-class DataSource:
-
-    def get(self):
-        raise ValueError("NYI")
-
-
 class CineloopDataSource(DataSource):
 
     def __init__(self, collection):

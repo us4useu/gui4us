@@ -1,8 +1,13 @@
 import setuptools
 
+version_namespace = {}
+with open("gui4us/version.py") as f:
+    exec(f.read(), version_namespace)
+
+
 setuptools.setup(
     name="gui4us",
-    version="0.0.1",
+    version=version_namespace["__version__"],
     author="us4us Ltd.",
     author_email="support@us4us.eu",
     description="GUI 4 ultrasound",
