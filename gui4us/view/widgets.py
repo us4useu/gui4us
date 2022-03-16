@@ -112,9 +112,12 @@ class WidgetSequence(Form):
 
 class Panel:
 
-    def __init__(self, title):
+    def __init__(self, title, layout="v"):
         self.backend_widget = QGroupBox(title)
-        self.layout = QVBoxLayout()
+        if layout == "v":
+            self.layout = QVBoxLayout()
+        elif layout == "h":
+            self.layout = QHBoxLayout()
         self.backend_widget.setLayout(self.layout)
 
     def add_component(self, component):

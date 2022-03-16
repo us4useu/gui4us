@@ -11,9 +11,9 @@ _FILE_EXTENSIONS = ";;".join([
 
 class CaptureBufferComponent(Panel):
 
-    def __init__(self, title="Buffer"):
+    def __init__(self, env, title="Buffer"):
         super().__init__(title)
-        self.view_model = None
+        self.env = env
         # Action buttons
         self.capture_button = PushButton("Capture")
         self.save_button = PushButton("Save")
@@ -57,32 +57,28 @@ class CaptureBufferComponent(Panel):
     def on_capture_start(self, event):
         self.capture_button.enable()
         self.save_button.enable()
-        self.view_model.start_capture()
+        self.env.start_capture()
         # self.statusBar().showMessage("Capturing RF frames...")
 
     def on_capture_end(self, event):
-        self.capture_button.enable()
         self.save_button.enable()
-        # ViewModel nows, that the data was captured?
+        # ViewModel knows, that the data was captured?
         # self.view_model.stop_capture()
         # TODO label informing about the data acquisition
         # self.statusBar().showMessage(
         #     "Capture done, press 'Save' button to save the data to disk.")
 
     def on_save(self, event):
-        # Stop the processing thread, so we now the system is not running
-        # TODO sync
+        # Stop the processing thread, so we know the system is not running
         # if self._current_state == _STARTED:
         #     self._update_graph_state(_STOP)
         filename, extension = QFileDialog.getSaveFileName(
             parent=None, caption="Save File", directory=".",
             filter=_FILE_EXTENSIONS)
-
         if extension == "":
             event.stop()
             return
-
-        self.view_model.save(filename)
+        self.env.save_capture(filename)
         # self.statusBar().showMessage(f"Saved file to {filename}. Ready.")
         # Start the processing thread back
 

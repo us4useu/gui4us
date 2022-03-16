@@ -1,4 +1,4 @@
-from gui4us.cfg.data_source import *
+from gui4us.cfg.environment import *
 from gui4us.cfg.display import *
 from arrus.ops.us4r import *
 from arrus.utils.imaging import *
@@ -9,7 +9,7 @@ X_GRID = np.arange(-15, 15, 0.1) * 1e-3
 Z_GRID = np.arange(5, 35, 0.1) * 1e-3
 
 ENVIRONMENTS = {
-   "us4r": HardwareDataSource(
+   "us4r": HardwareEnvironment(
         session_cfg="/home/pjarosik/us4r.prototxt",
         scheme=Scheme(
             tx_rx_sequence=PwiSequence(

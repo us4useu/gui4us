@@ -1,75 +1,134 @@
-from gui4us.model.model import Model
-import dataclasses
+from dataclasses import dataclass
 import threading
 import queue
 import logging
 
 _LOGGER = logging.getLogger("Controller")
 
+# TODO Method wrapper: calling some specific function will result in passing
+# TODO return promise in the send method, so it possible to
+
+
+class LiveData:
+    def __init__(self):
+        pass
+
 
 class Event:
     pass
 
 
-@dataclasses.dataclass(frozen=True)
-class SetGainEvent(Event):
-    gain_value: float
+@dataclass(frozen=True)
+class MethodCallEvent(Event):
+    name: str
+    args: tuple
+    kwargs: dict
 
 
-@dataclasses.dataclass(frozen=True)
-class SetVoltageEvent(Event):
-    voltage: float
-
-
-@dataclasses.dataclass(frozen=True)
-class CloseEvent(Event):
+@dataclass(frozen=True)
+class CloseEvent:
     pass
 
 
+class Task:
+    def __init__(self, event):
+        self.event = event
+        self.completed = threading.Event()
+        self.result = queue.Queue(maxsize=1)
+        self.error = queue.Queue(maxsize=1)
+
+    def wait(self, timeout=None):
+        self.completed.wait(timeout)
+
+    def set_ready(self):
+        self.completed.set()
+
+    def set_result(self, value):
+        self.result.put(value)
+
+    def set_error(self, exc):
+        self.error.put(exc)
+
+    def get_result(self):
+        self.wait()
+        try:
+            return self.result.get(block=False)
+        except queue.Empty:
+            return None
+
+    def get_error(self):
+        self.wait()
+        try:
+            return self.error.get(block=False)
+        except queue.Empty:
+            return None
+
+
+class Promise:
+    def __init__(self, task):
+        self.task = task
+        self.result = queue.Queue(maxsize=1)
+
+    def wait(self):
+        self.task.wait()
+
+    def get_result(self):
+        self.task.get_result()
+
+    def get_error(self):
+        self.task.get_error()
+
+
 class Controller:
-    def __init__(self, model: Model):
+    def __init__(self, model):
         self.model = model
-        self._event_queue = queue.Queue()
-        self._result_queue = queue.Queue()
-        self._event_queue_runner = threading.Thread(target=self._controller_thread)
-        self._event_queue_runner.start()
-        self._actions = {
-            SetGainEvent: self.model.set_gain_value,
-            SetVoltageEvent: self.model.set_tx_voltage,
-        }
+        self.task_queue = queue.Queue()
+        self.result_queue = queue.Queue()
+        self.event_queue_runner = threading.Thread(
+            target=self._controller_thread)
+        self.event_queue_runner.start()
 
-    @property
-    def settings(self):
-        return self.model.settings
+    def send(self, event):
+        task = Task(event)
+        promise = Promise(task)
+        self.task_queue.put(task)
+        return promise
 
-    def get_rf_sum(self):
-        return self.model.get_rf_sum()
+    def __getattribute__(self, name):
+        if not hasattr(self, name):
 
-    def get_defect_mask(self):
-        return self.model.get_defect_mask()
+            def method(*args, **kwargs):
+                return self.send(MethodCallEvent(
+                    name, args=args, kwargs=kwargs))
 
-    def get_rf(self):
-        return self.model.get_rf()
+            self.__setattr__(name, method)
+            return method
+        else:
+            return object.__getattribute__(self, name)
 
-    def send(self, event: Event):
-        self._event_queue.put(event)
+    def get_output(self, ordinal: int):
 
+        pass
+
+    # Client code
     def close(self):
-        self._event_queue.put(CloseEvent())
-
-    def start(self):
-        # TODO event
-        self.model.start()
+        self.task_queue.put(CloseEvent())
 
     def _controller_thread(self):
         while True:
+            task = None
             try:
-                event = self._event_queue.get()
+                task = self.task_queue.get()
+                event = task.event
                 if isinstance(event, CloseEvent):
                     return
-                logging.info(f"Got event type: {type(event)}")
-                self._actions[type(event)](**dataclasses.asdict(event))
+                result = self.model.__getattribute__(task.name)(*task.args,
+                                                                **task.kwargs)
+                task.set_result(result)
+                task.set_ready()
             except Exception as e:
                 logging.exception(e)
+                task.set_error(e)
+                task.set_ready()
 
 

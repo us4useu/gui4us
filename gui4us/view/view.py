@@ -1,25 +1,4 @@
-import datetime
-import numpy as np
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import (
-    QPushButton,
-    QSlider,
-    QSpinBox,
-    QGroupBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QWidget,
-    QFileDialog,
-    QMessageBox,
-    QDoubleSpinBox
-)
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-from matplotlib.backends.qt_compat import QtCore, QtWidgets
 
-from matplotlib.figure import Figure
 
 from gui4us.controller.controller import *
 from gui4us.common import EventQueue
@@ -54,23 +33,7 @@ _VOLTAGE_STEP = 10
 
 
 
-_INTERVAL = 50  # [ms]
 
-
-
-class ViewWorker(QObject):
-
-    def __init__(self, func):
-        super().__init__()
-        self.func = func
-        self.is_working = False
-
-    @pyqtSlot()
-    def run(self):
-        # TODO sync point
-        self.is_working = True
-        while self.is_working:
-            self.func()
 
 
 def close_model_and_controller(model, controller):
