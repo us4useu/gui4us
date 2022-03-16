@@ -86,6 +86,7 @@ class DisplayPanel(Panel):
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.is_started = False  # TODO state_graph
+        self.input = self.controller.get_output(0)
 
     def start(self):
         self.is_started = True
@@ -96,7 +97,7 @@ class DisplayPanel(Panel):
     def update(self):
         try:
             if self.is_started:
-                data = self.img_data.get()
+                data = self.input.get()
                 if not self.is_started:
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).

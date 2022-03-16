@@ -87,6 +87,11 @@ class Controller:
         self.event_queue_runner = threading.Thread(
             target=self._controller_thread)
         self.event_queue_runner.start()
+        self.output_buffers = []
+        for output in self.model.outputs:
+            queue = queue.Queue()
+            output.add_callback(lambda data: queue.put(data))
+            self.output_buffers.append(queue)
 
     def send(self, event):
         task = Task(event)
@@ -107,8 +112,7 @@ class Controller:
             return object.__getattribute__(self, name)
 
     def get_output(self, ordinal: int):
-
-        pass
+        return self.output_buffers[ordinal]
 
     # Client code
     def close(self):

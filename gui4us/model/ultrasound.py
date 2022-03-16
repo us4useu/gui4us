@@ -7,6 +7,12 @@ import pickle
 import arrus.logging
 import arrus.utils.imaging
 from gui4us.settings import *
+from gui4us.common import *
+from arrus.ops.us4r import *
+from arrus.utils.imaging import (
+    Processing,
+    Pipeline
+)
 
 
 class UltrasoundEnv:
@@ -36,6 +42,15 @@ class CaptureBuffer:
         return self._data
 
 
+class Output:
+
+    def __init__(self):
+        self.callbacks = []
+
+    def add_callback(self, func):
+        self.callbacks.append(func)
+
+
 class HardwareEnv(UltrasoundEnv):
 
     DEFAULT_LOG_FILE = "arrus.log"
@@ -53,24 +68,41 @@ class HardwareEnv(UltrasoundEnv):
         self.session = arrus.Session(self.cfg.session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
-        self.buffer, self.metadata = self.session.upload(self.cfg.scheme)
+
+        scheme = Scheme(
+            tx_rx_sequence=self.cfg.tx_rx_sequence,
+            work_mode=self.cfg.work_mode,
+            processing=Processing(self.cfg.pipeline, callback=self.__on_new_data)
+        )
+
+        self.metadata = self.session.upload(scheme)
         self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
         # Do initial configuration of the system
         self.settings = self.create_settings()
         # Image dimensions
-        self.image_dimensions = self.__determine_image_dimensions()
+        self.img0_ox_grid, self.img0_oz_grid, _, _ = self.__determine_image_metadata(ordinal=0)
         # TGC
         # determine tgc curve sampling points.
         self.tgc_curve_sampling_depths = self.__determine_tgc_sampling_depths(
-            self.image_dimensions
+            (self.img0_ox_grid, self.img0_oz_grid)
         )
         for setting in self.settings:
             self.set(setting.id, setting.init_value)
         self.is_capturing = False  # TODO state_graph
+        self.outputs = [Output()]*(self.metadata+1) # n pipeline outputs + 1 for the capture data
+        self.capture_buffer_ordinal = -1 # the last one
 
-    def get_image_metadata(self):
-        # TODO
-        pass
+    def get_image_metadata(self, ordinal):
+        image_metadata = self.__determine_image_metadata(ordinal)
+        x_grid, z_grid, units, ids = image_metadata[0]
+
+        return ImageMetadata(
+            shape=self.metadata[ordinal].input_shape,
+            dtype=self.metadata[ordinal].dtype,
+            extents=self.__get_image_extent((x_grid, z_grid)),
+            units=units,
+            ids=ids
+        )
 
     def start(self):
         self.session.start_scheme()
@@ -92,7 +124,8 @@ class HardwareEnv(UltrasoundEnv):
 
     def stop_capture(self):
         self.is_capturing = False
-        # TODO notify, that the acquisition has ended
+        for callback in self.outputs[self.capture_buffer_ordinal].callbacks:
+            callback((self.capture_buffer.size, True))
 
     def save_capture(self, filepath):
         if len(self.capture_buffer) == 0:
@@ -101,14 +134,11 @@ class HardwareEnv(UltrasoundEnv):
                      "data": self.capture_buffer.data},
                     open(filepath, "wb"))
 
-    def get_output(self, ordinal: int):
-        # TODO
-        pass
+    def set_output_callback(self, output_number: int, func):
+        self.callbacks[output_number].append(func)
 
-    def get_capture_state(self):
-        # TODO live data, or event queue?
-        # TODO
-        pass
+    def set_capture_state_callback(self, func):
+        self.capture_state_callbacks.append(func)
 
     def create_settings(self):
         return [
@@ -161,30 +191,43 @@ class HardwareEnv(UltrasoundEnv):
         return np.interp(output_sampling_depths, in_sampling_depths,
                      tgc_curve)
 
-    def __determine_image_dimensions(self):
+    def __determine_image_metadata(self, ordinal):
         # TODO the output grid dimensions should be a part of the metadata
         # returned by arrus package
         scheme = self.cfg.scheme
-        if isinstance(scheme.processing, arrus.utils.imaging.Pipeline):
+        if isinstance(scheme.processing, arrus.utils.imaging.Pipeline)\
+                and ordinal == 0:
             # Try to find ScanConverter or LRI reconstruction step
             # Very simple logic that should be replaced with some
             grid_steps = [step for step in scheme.processing.steps
                           if hasattr(step, "x_grid") and hasattr(step, "z_grid")
                           ]
             grid_step = grid_steps[-1]
-            return grid_step.x_grid, grid_step.z_grid
+            return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OX", "OZ")
         else:
             # Very simple fallback option
-            input_shape = self.metadata[0].input_shape
+            input_shape = self.metadata[ordinal].input_shape
             if len(input_shape) != 2:
                 raise ValueError("The pipeline's output should be a 2D image!")
             n_points_x, n_points_z = input_shape
             x_grid = np.arange(0, n_points_x)
             z_grid = np.arange(0, n_points_z)
-            return x_grid, z_grid
+            return x_grid, z_grid, ("", ""), ("", "")
 
     def __get_image_extent(self, imaging_grids):
         ox_grid, oz_grid = imaging_grids
         return ((np.min(ox_grid), np.max(ox_grid)),
                 (np.min(oz_grid), np.max(oz_grid)))
+
+    def __on_new_data(self, elements):
+        try:
+            for i, element in enumerate(elements):
+                for callback in self.outputs[i].callbacks:
+                    callback(element.data)
+                    element.release()
+        except Exception as e:
+            print(f"Exception: {type(e)}")
+        except:
+            print("Unknown exception")
+
 

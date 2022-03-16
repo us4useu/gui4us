@@ -13,14 +13,18 @@ class LiveDataId:
 class HardwareEnvironment:
     """
     :param session_cfg: path to the session configuration file
-    :param scheme: arrus Scheme describing the processing graph
+    :param tx_rx_sequence: TX/RX sequence
+    :param processing: processing implementation
+    :param work_mode: HOST, ASYNC or MANUAL
     :param capture_buffer_capacity: capacity of the capture buffer
     :param log_file: path to the output log file, if None, a default path
         will be used
     :param log_file_level: log file severity level
     """
     session_cfg: str
-    scheme: object
+    tx_rx_sequence: object
+    pipeline: object
+    work_mode: str
     capture_buffer_capacity: int
     log_file: str = None
     log_file_level: str = "INFO"
