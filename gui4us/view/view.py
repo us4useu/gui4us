@@ -1,13 +1,31 @@
+import sys
+
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtWidgets import QApplication
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+
 from gui4us.controller.controller import *
 from gui4us.view.widgets import show_error_message
 from gui4us.view.control import *
 from gui4us.view.display import *
 from gui4us.state_graph import *
 
+APP = None
+MAIN_WINDOW = None
+
+
+def start_view(view):
+    APP = QApplication(sys.argv)
+    APP.setStyle("Fusion")
+    view.show()
+    return APP._exec()
+
 
 class View(QtWidgets.QMainWindow):
 
-    def __init__(self, title, controller: Controller):
+    def __init__(self, title, cfg, controller: Controller):
         super().__init__()
         self.controller = controller
         self.text_format = Qt.MarkdownText
@@ -19,7 +37,7 @@ class View(QtWidgets.QMainWindow):
             self.setCentralWidget(self.main_widget)
             self.main_layout = QHBoxLayout(self.main_widget)
             self.control_panel = ControlPanel(controller)
-            self.display_panel = DisplayPanel(controller)
+            self.display_panel = DisplayPanel(controller, cfg.displays)
 
             self.main_layout.addWidget(self.control_panel.backend_widget)
             self.main_layout.addWidget(self.display_panel.backend_widget)
@@ -76,7 +94,7 @@ class View(QtWidgets.QMainWindow):
     def on_init_start(self, event):
         self.statusBar().showMessage("Starting system.")
         self._controller.start()
-        self.on_started()
+        self.on_started(event)
 
     def on_started(self, event):
         self._settings_panel.setEnabled(True)
@@ -92,15 +110,6 @@ class View(QtWidgets.QMainWindow):
         self._start_stop_button.setText("Resume")
         self.statusBar().showMessage("Stopped.")
 
-    def _on_voltage_change(self, value):
-        # TODO make the setting voltage operation cheap (implement session controller)
-        self._voltage_spin_box.setDisabled(True)
-        controller.send(SetVoltageEvent(value))
-        self._voltage_spin_box.setDisabled(False)
-        self._voltage_spin_box.setFocus()
 
-    def _on_tgc_slider_change(self):
-        self._current_gain_value = self._slider.value() / 10 ** _TGC_SLIDER_PRECISION
-        controller.send(SetGainEvent(self._current_gain_value))
 
 

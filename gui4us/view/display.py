@@ -26,14 +26,18 @@ from matplotlib.figure import Figure
 from gui4us.view.widgets import Panel
 from gui4us.view.common import *
 import gui4us.cfg
+from typing import Dict
 
 
 class DisplayPanel(Panel):
 
-    def __init__(self, cfg: gui4us.cfg.Display2D, controller, title="Display"):
-        # TODO live data, model <-> view communication
+    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller, title="Display"):
         super().__init__(title, layout="h")
         # Validate configuration.
+        # TODO handle multiple dislays
+        if len(cfg) > 1:
+            raise ValueError("Currently only a single display is supported")
+        _, cfg = list(cfg.items())[0]
         if len(cfg.layers) > 1:
             raise ValueError("Currently only a single layer of data is "
                              "supported.")

@@ -29,7 +29,6 @@ class HardwareEnvironment:
     log_file: str = None
     log_file_level: str = "INFO"
     initial_tx_voltage: int = 5
-    n_tgc_curve_points: int = 1
     initial_gain: float = 54
 
 

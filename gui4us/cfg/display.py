@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Dict
 
 
 @dataclass(frozen=True)
@@ -13,3 +13,8 @@ class Layer2D:
 class Display2D:
     title: str
     layers: Sequence[Layer2D]
+
+
+@dataclass(frozen=True)
+class ViewCfg:
+    display_cfg: Dict[str, Display2D]

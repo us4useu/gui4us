@@ -9,10 +9,9 @@ import logging
 
 import gui4us
 from gui4us.common import EventQueue
-from gui4us.view import View
-from gui4us.model import Model
+from gui4us.view import View, start_view
+from gui4us.model.ultrasound import HardwareEnv
 from gui4us.controller import Controller
-
 
 
 logging_file_handler = logging.FileHandler(filename="gui4us.log")
@@ -40,13 +39,11 @@ if __name__ == "__main__":
     cfg_path = args.cfg
     cfg = load_cfg(cfg_path)
 
-    main_event_queue = EventQueue()
-    view = View(title=f"gui4us {gui4us.__version__}",
-                event_queue=main_event_queue)
-    model = Model()
-    controller = Controller(view, model, main_event_queue)
-    controller.start()
-    view.display()
+    model = HardwareEnv(cfg.environment)
+    controller = Controller(model)
+    view = View(f"gui4us {gui4us.__version__}", cfg.view_cfg, controller)
+    result = start_view(view)
+    sys.exit(result)
 
 
 
