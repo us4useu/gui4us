@@ -24,27 +24,8 @@ from matplotlib.backends.qt_compat import QtCore, QtWidgets
 from matplotlib.figure import Figure
 
 from gui4us.view.widgets import Panel
+from gui4us.view.common import *
 import gui4us.cfg
-
-
-class ViewWorker(QObject):
-
-    def __init__(self, func, interval=0.05):
-        super().__init__()
-        self.func = func
-        self.is_working = False
-        self.interval = interval
-
-    @pyqtSlot()
-    def run(self):
-        # TODO sync point
-        self.is_working = True
-        while self.is_working:
-            self.func()
-            time.sleep(self.interval)
-
-    def stop(self):
-        self.is_working = False
 
 
 class DisplayPanel(Panel):
@@ -90,15 +71,20 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
+        self.thread.start(priority=QThread.TimeCriticalPriority)
 
     def stop(self):
         self.is_started = False
+
+    def close(self):
+        self.worker.stop()
+        self.worker.wait_for_stop()
 
     def update(self):
         try:
             if self.is_started:
                 data = self.input.get()
-                if not self.is_started:
+                if data is None or not self.is_started:  # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return

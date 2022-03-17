@@ -5,11 +5,11 @@ from gui4us.settings import *
 
 class SettingsPanel:
 
-    def __init__(self, title="Settings", settings=None,
+    def __init__(self, controller, title="Settings", settings=None,
                  custom_presentation=None):
-
         if custom_presentation is None:
             custom_presentation = {}
+        self.controller = controller
         self.title = title
         self.settings = settings
         self.custom_presentation = custom_presentation

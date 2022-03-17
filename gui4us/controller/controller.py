@@ -1,17 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import threading
 import queue
 import logging
 
 _LOGGER = logging.getLogger("Controller")
-
-# TODO Method wrapper: calling some specific function will result in passing
-# TODO return promise in the send method, so it possible to
-
-
-class LiveData:
-    def __init__(self):
-        pass
 
 
 class Event:
@@ -21,8 +13,8 @@ class Event:
 @dataclass(frozen=True)
 class MethodCallEvent(Event):
     name: str
-    args: tuple
-    kwargs: dict
+    args: tuple = field(default_factory=list)
+    kwargs: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -84,14 +76,12 @@ class Controller:
         self.model = model
         self.task_queue = queue.Queue()
         self.result_queue = queue.Queue()
-        self.event_queue_runner = threading.Thread(
-            target=self._controller_thread)
-        self.event_queue_runner.start()
-        self.output_buffers = []
-        for output in self.model.outputs:
+        self.event_queue_runner = threading.Thread(target=self._main_loop)
+        self.output_buffers = {}
+        for key, output in self.model.outputs.items():
             queue = queue.Queue()
             output.add_callback(lambda data: queue.put(data))
-            self.output_buffers.append(queue)
+            self.output_buffers[key] = queue
 
     def send(self, event):
         task = Task(event)
@@ -103,28 +93,32 @@ class Controller:
         if not hasattr(self, name):
 
             def method(*args, **kwargs):
-                return self.send(MethodCallEvent(
-                    name, args=args, kwargs=kwargs))
+                return self.send(MethodCallEvent(name, args=args,
+                                                 kwargs=kwargs))
 
             self.__setattr__(name, method)
             return method
         else:
             return object.__getattribute__(self, name)
 
-    def get_output(self, ordinal: int):
-        return self.output_buffers[ordinal]
+    def get_output(self, key):
+        return self.output_buffers[key]
 
-    # Client code
+    def start(self):
+        self.event_queue_runner.start()
+        self.task_queue.put(MethodCallEvent("start"))
+
     def close(self):
         self.task_queue.put(CloseEvent())
 
-    def _controller_thread(self):
+    def _main_loop(self):
         while True:
             task = None
             try:
                 task = self.task_queue.get()
                 event = task.event
                 if isinstance(event, CloseEvent):
+                    self.model.close()
                     return
                 result = self.model.__getattribute__(task.name)(*task.args,
                                                                 **task.kwargs)

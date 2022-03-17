@@ -13,6 +13,7 @@ from arrus.utils.imaging import (
     Processing,
     Pipeline
 )
+from collections.abc import Iterable
 
 
 class UltrasoundEnv:
@@ -20,22 +21,22 @@ class UltrasoundEnv:
 
 
 class CaptureBuffer:
-    def __init__(self, size):
-        self.size = size
+    def __init__(self, capacity):
+        self.capacity = capacity
         self._counter = 0
-        self._data = []
+        self._data = []*self.capacity
 
     def append(self, data):
         if self.is_ready():
             raise queue.Full()
-        self._data.append(data)
+        self._data[self._counter] = data
         self._counter += 1
 
     def is_ready(self):
-        return self.size == self._counter
+        return self.capacity == self._counter
 
-    def __len__(self):
-        return
+    def get_current_size(self):
+        return self._counter
 
     @property
     def data(self):
@@ -72,10 +73,13 @@ class HardwareEnv(UltrasoundEnv):
         scheme = Scheme(
             tx_rx_sequence=self.cfg.tx_rx_sequence,
             work_mode=self.cfg.work_mode,
-            processing=Processing(self.cfg.pipeline, callback=self.__on_new_data)
+            processing=Processing(self.cfg.pipeline,
+                                  callback=self.__on_new_data)
         )
 
         self.metadata = self.session.upload(scheme)
+        if not isinstance(self.metadata, Iterable):
+            self.metadata = (self.metadata, )
         self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
         # Do initial configuration of the system
         self.settings = self.create_settings()
@@ -89,8 +93,14 @@ class HardwareEnv(UltrasoundEnv):
         for setting in self.settings:
             self.set(setting.id, setting.init_value)
         self.is_capturing = False  # TODO state_graph
-        self.outputs = [Output()]*(self.metadata+1) # n pipeline outputs + 1 for the capture data
-        self.capture_buffer_ordinal = -1 # the last one
+        self.outputs = {
+            "main_events": Output(),
+            "capture_buffer_events": Output()
+        }
+        for i in range(len(self.metadata)):
+            # TODO avoid hash computation for performance?
+            #  (split into two collections?)
+            self.outputs[i] = Output()
 
     def get_image_metadata(self, ordinal):
         image_metadata = self.__determine_image_metadata(ordinal)
@@ -123,22 +133,22 @@ class HardwareEnv(UltrasoundEnv):
         self.is_capturing = True
 
     def stop_capture(self):
+        """
+        Stop manually capturing data.
+        """
         self.is_capturing = False
-        for callback in self.outputs[self.capture_buffer_ordinal].callbacks:
-            callback((self.capture_buffer.size, True))
+        for callback in self.outputs["capture_buffer_events"].callbacks:
+            callback((self.capture_buffer.get_current_size(), True))
 
     def save_capture(self, filepath):
-        if len(self.capture_buffer) == 0:
+        if self.capture_buffer.get_current_size() == 0:
             raise ValueError("Cannot save empty buffer")
         pickle.dump({"metadata": self.metadata,
                      "data": self.capture_buffer.data},
                     open(filepath, "wb"))
 
-    def set_output_callback(self, output_number: int, func):
-        self.callbacks[output_number].append(func)
-
-    def set_capture_state_callback(self, func):
-        self.capture_state_callbacks.append(func)
+    def set_output_callback(self, output_key, func):
+        self.outputs[output_key].add_callback(func)
 
     def create_settings(self):
         return [
@@ -178,11 +188,11 @@ class HardwareEnv(UltrasoundEnv):
 
     def __interpolate_to_device_tgc(self, tgc_curve):
         # TODO speed of sound should be determined based on the medium object
-        c = self.cfg.scheme.tx_rx_sequence.speed_of_sound
+        c = self.cfg.tx_rx_sequence.speed_of_sound
         # TODO should be determined based on raw_sequence parameters
-        downsampling_factor = self.cfg.scheme.tx_rx_sequence.downsampling_factor
+        downsampling_factor = self.cfg.tx_rx_sequence.downsampling_factor
         fs = self.us4r.sampling_frequency
-        end_sample = self.cfg.scheme.tx_rx_sequence.rx_sample_range[1]
+        end_sample = self.cfg.tx_rx_sequence.rx_sample_range[1]
 
         in_sampling_depths = self.tgc_curve_sampling_depths
         output_sampling_depths = np.arange(
@@ -194,12 +204,11 @@ class HardwareEnv(UltrasoundEnv):
     def __determine_image_metadata(self, ordinal):
         # TODO the output grid dimensions should be a part of the metadata
         # returned by arrus package
-        scheme = self.cfg.scheme
-        if isinstance(scheme.processing, arrus.utils.imaging.Pipeline)\
+        if isinstance(self.cfg.pipeline, arrus.utils.imaging.Pipeline)\
                 and ordinal == 0:
             # Try to find ScanConverter or LRI reconstruction step
             # Very simple logic that should be replaced with some
-            grid_steps = [step for step in scheme.processing.steps
+            grid_steps = [step for step in self.cfg.pipeline.steps
                           if hasattr(step, "x_grid") and hasattr(step, "z_grid")
                           ]
             grid_step = grid_steps[-1]
@@ -221,10 +230,21 @@ class HardwareEnv(UltrasoundEnv):
 
     def __on_new_data(self, elements):
         try:
+            is_capturing = self.is_capturing
+            if is_capturing:
+                out_data = []
             for i, element in enumerate(elements):
-                for callback in self.outputs[i].callbacks:
+                output = self.outputs[i]
+                for callback in output.callbacks:
                     callback(element.data)
+                    if is_capturing:
+                        out_data.append(element.data.copy())
                     element.release()
+            if is_capturing:
+                capture_buffer_output = self.outputs["capture_buffer_events"]
+                for callback in capture_buffer_output.callbacks:
+                    callback((self.capture_buffer.capacity,
+                              self.capture_buffer.is_ready()))
         except Exception as e:
             print(f"Exception: {type(e)}")
         except:

@@ -1,58 +1,15 @@
-
-
 from gui4us.controller.controller import *
-from gui4us.common import EventQueue
 from gui4us.view.widgets import show_error_message
 from gui4us.view.control import *
 from gui4us.view.display import *
 from gui4us.state_graph import *
 
-# states
-_INIT = "INIT"
-_STARTED = "STARTED"
-_STOPPED = "STOPPED"
-_STATES = {_INIT, _STOPPED, _STARTED}
-
-# actions
-_START = "start"
-_STOP = "stop"
-_ACTIONS = {_START, _STOP}
-
-# buffer state
-_EMPTY = "EMPTY"
-_CAPTURING = "CAPTURING"
-_CAPTURED = "CAPTURED"
-
-# buffer actions
-_CAPTURE = "capture"
-_SAVE = "save"
-_CAPTURE_DONE = "capture_done"
-
-_DYNAMIC_RANGE_STEP = 10
-_VOLTAGE_STEP = 10
-
-
-
-
-
-
-def close_model_and_controller(model, controller):
-    if model is not None:
-        try:
-            model.close()
-        except Exception as e:
-            logging.exception(e)
-        try:
-            controller.close()
-        except Exception as e:
-            logging.exception(e)
-
 
 class View(QtWidgets.QMainWindow):
 
-    def __init__(self, title, event_queue: EventQueue):
+    def __init__(self, title, controller: Controller):
         super().__init__()
-        self.event_queue = event_queue
+        self.controller = controller
         self.text_format = Qt.MarkdownText
         self.statusBar().showMessage('Configuring...')
         try:
@@ -61,8 +18,8 @@ class View(QtWidgets.QMainWindow):
             self.main_widget = QWidget()
             self.setCentralWidget(self.main_widget)
             self.main_layout = QHBoxLayout(self.main_widget)
-            self.control_panel = ControlPanel()
-            self.display_panel = DisplayPanel()
+            self.control_panel = ControlPanel(controller)
+            self.display_panel = DisplayPanel(controller)
 
             self.main_layout.addWidget(self.control_panel.backend_widget)
             self.main_layout.addWidget(self.display_panel.backend_widget)

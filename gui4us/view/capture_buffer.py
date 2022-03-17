@@ -1,5 +1,6 @@
 from gui4us.view.widgets import *
 from gui4us.state_graph import *
+from gui4us.view.common import *
 import numpy as np
 
 # Supported file extensions
@@ -11,9 +12,9 @@ _FILE_EXTENSIONS = ";;".join([
 
 class CaptureBufferComponent(Panel):
 
-    def __init__(self, env, title="Buffer"):
+    def __init__(self, controller, title="Buffer"):
         super().__init__(title)
-        self.env = env
+        self.controller = controller
         # Action buttons
         self.capture_button = PushButton("Capture")
         self.save_button = PushButton("Save")
@@ -21,6 +22,9 @@ class CaptureBufferComponent(Panel):
         self.add_component(self.save_button)
         self.capture_button.on_pressed(self.__on_capture_button_press)
         self.save_button.on_pressed(self.__on_save_button_press)
+
+        self.save_button.disable()
+
         self.state_graph = StateGraph(
             states={
                 State("empty"),
@@ -47,6 +51,25 @@ class CaptureBufferComponent(Panel):
         )
         self.state = StateGraphIterator(
             self.state_graph, start_state="empty")
+        self.buffer_state_output = self.controller.get_output(
+            "capture_buffer_events")
+        self.thread = QThread()
+        self.worker = ViewWorker(self.update)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+
+    def update(self):
+        try:
+            event = self.buffer_state_output.get()
+            if event is None:
+                # event buffer closed
+                return
+            else:
+                capture_size, is_done = event
+                if is_done:
+                    self.state.do("capture_done")
+        except Exception as e:
+            print(e)
 
     def __on_capture_button_press(self):
         self.state.do("capture")
@@ -55,9 +78,11 @@ class CaptureBufferComponent(Panel):
         self.state.do("save")
 
     def on_capture_start(self, event):
+        self.controller.stop_capture()
         self.capture_button.enable()
-        self.save_button.enable()
-        self.env.start_capture()
+        self.save_button.disable()
+        self.controller.start_capture()
+        # TODO label z info o zbieraniu danych
         # self.statusBar().showMessage("Capturing RF frames...")
 
     def on_capture_end(self, event):
@@ -69,19 +94,11 @@ class CaptureBufferComponent(Panel):
         #     "Capture done, press 'Save' button to save the data to disk.")
 
     def on_save(self, event):
-        # Stop the processing thread, so we know the system is not running
-        # if self._current_state == _STARTED:
-        #     self._update_graph_state(_STOP)
+        # TODO stop acquisition?
         filename, extension = QFileDialog.getSaveFileName(
             parent=None, caption="Save File", directory=".",
             filter=_FILE_EXTENSIONS)
         if extension == "":
             event.stop()
             return
-        self.env.save_capture(filename)
-        # self.statusBar().showMessage(f"Saved file to {filename}. Ready.")
-        # Start the processing thread back
-
-        # # if self._current_state == _STOPPED:
-        #     self._update_graph_state(_START)
-        return True
+        self.controller.save_capture(filename)

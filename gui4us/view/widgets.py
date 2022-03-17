@@ -54,6 +54,9 @@ class PushButton(Widget):
     def on_pressed(self, callback):
         self.backend_widget.pressed().connect(callback)
 
+    def set_text(self, text):
+        self.backend_widget.setText(text)
+
 
 class SpinBox(Widget):
 

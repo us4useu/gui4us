@@ -21,10 +21,10 @@ from gui4us.state_graph import *
 
 class ControlPanel(Panel):
 
-    def __init__(self, title="Control panel"):
+    def __init__(self, controller, title="Control panel"):
         super().__init__(title)
-        self.actions_panel = ActionsPanel()
-        self.buffer_panel = CaptureBufferComponent()
+        self.actions_panel = ActionsPanel(controller)
+        self.buffer_panel = CaptureBufferComponent(controller)
         self.settings_panel = SettingsPanel()
         self.panels = (
             self.actions_panel,
@@ -34,28 +34,27 @@ class ControlPanel(Panel):
         for panel in self.panels:
             self.add_component(panel)
 
-    def on_start_stop(self, callback):
-        self.actions_panel.on_start_stop(callback)
-
-    def on_buffer_capture(self, callback):
-        self.buffer_panel.__on_capture(callback)
-
-    def on_buffer_save(self, callback):
-        self.buffer_panel.on_save(callback)
-
 
 class ActionsPanel(Panel):
     """
     Start, stop, previous, next panel.
     """
-    def __init__(self, title="Actions"):
+    def __init__(self, controller, title="Actions"):
         super().__init__(title)
+        self.controller = controller
         # Action buttons
         self.start_stop_button = PushButton("Freeze")
         self.add_component(self.start_stop_button)
+        self.start_stop_button.on_pressed(callback=self.on_start_stop)
+        self.is_started = False
 
-    def on_start_stop(self, callback):
-        self.start_stop_button.on_pressed(callback)
+    def on_start_stop(self):
+        if self.is_started:
+            self.controller.stop()
+            self.start_stop_button.set_text("Start")
+        else:
+            self.controller.start()
+            self.start_stop_button.set_text("Stop")
 
 
 
