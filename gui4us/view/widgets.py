@@ -79,7 +79,15 @@ class SpinBox(Widget):
             spin_box.valueChanged.connect(on_change)
 
     def set_on_change(self, func):
-        self.backend_widget.valueChanged.connect(func)
+        def func_wrapper(*args, **kwargs):
+            self.backend_widget.setDisabled(True)
+            func(*args, **kwargs)
+            self.backend_widget.setDisabled(False)
+            self.backend_widget.setFocus()
+        self.backend_widget.valueChanged.connect(func_wrapper)
+
+    def get_value(self):
+        self.backend_widget.value()
 
 
 class Slider(Widget):
@@ -101,7 +109,15 @@ class Slider(Widget):
             self.backend_widget.valueChanged.connect(on_change)
 
     def set_on_change(self, func):
-        self.backend_widget.valueChanged.connect(func)
+        def func_wrapper(*args, **kwargs):
+            self.backend_widget.setDisabled(True)
+            func(*args, **kwargs)
+            self.backend_widget.setDisabled(False)
+            self.backend_widget.setFocus()
+        self.backend_widget.valueChanged.connect(func_wrapper)
+
+    def get_value(self):
+        self.backend_widget.value()
 
 
 class WidgetSequence(Form):

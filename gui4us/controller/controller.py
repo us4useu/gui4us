@@ -101,6 +101,9 @@ class Controller:
         else:
             return object.__getattribute__(self, name)
 
+    def set_setting(self, key, value):
+        self.send(MethodCallEvent(f"set_{key}", value))
+
     def get_output(self, key):
         return self.output_buffers[key]
 

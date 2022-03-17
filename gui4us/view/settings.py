@@ -57,13 +57,19 @@ class SettingsPanel:
         else:
             widget_type = SpinBox
         if is_scalar:
-            return widget_type(**presentation.params)
+            widget = widget_type(**presentation.params)
         elif is_vector:
-            return WidgetSequence(widget_type, setting.label, **params)
+            widget = WidgetSequence(widget_type, setting.label, **params)
         else:
             raise ValueError("Settings panel supports only scalar and"
                              "vector settings.")
-        # Based on the widget type, determine
+
+        def setter():
+            new_value = widget.get_value()
+            self.controller.set_setting(key=setting.id, value=new_value)
+
+        widget.set_on_change(setter)
+        return widget
 
 
 

@@ -1,5 +1,7 @@
-import queue
+# TODO: outputs: avoid hash computation for performance? (split into two collections?)
 
+
+import queue
 import gui4us.cfg
 import numpy as np
 import datetime
@@ -69,14 +71,12 @@ class HardwareEnv(UltrasoundEnv):
         self.session = arrus.Session(self.cfg.session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
-
         scheme = Scheme(
             tx_rx_sequence=self.cfg.tx_rx_sequence,
             work_mode=self.cfg.work_mode,
             processing=Processing(self.cfg.pipeline,
                                   callback=self.__on_new_data)
         )
-
         self.metadata = self.session.upload(scheme)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
@@ -88,8 +88,7 @@ class HardwareEnv(UltrasoundEnv):
         # TGC
         # determine tgc curve sampling points.
         self.tgc_curve_sampling_depths = self.__determine_tgc_sampling_depths(
-            (self.img0_ox_grid, self.img0_oz_grid)
-        )
+            (self.img0_ox_grid, self.img0_oz_grid))
         for setting in self.settings:
             self.set(setting.id, setting.init_value)
         self.is_capturing = False  # TODO state_graph
@@ -98,21 +97,18 @@ class HardwareEnv(UltrasoundEnv):
             "capture_buffer_events": Output()
         }
         for i in range(len(self.metadata)):
-            # TODO avoid hash computation for performance?
-            #  (split into two collections?)
             self.outputs[i] = Output()
+        self.n_tgc_samples = self.__get_number_of_tgc_samples(self.cfg.tx_rx_sequence)
 
     def get_image_metadata(self, ordinal):
         image_metadata = self.__determine_image_metadata(ordinal)
         x_grid, z_grid, units, ids = image_metadata[0]
-
         return ImageMetadata(
             shape=self.metadata[ordinal].input_shape,
             dtype=self.metadata[ordinal].dtype,
             extents=self.__get_image_extent((x_grid, z_grid)),
             units=units,
-            ids=ids
-        )
+            ids=ids)
 
     def start(self):
         self.session.start_scheme()
@@ -163,43 +159,21 @@ class HardwareEnv(UltrasoundEnv):
                 id="gain",
                 data_type="float",
                 domain=ContinuousRange(14, 54, default_step=1),
-                init_value=self.cfg.initial_tgc_curve,
+                init_value=self.cfg.initial_gain,
                 unit="dB"
             )
         ]
 
-    def set_tx_voltage(self, voltage: int):
-        self.us4r.set_hv_voltage(voltage)
+    def set_tx_voltage(self, value):
+        self.us4r.set_hv_voltage(value)
 
-    def set_tgc_curve(self, tgc_curve):
-        if self.cfg.n_tgc_curve_points == 1:
-            # single scalar value
-            tgc_curve = [tgc_curve, tgc_curve]
-        actual_tgc_curve = self.__interpolate_to_device_tgc(tgc_curve)
-        self.us4r.set_tgc(actual_tgc_curve)
+    def set_gain(self, value):
+        tgc_curve = np.array([value]*self.n_tgc_samples)
+        self.us4r.set_tgc(tgc_curve)
 
-    def __determine_tgc_sampling_depths(self, imaging_grids):
-        n_tgc_curve_points = self.cfg.n_tgc_curve_points
-        if n_tgc_curve_points == 1:
-            n_tgc_curve_points = 2
-        _, oz_extent = self.__get_image_extent(imaging_grids)
-        oz_min, oz_max = oz_extent
-        return np.linspace(start=oz_min, stop=oz_max, num=n_tgc_curve_points)
-
-    def __interpolate_to_device_tgc(self, tgc_curve):
-        # TODO speed of sound should be determined based on the medium object
-        c = self.cfg.tx_rx_sequence.speed_of_sound
-        # TODO should be determined based on raw_sequence parameters
-        downsampling_factor = self.cfg.tx_rx_sequence.downsampling_factor
-        fs = self.us4r.sampling_frequency
-        end_sample = self.cfg.tx_rx_sequence.rx_sample_range[1]
-
-        in_sampling_depths = self.tgc_curve_sampling_depths
-        output_sampling_depths = np.arange(
-            start=round(150/downsampling_factor), stop=end_sample,
-            step=round(75/downsampling_factor))/fs*c
-        return np.interp(output_sampling_depths, in_sampling_depths,
-                     tgc_curve)
+    def __get_number_of_tgc_samples(self, tx_rx_sequence):
+        start, end = tx_rx_sequence.rx_sample_range
+        return round(end/(75/tx_rx_sequence.downsampling_factor))
 
     def __determine_image_metadata(self, ordinal):
         # TODO the output grid dimensions should be a part of the metadata
