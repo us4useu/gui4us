@@ -12,7 +12,9 @@ speed_of_sound = 5900
 # TX/RX parameters
 tx_frequency = 2.25e6
 rx_sample_range_us = (10e-6, 31.5e-6)  # [s]
-rx_sample_range = np.array(rx_sample_range_us)
+rx_sample_range = np.array(rx_sample_range_us)*65e6
+rx_sample_range = np.round(rx_sample_range).astype(np.int32)
+rx_sample_range = ((rx_sample_range+64-1)//64)*64
 pri = 200e-6
 sri = 7e-3
 initial_gain = 48
@@ -39,7 +41,7 @@ environment = HardwareEnvironment(
         downsampling_factor=downsampling_factor,
         speed_of_sound=speed_of_sound,
         pri=pri, sri=sri,
-        tgc_start=initial_tgc,
+        tgc_start=initial_gain,
         tgc_slope=0),
     pipeline=Pipeline(
         steps=(
@@ -47,8 +49,10 @@ environment = HardwareEnvironment(
             Transpose(axes=(0, 1, 3, 2)),
             FirFilter(fir_filter_taps),
             SelectSequence([0]),
+            Squeeze(),
             SelectFrames([frame]),
-            Squeeze()
+            Squeeze(),
+            Transpose()
         ),
         placement="/GPU:0"),
     work_mode="HOST",
@@ -63,7 +67,7 @@ displays = {
         layers=(
             Layer2D(
                 value_range=(-1000, 1000),
-                cmap="grey",
+                cmap="gray",
                 input=LiveDataId("default", 0)
             ),
         )

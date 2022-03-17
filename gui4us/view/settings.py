@@ -3,10 +3,11 @@ from gui4us.view.widgets import *
 from gui4us.settings import *
 
 
-class SettingsPanel:
+class SettingsPanel(Panel):
 
     def __init__(self, controller, title="Settings", settings=None,
                  custom_presentation=None):
+        super().__init__(title)
         if custom_presentation is None:
             custom_presentation = {}
         self.controller = controller
@@ -15,15 +16,12 @@ class SettingsPanel:
         self.custom_presentation = custom_presentation
 
         # Init layout
-        self._settings_panel = QGroupBox(title)
-        settings_layout = QVBoxLayout()
-        self._settings_panel.setLayout(settings_layout)
-        self.main_form = Form(settings_layout)
-
+        self.main_form = Form(self.layout)
         # convert settings to form fields
-        for setting in settings:
+        for setting in self.settings:
             form_field = self.__convert_to_field(setting)
             self.main_form.add_field(form_field)
+
 
     def __convert_to_field(self, setting):
         # Label
@@ -38,7 +36,7 @@ class SettingsPanel:
 
     def __convert(self, setting: Setting, presentation: SettingPresentation):
         # TODO discrete set of parameters?
-        if setting.domain != ContinuousRange:
+        if not isinstance(setting.domain, ContinuousRange):
             raise ValueError(f"Unsupported domain for scalar values: "
                              f"{setting.domain}")
 
@@ -57,7 +55,7 @@ class SettingsPanel:
         else:
             widget_type = SpinBox
         if is_scalar:
-            widget = widget_type(**presentation.params)
+            widget = widget_type(**params)
         elif is_vector:
             widget = WidgetSequence(widget_type, setting.label, **params)
         else:

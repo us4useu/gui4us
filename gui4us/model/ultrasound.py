@@ -64,7 +64,7 @@ class HardwareEnv(UltrasoundEnv):
         if self.log_file is None:
             self.log_file = HardwareEnv.DEFAULT_LOG_FILE
         self.log_file_level = getattr(arrus.logging, self.cfg.log_file_level,
-                                      default=None)
+                                      None)
         if self.log_file_level is None:
             raise ValueError(f"Unknown log file level: {self.log_file_level}")
         arrus.logging.add_log_file(self.log_file, self.log_file_level)
@@ -74,21 +74,20 @@ class HardwareEnv(UltrasoundEnv):
         scheme = Scheme(
             tx_rx_sequence=self.cfg.tx_rx_sequence,
             work_mode=self.cfg.work_mode,
-            processing=Processing(self.cfg.pipeline,
-                                  callback=self.__on_new_data)
+            processing=Processing(self.cfg.pipeline, callback=self._on_new_data)
         )
         self.metadata = self.session.upload(scheme)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
+        self.n_tgc_samples = self._get_number_of_tgc_samples(self.cfg.tx_rx_sequence)
+
         self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
         # Do initial configuration of the system
         self.settings = self.create_settings()
         # Image dimensions
-        self.img0_ox_grid, self.img0_oz_grid, _, _ = self.__determine_image_metadata(ordinal=0)
+        self.img0_ox_grid, self.img0_oz_grid, _, _ = self._determine_image_metadata(ordinal=0)
         # TGC
         # determine tgc curve sampling points.
-        self.tgc_curve_sampling_depths = self.__determine_tgc_sampling_depths(
-            (self.img0_ox_grid, self.img0_oz_grid))
         for setting in self.settings:
             self.set(setting.id, setting.init_value)
         self.is_capturing = False  # TODO state_graph
@@ -98,15 +97,14 @@ class HardwareEnv(UltrasoundEnv):
         }
         for i in range(len(self.metadata)):
             self.outputs[i] = Output()
-        self.n_tgc_samples = self.__get_number_of_tgc_samples(self.cfg.tx_rx_sequence)
 
     def get_image_metadata(self, ordinal):
-        image_metadata = self.__determine_image_metadata(ordinal)
-        x_grid, z_grid, units, ids = image_metadata[0]
+        image_metadata = self._determine_image_metadata(ordinal)
+        x_grid, z_grid, units, ids = image_metadata
         return ImageMetadata(
             shape=self.metadata[ordinal].input_shape,
             dtype=self.metadata[ordinal].dtype,
-            extents=self.__get_image_extent((x_grid, z_grid)),
+            extents=self._get_image_extent((x_grid, z_grid)),
             units=units,
             ids=ids)
 
@@ -164,18 +162,21 @@ class HardwareEnv(UltrasoundEnv):
             )
         ]
 
+    def get_settings(self):
+        return self.settings
+
     def set_tx_voltage(self, value):
         self.us4r.set_hv_voltage(value)
 
     def set_gain(self, value):
-        tgc_curve = np.array([value]*self.n_tgc_samples)
+        tgc_curve = [value]*self.n_tgc_samples
         self.us4r.set_tgc(tgc_curve)
 
-    def __get_number_of_tgc_samples(self, tx_rx_sequence):
+    def _get_number_of_tgc_samples(self, tx_rx_sequence):
         start, end = tx_rx_sequence.rx_sample_range
         return round(end/(75/tx_rx_sequence.downsampling_factor))
 
-    def __determine_image_metadata(self, ordinal):
+    def _determine_image_metadata(self, ordinal):
         # TODO the output grid dimensions should be a part of the metadata
         # returned by arrus package
         if isinstance(self.cfg.pipeline, arrus.utils.imaging.Pipeline)\
@@ -185,24 +186,25 @@ class HardwareEnv(UltrasoundEnv):
             grid_steps = [step for step in self.cfg.pipeline.steps
                           if hasattr(step, "x_grid") and hasattr(step, "z_grid")
                           ]
-            grid_step = grid_steps[-1]
-            return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OX", "OZ")
-        else:
-            # Very simple fallback option
-            input_shape = self.metadata[ordinal].input_shape
-            if len(input_shape) != 2:
-                raise ValueError("The pipeline's output should be a 2D image!")
-            n_points_x, n_points_z = input_shape
-            x_grid = np.arange(0, n_points_x)
-            z_grid = np.arange(0, n_points_z)
-            return x_grid, z_grid, ("", ""), ("", "")
+            if len(grid_steps) > 1:
+                grid_step = grid_steps[-1]
+                return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OX", "OZ")
 
-    def __get_image_extent(self, imaging_grids):
+        # otherwise: very simple fallback option
+        input_shape = self.metadata[ordinal].input_shape
+        if len(input_shape) != 2:
+            raise ValueError("The pipeline's output should be a 2D image!")
+        n_points_x, n_points_z = input_shape
+        x_grid = np.arange(0, n_points_x)
+        z_grid = np.arange(0, n_points_z)
+        return x_grid, z_grid, ("", ""), ("", "")
+
+    def _get_image_extent(self, imaging_grids):
         ox_grid, oz_grid = imaging_grids
         return ((np.min(ox_grid), np.max(ox_grid)),
                 (np.min(oz_grid), np.max(oz_grid)))
 
-    def __on_new_data(self, elements):
+    def _on_new_data(self, elements):
         try:
             is_capturing = self.is_capturing
             if is_capturing:

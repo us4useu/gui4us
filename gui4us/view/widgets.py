@@ -41,7 +41,7 @@ class Form(Widget):
         parent.addLayout(self.backend_widget)
 
     def add_field(self, field: FormField):
-        self.backend_widget.addRow(field.label, field.widget)
+        self.backend_widget.addRow(field.label, field.widget.backend_widget)
 
 
 class PushButton(Widget):
@@ -52,7 +52,7 @@ class PushButton(Widget):
             self.backend_widget.pressed.connect(onpressed)
 
     def on_pressed(self, callback):
-        self.backend_widget.pressed().connect(callback)
+        self.backend_widget.pressed.connect(callback)
 
     def set_text(self, text):
         self.backend_widget.setText(text)
@@ -140,13 +140,13 @@ class Panel:
         self.backend_widget.setLayout(self.layout)
 
     def add_component(self, component):
-        self.layout.addWiget(component.backend_widget)
+        self.layout.addWidget(component.backend_widget)
 
     def disable(self):
         self.backend_widget.setEnabled(False)
 
     def enable(self):
-        self.backend_widget.setEnabled(False)
+        self.backend_widget.setEnabled(True)
 
 
 def show_error_message(msg):

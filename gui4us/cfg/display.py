@@ -17,4 +17,4 @@ class Display2D:
 
 @dataclass(frozen=True)
 class ViewCfg:
-    display_cfg: Dict[str, Display2D]
+    displays: Dict[str, Display2D]

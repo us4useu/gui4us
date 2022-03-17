@@ -31,8 +31,8 @@ from typing import Dict
 
 class DisplayPanel(Panel):
 
-    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller, title="Display"):
-        super().__init__(title, layout="h")
+    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller, parent_window, title="Display"):
+        super().__init__(title)
         # Validate configuration.
         # TODO handle multiple dislays
         if len(cfg) > 1:
@@ -43,9 +43,9 @@ class DisplayPanel(Panel):
                              "supported.")
         self.layer_cfg = cfg.layers[0]
         self.controller = controller
-        image_metadata = self.controller.get_image_metadata()
+        image_metadata = self.controller.get_image_metadata(0).get_result()
         img_canvas = FigureCanvas(Figure(figsize=(6, 6)))
-        self.layout.addWidget(NavigationToolbar(img_canvas, self))
+        self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
         self.layout.addWidget(img_canvas)
         # Create a single Ax.
         ax = img_canvas.figure.subplots()

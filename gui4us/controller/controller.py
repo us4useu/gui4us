@@ -1,3 +1,4 @@
+import traceback
 from dataclasses import dataclass, field
 import threading
 import queue
@@ -26,11 +27,12 @@ class Task:
     def __init__(self, event):
         self.event = event
         self.completed = threading.Event()
+        self.completed.clear()
         self.result = queue.Queue(maxsize=1)
         self.error = queue.Queue(maxsize=1)
 
     def wait(self, timeout=None):
-        self.completed.wait(timeout)
+        self.completed.wait()
 
     def set_ready(self):
         self.completed.set()
@@ -44,7 +46,9 @@ class Task:
     def get_result(self):
         self.wait()
         try:
-            return self.result.get(block=False)
+            result = self.result.get(block=False)
+            # print(f"RESULT: {result}")
+            return result
         except queue.Empty:
             return None
 
@@ -59,16 +63,16 @@ class Task:
 class Promise:
     def __init__(self, task):
         self.task = task
-        self.result = queue.Queue(maxsize=1)
 
     def wait(self):
         self.task.wait()
 
     def get_result(self):
-        self.task.get_result()
+        result = self.task.get_result()
+        return result
 
     def get_error(self):
-        self.task.get_error()
+        return self.task.get_error()
 
 
 class Controller:
@@ -77,11 +81,12 @@ class Controller:
         self.task_queue = queue.Queue()
         self.result_queue = queue.Queue()
         self.event_queue_runner = threading.Thread(target=self._main_loop)
+        self.event_queue_runner.start()
         self.output_buffers = {}
         for key, output in self.model.outputs.items():
-            queue = queue.Queue()
-            output.add_callback(lambda data: queue.put(data))
-            self.output_buffers[key] = queue
+            q = queue.Queue()
+            output.add_callback(lambda data: q.put(data))
+            self.output_buffers[key] = q
 
     def send(self, event):
         task = Task(event)
@@ -89,17 +94,17 @@ class Controller:
         self.task_queue.put(task)
         return promise
 
-    def __getattribute__(self, name):
-        if not hasattr(self, name):
-
-            def method(*args, **kwargs):
-                return self.send(MethodCallEvent(name, args=args,
-                                                 kwargs=kwargs))
-
-            self.__setattr__(name, method)
-            return method
+    def __getattr__(self, item):
+        if item in self.__class__.__dict__:
+            return getattr(self, item)
         else:
-            return object.__getattribute__(self, name)
+            def new_method(*args, **kwargs):
+                return self.send(MethodCallEvent(item, args=args, kwargs=kwargs))
+            setattr(self, item, new_method)
+            return getattr(self, item)
+
+    def _default_method_handler(self, name, *args, **kwargs):
+        return
 
     def set_setting(self, key, value):
         self.send(MethodCallEvent(f"set_{key}", value))
@@ -108,27 +113,29 @@ class Controller:
         return self.output_buffers[key]
 
     def start(self):
-        self.event_queue_runner.start()
-        self.task_queue.put(MethodCallEvent("start"))
+        self.send(MethodCallEvent("start"))
 
     def close(self):
-        self.task_queue.put(CloseEvent())
+        self.send(CloseEvent())
 
     def _main_loop(self):
         while True:
             task = None
             try:
+                # print("Controller ready, waiting for new data...")
                 task = self.task_queue.get()
                 event = task.event
                 if isinstance(event, CloseEvent):
+                    print("Closing controller")
                     self.model.close()
                     return
-                result = self.model.__getattribute__(task.name)(*task.args,
-                                                                **task.kwargs)
+                result = self.model.__getattribute__(event.name)(*event.args,
+                                                                **event.kwargs)
                 task.set_result(result)
                 task.set_ready()
             except Exception as e:
-                logging.exception(e)
+                print(e)
+                print(traceback.format_exc())
                 task.set_error(e)
                 task.set_ready()
 

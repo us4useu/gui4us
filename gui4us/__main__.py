@@ -39,10 +39,14 @@ if __name__ == "__main__":
     cfg_path = args.cfg
     cfg = load_cfg(cfg_path)
 
+    print("Creating model")
     model = HardwareEnv(cfg.environment)
+    print("Creating controller")
     controller = Controller(model)
-    view = View(f"gui4us {gui4us.__version__}", cfg.view_cfg, controller)
-    result = start_view(view)
+    print("Creating View")
+    result = start_view(f"gui4us {gui4us.__version__}",
+                        cfg.view_cfg, controller)
+    print(f"view returned with {result}")
     sys.exit(result)
 
 
