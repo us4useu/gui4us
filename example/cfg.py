@@ -6,6 +6,9 @@ from arrus.ops.imaging import *
 import numpy as np
 import scipy.signal
 
+
+# ------------------------------------------ CONFIG
+
 # Medium parameters
 speed_of_sound = 5900
 
@@ -61,6 +64,7 @@ environment = HardwareEnvironment(
     initial_gain=initial_gain
 )
 
+
 displays = {
     "rf": Display2D(
         title=f"RF frame: {frame}",
@@ -68,10 +72,16 @@ displays = {
             Layer2D(
                 value_range=(-1000, 1000),
                 cmap="gray",
-                input=LiveDataId("default", 0)
+                input=LiveDataId("default", 0),
+                extent=(
+                    (rx_sample_range_us[0]*1e6, rx_sample_range_us[1]*1e6),
+                    (0, 32)
+                ),
+                ax_labels=("OZ", "OX")
             ),
         )
     )
 }
+
 
 view_cfg = ViewCfg(displays)

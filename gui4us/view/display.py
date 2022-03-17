@@ -52,14 +52,20 @@ class DisplayPanel(Panel):
         # Ax parameters
         input_shape = image_metadata.shape
         dtype = image_metadata.dtype
-        extent_oz, extent_ox = image_metadata.extents
-        label_oz, label_ox = image_metadata.ids
+        if self.layer_cfg.extent is not None:
+            extent_oz, extent_ox = self.layer_cfg.extent
+        else:
+            extent_oz, extent_ox = image_metadata.extents
+        if self.layer_cfg.ax_labels is not None:
+            label_oz, label_ox = self.layer_cfg.ax_labels
+        else:
+            label_oz, label_ox = image_metadata.ids
         unit_oz, unit_ox = image_metadata.units
         ax_vmin, ax_vmax = self.layer_cfg.value_range
         cmap = self.layer_cfg.cmap
 
-        ax.set_xlabel(f"{label_ox} [{unit_ox}]")
-        ax.set_ylabel(f"{label_oz} [{unit_oz}]")
+        ax.set_xlabel(self.get_ax_label(label_ox, unit_ox))
+        ax.set_ylabel(self.get_ax_label(label_oz, unit_oz))
         init_data = np.zeros(input_shape, dtype=dtype)
         self.img_canvas = ax.imshow(
             init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
@@ -87,8 +93,9 @@ class DisplayPanel(Panel):
     def update(self):
         try:
             if self.is_started:
-                data = self.input.get()
-                if data is None or not self.is_started:  # None means that the buffer has stopped
+                data = self.input.get()  # Data index
+                if data is None or not self.is_started:
+                    # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
@@ -96,4 +103,11 @@ class DisplayPanel(Panel):
                 self.img_canvas.figure.canvas.draw()
         except Exception as e:
             print(e)
+
+    def get_ax_label(self, label, unit):
+        label = f"{label}"
+        if unit:
+            label = f"{label} [{unit}]"
+        return label
+
 

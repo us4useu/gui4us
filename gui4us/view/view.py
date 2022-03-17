@@ -79,9 +79,9 @@ class View(QtWidgets.QMainWindow):
 
     def on_start_stop_pressed(self):
         if self.state.is_current_state({"init", "stopped"}):
-            self.state.go("start")
+            self.state.do("start")
         else:
-            self.state.go("stop")
+            self.state.do("stop")
 
     def on_init(self, event):
         self.control_panel.actions_panel.enable()
@@ -97,6 +97,7 @@ class View(QtWidgets.QMainWindow):
     def on_started(self, event):
         self.control_panel.settings_panel.enable()
         self.control_panel.buffer_panel.enable()
+        self.display_panel.start()
         self.statusBar().showMessage("Running.")
 
     def on_stopped(self, event):

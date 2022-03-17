@@ -112,6 +112,7 @@ class HardwareEnv(UltrasoundEnv):
         self.session.start_scheme()
 
     def stop(self):
+
         self.session.stop_scheme()
 
     def close(self):
