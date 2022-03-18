@@ -89,11 +89,10 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.figure, self.update,
-                                   interval=0.01)
+        # self.anim = FuncAnimation(self.figure, self.update, interval=0.01)
         # plt.show()
-        # self.figure.canvas.start_event_loop(0.01)
-        # self.thread.start(priority=QThread.TimeCriticalPriority)
+        self.figure.canvas.start_event_loop(0.01)
+        self.thread.start(priority=QThread.TimeCriticalPriority)
 
     def stop(self):
         self.is_started = False
@@ -102,7 +101,7 @@ class DisplayPanel(Panel):
         self.worker.stop()
         self.worker.wait_for_stop()
 
-    def update(self, frame):
+    def update(self):
         try:
             if self.is_started:
                 data = self.input.get()  # Data index

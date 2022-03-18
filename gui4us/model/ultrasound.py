@@ -70,11 +70,14 @@ class HardwareEnv(UltrasoundEnv):
         if self.log_file_level is None:
             raise ValueError(f"Unknown log file level: {self.log_file_level}")
         arrus.logging.add_log_file(self.log_file, self.log_file_level)
+        arrus.logging.set_clog_level(arrus.logging.TRACE)
         self.session = arrus.Session(self.cfg.session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
         scheme = Scheme(
             tx_rx_sequence=self.cfg.tx_rx_sequence,
+            rx_buffer_size = 500,
+            output_buffer = DataBufferSpec(type="FIFO", n_elements=500),
             work_mode=self.cfg.work_mode,
             processing=Processing(self.cfg.pipeline, callback=self._on_new_data)
         )

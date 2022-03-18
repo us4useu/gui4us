@@ -8,10 +8,11 @@ import scipy.signal
 
 # Utility methods
 
+
 def _get_const_memory_array(module, name, input_array):
     import cupy as cp
     const_arr_ptr = module.get_global(name)
-    const_arr = cp.ndarray(shape=input_array.shape, dtype=input_array.dtype,
+    const_arr = cp.ndarray(shaschemepe=input_array.shape, dtype=input_array.dtype,
                            memptr=const_arr_ptr)
     const_arr.set(input_array)
     return const_arr
@@ -30,7 +31,7 @@ rx_sample_range = np.round(rx_sample_range).astype(np.int32)
 rx_sample_range = ((rx_sample_range+64-1)//64)*64
 pri = 200e-6
 sri = 7e-3
-initial_gain = 48
+initial_gain = 54
 initial_voltage = 5
 downsampling_factor = 1
 sampling_frequency = 65e6 / downsampling_factor
@@ -249,7 +250,7 @@ environment = HardwareEnvironment(
             # Output #0
         ),
         placement="/GPU:0"),
-    work_mode="HOST",
+    work_mode="MANUAL",
     capture_buffer_capacity=500,
     initial_tx_voltage=initial_voltage,
     initial_gain=initial_gain
@@ -261,7 +262,7 @@ displays = {
         title=f"RF frame: {frame}",
         layers=(
             Layer2D(
-                value_range=(20, 80),
+                value_range=(0, 100),
                 cmap="gray",
                 input=LiveDataId("default", 0),
                 # extent=(
