@@ -68,7 +68,6 @@ class CaptureBufferComponent(Panel):
 
     def update(self):
         try:
-            print("CAPTURE BUFFER WAITING FOR NEW EVENTS")
             event = self.buffer_state_output.get()
             print(event)
             if event is None:
@@ -87,8 +86,11 @@ class CaptureBufferComponent(Panel):
     def __on_save_button_press(self):
         self.state.do("save")
 
+    def on_capture_reset(self):
+        # TODO
+        pass
+
     def on_capture_start(self, event):
-        self.controller.stop_capture()
         self.capture_button.enable()
         self.save_button.disable()
         self.controller.start_capture()
@@ -97,11 +99,7 @@ class CaptureBufferComponent(Panel):
 
     def on_capture_end(self, event):
         self.save_button.enable()
-        # ViewModel knows, that the data was captured?
-        # self.view_model.stop_capture()
         # TODO label informing about the data acquisition
-        # self.statusBar().showMessage(
-        #     "Capture done, press 'Save' button to save the data to disk.")
 
     def on_save(self, event):
         # TODO stop acquisition?

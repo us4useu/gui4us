@@ -75,6 +75,17 @@ class Promise:
         return self.task.get_error()
 
 
+class OutputWorker:
+    def __init__(self):
+        self.queue = queue.Queue()
+
+    def put(self, data):
+        self.queue.put(data)
+
+    def get(self):
+        return self.queue.get()
+
+
 class Controller:
     def __init__(self, model):
         self.model = model
@@ -84,9 +95,9 @@ class Controller:
         self.event_queue_runner.start()
         self.output_buffers = {}
         for key, output in self.model.outputs.items():
-            q = queue.Queue()
-            output.add_callback(lambda data: q.put(data))
-            self.output_buffers[key] = q
+            worker = OutputWorker()
+            output.add_callback(worker.put)
+            self.output_buffers[key] = worker
 
     def send(self, event):
         task = Task(event)
