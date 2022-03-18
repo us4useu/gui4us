@@ -30,6 +30,8 @@ class HardwareEnvironment:
     log_file_level: str = "INFO"
     initial_tx_voltage: int = 5
     initial_gain: float = 54
+    rx_buffer_size: int = 64
+    host_buffer_size: int = 64
 
 
 @dataclass(frozen=True)

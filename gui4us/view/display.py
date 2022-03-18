@@ -86,6 +86,8 @@ class DisplayPanel(Panel):
         self.thread.started.connect(self.worker.run)
         self.is_started = False  # TODO state_graph
         self.input = self.controller.get_output("out_0")
+        self.i = 0
+        self.ax = ax
 
     def start(self):
         self.is_started = True
@@ -112,6 +114,8 @@ class DisplayPanel(Panel):
                     return
                 self.img_canvas.set_data(data)
                 self.img_canvas.figure.canvas.draw()
+                self.ax.set_title(f"Global frame: {self.i}")
+                self.i = (self.i + 1) % 1000
         except Exception as e:
             print(e)
 

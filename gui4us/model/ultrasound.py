@@ -70,14 +70,14 @@ class HardwareEnv(UltrasoundEnv):
         if self.log_file_level is None:
             raise ValueError(f"Unknown log file level: {self.log_file_level}")
         arrus.logging.add_log_file(self.log_file, self.log_file_level)
-        arrus.logging.set_clog_level(arrus.logging.TRACE)
+        # arrus.logging.set_clog_level(arrus.logging.TRACE)
         self.session = arrus.Session(self.cfg.session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
         scheme = Scheme(
             tx_rx_sequence=self.cfg.tx_rx_sequence,
-            rx_buffer_size = 500,
-            output_buffer = DataBufferSpec(type="FIFO", n_elements=500),
+            rx_buffer_size=self.cfg.rx_buffer_size,
+            output_buffer=DataBufferSpec(type="FIFO", n_elements=self.cfg.host_buffer_size),
             work_mode=self.cfg.work_mode,
             processing=Processing(self.cfg.pipeline, callback=self._on_new_data)
         )
@@ -131,6 +131,9 @@ class HardwareEnv(UltrasoundEnv):
     def start_capture(self):
         self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
         self.is_capturing = True
+
+    def clear_capture(self):
+        self.is_capturing = False
 
     def stop_capture(self):
         """
@@ -195,7 +198,7 @@ class HardwareEnv(UltrasoundEnv):
                           ]
             if len(grid_steps) > 0:
                 grid_step = grid_steps[-1]
-                return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OX", "OZ")
+                return grid_step.x_grid, grid_step.z_grid, ("m", "m"), ("OZ", "OX")
 
         # otherwise: very simple fallback option
         input_shape = self.metadata[ordinal].input_shape

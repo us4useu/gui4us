@@ -1,49 +1,16 @@
-from gui4us.cfg.environment import *
-from gui4us.cfg.display import *
-from arrus.ops.us4r import *
+import cupy as cp
 from arrus.utils.imaging import *
-from arrus.ops.imaging import *
-import numpy as np
-import scipy.signal
-
-# Utility methods
 
 
 def _get_const_memory_array(module, name, input_array):
     import cupy as cp
     const_arr_ptr = module.get_global(name)
-    const_arr = cp.ndarray(shaschemepe=input_array.shape, dtype=input_array.dtype,
+    const_arr = cp.ndarray(input_array.shape, dtype=input_array.dtype,
                            memptr=const_arr_ptr)
     const_arr.set(input_array)
     return const_arr
 
 
-# ------------------------------------------ CONFIG
-
-# Medium parameters
-speed_of_sound = 5900
-
-# TX/RX parameters
-tx_frequency = 2.25e6
-rx_sample_range_us = (0e-6, 61.5e-6)  # [s]
-rx_sample_range = np.array(rx_sample_range_us)*65e6
-rx_sample_range = np.round(rx_sample_range).astype(np.int32)
-rx_sample_range = ((rx_sample_range+64-1)//64)*64
-pri = 200e-6
-sri = 7e-3
-initial_gain = 54
-initial_voltage = 5
-downsampling_factor = 1
-sampling_frequency = 65e6 / downsampling_factor
-
-# Processing parameters
-fir_filter_taps = scipy.signal.firwin(
-    64, np.array([0.5, 1.5]) * tx_frequency, pass_zero=False,
-    fs=sampling_frequency)
-frame = 15
-
-
-import cupy as cp
 # Reconstruction code
 class ReconstructLriWedge(Operation):
     """
@@ -201,79 +168,3 @@ class ReconstructLriWedge(Operation):
         )
         self._kernel(self.grid_size, self.block_size, params)
         return self.output_buffer
-
-x_grid = np.arange(-40, 40, 0.2) * 1e-3
-z_grid = np.arange(0, 40, 0.2) * 1e-3
-
-environment = HardwareEnvironment(
-    session_cfg="/home/pjarosik/us4r.prototxt",
-    tx_rx_sequence=StaSequence(
-        tx_aperture_center_element=np.arange(0, 32),
-        rx_aperture_center_element=15,
-        rx_aperture_size=32,
-        tx_focus=0.0,
-        pulse=Pulse(center_frequency=tx_frequency, n_periods=2, inverse=False),
-        rx_sample_range=rx_sample_range,
-        downsampling_factor=downsampling_factor,
-        speed_of_sound=speed_of_sound,
-        pri=pri, sri=sri,
-        tgc_start=initial_gain,
-        tgc_slope=0),
-    pipeline=Pipeline(
-        steps=(
-            RemapToLogicalOrder(),
-            # Output # 1
-            Pipeline(
-                steps=(
-                    Lambda(lambda data: data),
-                ),
-                placement="/GPU:0"
-            ),
-            Transpose(axes=(0, 1, 3, 2)),
-            BandpassFilter(),
-            QuadratureDemodulation(),
-            Decimation(decimation_factor=4, cic_order=2),
-            # Data beamforming.
-            ReconstructLriWedge(x_grid=x_grid, z_grid=z_grid,
-                                wedge_speed_of_sound=2320,
-                                wedge_size=21e-3,
-                                wedge_angle=35.8*np.pi/180),
-            # TODO Phase coherence weighting
-            # IQ compounding
-            Mean(axis=1),  # Along tx axis.
-            # Post-processing to B-mode image.
-            EnvelopeDetection(),
-            # Envelope compounding
-            Mean(axis=0),
-            Transpose(),
-            LogCompression()
-            # Output #0
-        ),
-        placement="/GPU:0"),
-    work_mode="MANUAL",
-    capture_buffer_capacity=500,
-    initial_tx_voltage=initial_voltage,
-    initial_gain=initial_gain
-)
-
-
-displays = {
-    "rf": Display2D(
-        title=f"RF frame: {frame}",
-        layers=(
-            Layer2D(
-                value_range=(0, 100),
-                cmap="gray",
-                input=LiveDataId("default", 0),
-                # extent=(
-                #     (rx_sample_range_us[0]*1e6, rx_sample_range_us[1]*1e6),
-                #     (0, 32)
-                # ),
-                # ax_labels=("OZ", "OX")
-            ),
-        )
-    )
-}
-
-
-view_cfg = ViewCfg(displays)

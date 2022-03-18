@@ -29,7 +29,7 @@ class CaptureBufferComponent(Panel):
 
         self.state_graph = StateGraph(
             states={
-                State("empty"),
+                State("empty", on_enter=self.on_empty_buffer),
                 State("capturing"),
                 State("captured")
             },
@@ -45,6 +45,8 @@ class CaptureBufferComponent(Panel):
                            self.on_capture_start),  # Reset capture buffer
                 Transition("capturing", "capture_done", "captured",
                            self.on_capture_end),
+                Transition("capturing", "save", "empty",
+                           self.on_save),
                 Transition("captured", "capture", "capturing",
                            self.on_capture_start),
                 Transition("captured", "save", "empty",
@@ -96,17 +98,13 @@ class CaptureBufferComponent(Panel):
 
     def on_capture_start(self, event):
         self.capture_button.enable()
-        self.save_button.disable()
+        self.save_button.enable()
         self.controller.start_capture()
-        # TODO label z info o zbieraniu danych
-        # self.statusBar().showMessage("Capturing RF frames...")
 
     def on_capture_end(self, event):
         self.save_button.enable()
-        # TODO label informing about the data acquisition
 
     def on_save(self, event):
-        # TODO stop acquisition?
         filename, extension = QFileDialog.getSaveFileName(
             parent=None, caption="Save File", directory=".",
             filter=_FILE_EXTENSIONS)
@@ -114,3 +112,7 @@ class CaptureBufferComponent(Panel):
             event.stop()
             return
         self.controller.save_capture(filename)
+        self.controller.clear_capture()
+
+    def on_empty_buffer(self, event):
+        self.save_button.disable()
