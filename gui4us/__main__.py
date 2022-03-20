@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import os
 import arrus
+import traceback
 
 import logging
 
@@ -31,23 +32,28 @@ def load_cfg(path):
 
 if __name__ == "__main__":
     # Read input parameters.
-    parser = argparse.ArgumentParser(description="GUI4us.")
-    parser.add_argument("--cfg", dest="cfg",
+    try:
+        parser = argparse.ArgumentParser(description="GUI4us.")
+        parser.add_argument("--cfg", dest="cfg",
                         help="Path to the initial configuration file",
                         required=True)
-    args = parser.parse_args()
-    cfg_path = args.cfg
-    cfg = load_cfg(cfg_path)
+        args = parser.parse_args()
+        cfg_path = args.cfg
+        cfg = load_cfg(cfg_path)
 
-    print("Creating model")
-    model = HardwareEnv(cfg.environment)
-    print("Creating controller")
-    controller = Controller(model)
-    print("Creating View")
-    result = start_view(f"gui4us {gui4us.__version__}",
+        print("Creating model")
+        model = HardwareEnv(cfg.environment)
+        print("Creating controller")
+        controller = Controller(model)
+        print("Creating View")
+        result = start_view(f"gui4us {gui4us.__version__}",
                         cfg.view_cfg, controller)
-    print(f"view returned with {result}")
-    sys.exit(result)
-
+        print(f"view returned with {result}")
+        sys.exit(result)
+    except Exception as e:
+        print(traceback.format_exc())
+        print(e)
+    finally:
+        input("Press enter to exit...")
 
 
