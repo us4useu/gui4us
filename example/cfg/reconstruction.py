@@ -168,3 +168,23 @@ class ReconstructLriWedge(Operation):
         )
         self._kernel(self.grid_size, self.block_size, params)
         return self.output_buffer
+
+
+class PhaseCoherenceWeighting(Operation):
+
+    def __init__(self):
+        pass
+
+    def set_pkgs(self, num_pkg, **kwargs):
+        self.num_pkg = num_pkg
+
+    def prepare(self, const_metadata):
+        return const_metadata
+
+    def process(self, data):
+        amp = self.num_pkg.abs(data)
+        r = self.num_pkg.real(data)
+        im = self.num_pkg.imag(data)
+        ccf = 1 - self.num_pkg.sqrt(self.num_pkg.nanvar(r/amp, axis=1)
+                                    + self.num_pkg.nanvar(im/amp, axis=1))
+        return data*ccf
