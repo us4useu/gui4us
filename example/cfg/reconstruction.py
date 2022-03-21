@@ -95,7 +95,7 @@ class ReconstructLriWedge(Operation):
                       - element_pos_x_orig * np.sin(self.wedge_angle) \
                       - self.wedge_size
         element_angle = probe_model.element_angle + self.wedge_angle
-        element_angle_tang = np.tan(probe_model.element_angle)
+        element_angle_tang = np.tan(element_angle)
 
         self.n_elements = probe_model.n_elements
 
