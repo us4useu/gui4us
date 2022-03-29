@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="gui4us",
-    version="0.0.1",
+    version="0.0.2",
     author="us4us Ltd.",
     author_email="support@us4us.eu",
     description="GUI 4 ultrasound",
@@ -23,7 +23,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Medical Science Apps."
     ],
     install_requires=[
-        "arrus>=0.5.11",
+        "arrus>0.6.6",
         "pyyaml",
         "PyQt5"
     ],

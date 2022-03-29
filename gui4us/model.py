@@ -287,7 +287,7 @@ class ArrusModel(Model):
         # OZ
         c = self._speed_of_sound
         fs = _SAMPLING_FREQUENCY/self._downsampling_factor
-        max_depth = (c/fs)*self._rx_sample_range[1]/2
+        max_depth = (c/fs)*self._rx_sample_range[1]/2-5e-3
         z_grid = np.arange(self._img_start_depth, max_depth,
                            step=_IMG_PIXEL_STEP)
         # OX
