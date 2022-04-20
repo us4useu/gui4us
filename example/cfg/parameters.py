@@ -6,7 +6,7 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 # Medium parameters
 speed_of_sound = 2900
 # TX/RX parameters
-tx_frequency = 5e6
+tx_frequency = 18e6
 rx_sample_range_us = (0e-6, 61.5e-6)  # [s]
 
 # Pulse Repetition Interval

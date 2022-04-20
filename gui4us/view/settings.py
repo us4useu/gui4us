@@ -39,8 +39,8 @@ class SettingsPanel(Panel):
             raise ValueError(f"Unsupported domain for scalar values: "
                              f"{setting.domain}")
 
-        is_scalar = len(setting.shape) == 1 and setting.shape[0] == 1
-        is_vector = len(setting.shape) == 1 and setting.shape[0] > 1
+        is_scalar = setting.is_scalar()
+        is_vector = setting.is_vector()
 
         params = {
             "value_range": (setting.domain.start, setting.domain.end),
@@ -52,11 +52,15 @@ class SettingsPanel(Panel):
             widget_type = getattr(widgets, presentation.type)
             params = {**params, **presentation.params}
         else:
-            widget_type = SpinBox
+            if is_scalar:
+                widget_type = SpinBox
+            else:
+                widget_type = Slider
         if is_scalar:
             widget = widget_type(**params)
         elif is_vector:
-            widget = WidgetSequence(widget_type, setting.label, **params)
+            widget = WidgetSequence(self.layout,
+                                    widget_type, setting.label, **params)
         else:
             raise ValueError("Settings panel supports only scalar and"
                              "vector settings.")

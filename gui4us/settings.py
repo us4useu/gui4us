@@ -38,6 +38,12 @@ class Setting:
     shape: tuple = (1, )
     label: tuple = None   # Tuple of strings
 
+    def is_scalar(self):
+        return len(self.shape) == 1 and self.shape[0] == 1
+
+    def is_vector(self):
+        return len(self.shape) == 1 and self.shape[0] > 1
+
 
 @dataclass(frozen=True)
 class SettingPresentation:
