@@ -34,17 +34,18 @@ from typing import Dict
 
 class DisplayPanel(Panel):
 
-    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller, parent_window, title="Display"):
+    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller,
+                 parent_window, title="Display"):
         super().__init__(title)
         # Validate configuration.
-        # TODO handle multiple dislays
+        # TODO handle multiple displays
         if len(cfg) > 1:
             raise ValueError("Currently only a single display is supported")
-        _, cfg = list(cfg.items())[0]
-        if len(cfg.layers) > 1:
+        _, self.cfg = list(cfg.items())[0]
+        if len(self.cfg.layers) > 1:
             raise ValueError("Currently only a single layer of data is "
                              "supported.")
-        self.layer_cfg = cfg.layers[0]
+        self.layer_cfg = self.cfg.layers[0]
         self.controller = controller
         image_metadata = self.controller.get_image_metadata(0).get_result()
         self.figure = Figure(figsize=(6, 6))
@@ -114,8 +115,7 @@ class DisplayPanel(Panel):
                     return
                 self.img_canvas.set_data(data)
                 self.img_canvas.figure.canvas.draw()
-                self.ax.set_title(f"Global frame: {self.i}")
-                self.i = (self.i + 1) % 1000
+                self.ax.set_title(f"{self.cfg.title}")
         except Exception as e:
             print(e)
 
