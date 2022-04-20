@@ -1,0 +1,1 @@
+from gui4us.version import __version__
