@@ -81,10 +81,6 @@ class DisplayPanel(Panel):
         self.img_canvas.figure.tight_layout()
         self.figure.colorbar(self.img_canvas)
         # View worker
-        self.thread = QThread()
-        self.worker = ViewWorker(self.update)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
         self.is_started = False  # TODO state_graph
         self.input = self.controller.get_output("out_0")
         self.i = 0
@@ -92,19 +88,18 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        # self.anim = FuncAnimation(self.figure, self.update, interval=0.01)
-        # plt.show()
-        self.figure.canvas.start_event_loop(0.01)
-        self.thread.start(priority=QThread.TimeCriticalPriority)
+        self.anim = FuncAnimation(self.figure, self.update, interval=0.01,
+                                  blit=True)
+        plt.show()
 
     def stop(self):
         self.is_started = False
+        self.anim.pause()
 
     def close(self):
-        self.worker.stop()
-        self.worker.wait_for_stop()
+        self.stop()
 
-    def update(self):
+    def update(self, ev):
         try:
             if self.is_started:
                 data = self.input.get()  # Data index
@@ -117,7 +112,9 @@ class DisplayPanel(Panel):
                 self.img_canvas.figure.canvas.draw()
                 self.ax.set_title(f"{self.cfg.title}")
         except Exception as e:
+            # TODO notify that there was an error while drawing
             print(e)
+        return self.img_canvas,
 
     def get_ax_label(self, label, unit):
         label = f"{label}"

@@ -1,14 +1,9 @@
 import sys
-import traceback
 
-from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5 import QtWidgets
 
 from gui4us.controller.controller import *
-from gui4us.view.widgets import show_error_message
 from gui4us.view.control import *
 from gui4us.view.display import *
 from gui4us.state_graph import *
