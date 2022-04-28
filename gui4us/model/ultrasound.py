@@ -1,11 +1,10 @@
-# TODO: outputs: avoid hash computation for performance? (split into two collections?)
-
-
 import queue
 import gui4us.cfg
 import numpy as np
 import datetime
 import pickle
+import traceback
+from collections.abc import Iterable
 import arrus.logging
 import arrus.utils.imaging
 from gui4us.settings import *
@@ -15,13 +14,7 @@ from arrus.utils.imaging import (
     Processing,
     Pipeline
 )
-from collections.abc import Iterable
-import traceback
-
-
-
-class UltrasoundEnv:
-    pass
+import gui4us.model.env
 
 
 class CaptureBuffer:
@@ -56,22 +49,22 @@ class Output:
         self.callbacks.append(func)
 
 
-class HardwareEnv(UltrasoundEnv):
+class Env(gui4us.model.env.Env):
 
-    DEFAULT_LOG_FILE = "arrus.log"
-
-    def __init__(self, cfg: gui4us.cfg.HardwareEnvironment):
+    def __init__(self, cfg: gui4us.cfg.UltrasoundEnvironment):
         self.cfg = cfg
         # LOGGING.
         self.log_file = self.cfg.log_file
         if self.log_file is None:
-            self.log_file = HardwareEnv.DEFAULT_LOG_FILE
+            self.log_file = Env.DEFAULT_LOG_FILE
         self.log_file_level = getattr(arrus.logging, self.cfg.log_file_level,
                                       None)
         if self.log_file_level is None:
             raise ValueError(f"Unknown log file level: "
                              f"{self.cfg.log_file_level}")
         arrus.logging.add_log_file(self.log_file, self.log_file_level)
+
+        # TODO The below should be performed in the start method.
         # START AND CONFIGURE NEW SESSION.
         self.session = arrus.Session(self.cfg.session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
@@ -87,6 +80,8 @@ class HardwareEnv(UltrasoundEnv):
         self.metadata = self.session.upload(scheme)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
+        # TODO prepare List of action defs (/Ops?)
+        # A single action def: SetValue(key, value)
         # PREPARE SETTINGS.
         # NOTE: the below code should replaced soon by the possibility to
         # read settable session parameters.
@@ -122,6 +117,10 @@ class HardwareEnv(UltrasoundEnv):
             extents=self._get_image_extent((z_grid, x_grid)),
             units=units,
             ids=ids)
+
+    @property
+    def id(self):
+        return self.id
 
     def start(self):
         self.session.start_scheme()

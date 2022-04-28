@@ -16,7 +16,7 @@ class LinearFunction:
 
 
 @dataclass(frozen=True)
-class HardwareEnvironment:
+class UltrasoundEnvironment:
     """
     Note: initial TGC curve value is
 
