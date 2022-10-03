@@ -19,7 +19,6 @@ from collections.abc import Iterable
 import traceback
 
 
-
 class UltrasoundEnv:
     pass
 
@@ -73,7 +72,7 @@ class HardwareEnv(UltrasoundEnv):
                              f"{self.cfg.log_file_level}")
         arrus.logging.add_log_file(self.log_file, self.log_file_level)
         # START AND CONFIGURE NEW SESSION.
-        self.session = arrus.Session(self.cfg.session_cfg)
+        self.session = arrus.Session(self.cfg.session_cfg, medium=cfg.medium)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
         scheme = Scheme(
@@ -97,7 +96,7 @@ class HardwareEnv(UltrasoundEnv):
         _, self.img0_oz_grid, _, _ = self._determine_image_metadata(ordinal=0)
         self.tgc_sampling = self._get_tgc_sampling_points(self.cfg)
         self.device_tgc_sampling_points = self._get_device_tgc_sampling_points(
-            metadata=self.metadata[0])
+            metadata=self.metadata[0], medium=cfg.medium)
         # Prepare initial configuration.
         self.settings = self.create_settings()
         for setting in self.settings:
@@ -224,13 +223,22 @@ class HardwareEnv(UltrasoundEnv):
         oz_min, oz_max = np.min(self.img0_oz_grid), np.max(self.img0_oz_grid)
         return np.arange(oz_min, oz_max, step=cfg.tgc_sampling)
 
-    def _get_device_tgc_sampling_points(self, metadata):
+    def _get_device_tgc_sampling_points(self, metadata, medium):
         # TODO verify every tx/rx has the same position
         seq = metadata.context.raw_sequence
         downsampling_factor = seq.ops[0].rx.downsampling_factor
         end_sample = seq.ops[0].rx.sample_range[1]
         fs = metadata.context.device.sampling_frequency
-        c = metadata.context.sequence.speed_of_sound
+        # TODO(pjarosik) replace the below check with checking if Tx.speed_of_sound is not None
+        if hasattr(metadata.context.sequence, "speed_of_sound"):
+            c = metadata.context.sequence.speed_of_sound
+        else:
+            if medium is None:
+                raise ValueError("The speed of sound must be provided at as a part of "
+                                 "TX/RX sequence description or as a description "
+                                 "of medium.")
+            else:
+                c = medium.speed_of_sound
         return np.arange(
             start=round(150/downsampling_factor),
             stop=end_sample,

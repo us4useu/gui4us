@@ -13,6 +13,7 @@ class Layer2D:
     value_range: tuple = None
     extent: tuple = None
     ax_labels: tuple = None
+    units: tuple = None
 
 
 @dataclass(frozen=True)

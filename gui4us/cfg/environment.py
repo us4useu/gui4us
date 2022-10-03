@@ -32,6 +32,7 @@ class HardwareEnvironment:
     :param log_file_level: log file severity level
     :param tgc_curve: initial tgc curve to apply
     :param tgc_sampling: the distance between TGC curve sampling points
+    :param medium: an instance of class arrus.medium.Medium, if None, ignored
     """
     session_cfg: str
     tx_rx_sequence: object
@@ -51,6 +52,7 @@ class HardwareEnvironment:
     tgc_curve: float = 54
     tgc_step: float = 1
     tgc_sampling: float = 5e-3
+    medium: object = None
 
 
 @dataclass(frozen=True)

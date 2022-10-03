@@ -65,10 +65,14 @@ class DisplayPanel(Panel):
             label_oz, label_ox = self.layer_cfg.ax_labels
         else:
             label_oz, label_ox = image_metadata.ids
-        unit_oz, unit_ox = image_metadata.units
+        if self.layer_cfg.units is not None:
+            unit_oz, unit_ox = self.layer_cfg.units
+        else:
+            unit_oz, unit_ox = image_metadata.units
         ax_vmin, ax_vmax = None, None
         if self.layer_cfg.value_range is not None:
             ax_vmin, ax_vmax = self.layer_cfg.value_range
+
 
         cmap = self.layer_cfg.cmap
 
