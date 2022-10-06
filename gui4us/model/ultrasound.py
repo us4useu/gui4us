@@ -170,7 +170,7 @@ class HardwareEnv(UltrasoundEnv):
                 id="tx_voltage",
                 data_type="int",
                 # TODO determine based on the probe definition
-                domain=ContinuousRange(5, 90,
+                domain=ContinuousRange(5, 60,
                                        default_step=self.cfg.tx_voltage_step),
                 init_value=self.cfg.tx_voltage,
                 unit="V",
