@@ -17,37 +17,10 @@ from arrus.utils.imaging import (
 )
 from collections.abc import Iterable
 import traceback
-
-
-class UltrasoundEnv:
-    pass
-
-
-class CaptureBuffer:
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self._counter = 0
-        self._data = [None]*self.capacity
-
-    def append(self, data):
-        if self.is_ready():
-            raise queue.Full()
-        self._data[self._counter] = data
-        self._counter += 1
-
-    def is_ready(self):
-        return self.capacity == self._counter
-
-    def get_current_size(self):
-        return self._counter
-
-    @property
-    def data(self):
-        return self._data
+from gui4us.model.model import Environment
 
 
 class Output:
-
     def __init__(self):
         self.callbacks = []
 
@@ -55,8 +28,7 @@ class Output:
         self.callbacks.append(func)
 
 
-class HardwareEnv(UltrasoundEnv):
-
+class HardwareEnv(Environment):
     DEFAULT_LOG_FILE = "arrus.log"
 
     def __init__(self, cfg: gui4us.cfg.HardwareEnvironment):
@@ -109,10 +81,15 @@ class HardwareEnv(UltrasoundEnv):
         }
         for i in range(len(self.metadata)):
             self.outputs[f"out_{i}"] = Output()
-        self.is_capturing = False
-        self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
 
-    def get_image_metadata(self, ordinal):
+        # TODO outputs_method
+        self.output_buffers = {}
+        for key, output in self.model.outputs.items():
+            worker = OutputWorker()
+            output.add_callback(worker.put)
+            self.output_buffers[key] = worker
+
+    def get_output_metadata(self, ordinal):
         image_metadata = self._determine_image_metadata(ordinal)
         x_grid, z_grid, units, ids = image_metadata
         return ImageMetadata(
@@ -136,33 +113,11 @@ class HardwareEnv(UltrasoundEnv):
         method = getattr(self, f"set_{key}")
         method(value)
 
-    def start_capture(self):
-        self.capture_buffer = CaptureBuffer(self.cfg.capture_buffer_capacity)
-        self.is_capturing = True
-
-    def clear_capture(self):
-        self.is_capturing = False
-
-    def stop_capture(self):
-        """
-        Stop manually capturing data.
-        """
-        self.is_capturing = False
-        print("Stopping capture")
-        for callback in self.outputs["capture_buffer_events"].callbacks:
-            callback((self.capture_buffer.get_current_size(), True))
-
-    def save_capture(self, filepath):
-        if self.capture_buffer.get_current_size() == 0:
-            raise ValueError("Cannot save empty buffer")
-        pickle.dump({"metadata": self.metadata,
-                     "data": self.capture_buffer.data},
-                    open(filepath, "wb"))
-
     def set_output_callback(self, output_key, func):
         self.outputs[output_key].add_callback(func)
 
     def create_settings(self):
+        # TODO move this to arrus.session.get_parameters
         n_tgc_samples = len(self.tgc_sampling)
         tgc_sampling_label = tuple(str(v*1e3) for v in self.tgc_sampling)
         return [
@@ -276,6 +231,12 @@ class HardwareEnv(UltrasoundEnv):
                 (np.min(oz_grid), np.max(oz_grid)))
 
     def _on_new_data(self, elements):
+        # TODO po prostu zapisz te dane do kolejki wyjsciowej,
+        # Teraz, jest wielu konsumentów tych danych:
+        # Capturer,
+        # Widoki
+        # Ta funkcja po prostu powinna pisac do bufora wyjsciowego
+        # skad wziac taki bufor wyjsciowy
         try:
             is_capturing = self.is_capturing
             if is_capturing:

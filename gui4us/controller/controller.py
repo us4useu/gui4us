@@ -3,6 +3,14 @@ from dataclasses import dataclass, field
 import threading
 import queue
 import logging
+import multiprocessing as mp
+
+import gui4us.cfg
+from gui4us.model.model import Environment
+from gui4us.model.ultrasound import HardwareEnv
+from gui4us.model.dataset import DatasetEnv
+from gui4us.model.capture import *
+from gui4us.common import *
 
 _LOGGER = logging.getLogger("Controller")
 
@@ -19,19 +27,26 @@ class MethodCallEvent(Event):
 
 
 @dataclass(frozen=True)
-class CloseEvent:
-    pass
+class CloseEvent(Event):
+    name: str = "close"
 
 
 class Task:
-    def __init__(self, event):
+    def __init__(self, event, id: int):
+        self.id = id
         self.event = event
+
+
+class Promise:
+    def __init__(self, task):
+        self.task = task
         self.completed = threading.Event()
         self.completed.clear()
         self.result = queue.Queue(maxsize=1)
         self.error = queue.Queue(maxsize=1)
 
     def wait(self, timeout=None):
+        # Interface
         self.completed.wait()
 
     def set_ready(self):
@@ -44,10 +59,10 @@ class Task:
         self.error.put(exc)
 
     def get_result(self):
+        # Interface
         self.wait()
         try:
             result = self.result.get(block=False)
-            # print(f"RESULT: {result}")
             return result
         except queue.Empty:
             return None
@@ -60,96 +75,177 @@ class Task:
             return None
 
 
-class Promise:
-    def __init__(self, task):
-        self.task = task
+class EnvProcess:
 
-    def wait(self):
-        self.task.wait()
-
-    def get_result(self):
-        result = self.task.get_result()
-        return result
-
-    def get_error(self):
-        return self.task.get_error()
-
-
-class OutputWorker:
-    def __init__(self):
-        self.queue = queue.Queue()
-
-    def put(self, data):
-        self.queue.put(data)
-
-    def get(self):
-        return self.queue.get()
-
-
-class Controller:
-    def __init__(self, model):
-        self.model = model
-        self.task_queue = queue.Queue()
-        self.result_queue = queue.Queue()
-        self.event_queue_runner = threading.Thread(target=self._main_loop)
+    def __init__(self, env_cfg):
+        self._promises = {}
+        self.task_queue = mp.Queue()
+        self.result_queue = mp.Queue()
+        self.capture_buffer_events = mp.Queue()
+        self.data_buffer = DataBuffer(size=4)
+        self.task_id_lock = threading.Lock()
+        self.current_task_id = 0
+        self.result_queue_runner = threading.Thread(target=self._result_handler)
+        self.result_queue_runner.start()
+        self.event_queue_runner = mp.Process(
+            target=_env_controller_main_loop,
+            args=(env_cfg, self.task_queue, self.result_queue, self.capture_buffer_events,
+                  self.data_buffer))
         self.event_queue_runner.start()
-        self.output_buffers = {}
-        for key, output in self.model.outputs.items():
-            worker = OutputWorker()
-            output.add_callback(worker.put)
-            self.output_buffers[key] = worker
 
-    def send(self, event):
-        task = Task(event)
+    def send(self, event: Event):
+        """
+        End-point (abstract)
+        """
+        task = Task(event, self.create_task_id())
         promise = Promise(task)
+        self._promises[task.id] = promise
         self.task_queue.put(task)
         return promise
 
-    def __getattr__(self, item):
-        if item in self.__class__.__dict__:
-            return getattr(self, item)
-        else:
-            def new_method(*args, **kwargs):
-                return self.send(MethodCallEvent(item, args=args, kwargs=kwargs))
-            setattr(self, item, new_method)
-            return getattr(self, item)
+    def close(self):
+        self.result_queue.put(None)
+        self.event_queue_runner.join()
+        self.result_queue_runner.join()
 
-    def _default_method_handler(self, name, *args, **kwargs):
+    def create_task_id(self):
+        with threading.Lock():
+            self.current_task_id += 1
+            return self.current_task_id
+
+    def _result_handler(self):
+        while True:
+            result = self.result_queue.get()
+            if result is None:
+                # Close
+                return
+            task_id, result = result
+            if id is None:
+                return
+            promise = self._promises[task_id]
+            if isinstance(result, Exception):
+                promise.set_error(result)
+                promise.set_ready()
+            else:
+                promise.set_result(result)
+                promise.set_ready()
+
+
+def _env_controller_main_loop(cfg, task_queue, result_queue, capture_buffer_events,
+                              data_buffer):
+    # Puts (None, exc) if exception on initialization
+    # Puts (id, result|exc) otherwise
+    try:
+        # Don't wait for the queue to be empty.
+        task_queue.cancel_join_thread()
+        result_queue.cancel_join_thread()
+        capture_buffer_events.cancel_join_thread()
+        data_buffer.queue.cancel_join_thread()
+
+        env = None
+        if isinstance(cfg, gui4us.cfg.HardwareEnvironment):
+            env = HardwareEnv(cfg, data_buffer)
+        elif isinstance(cfg, gui4us.cfg.DatasetEnvironment):
+            env = DatasetEnv(cfg, data_buffer)
+        else:
+            raise ValueError(f"Unsupported type of environment: {cfg}")
+        # TODO there should probably be a separate process and controller for the capturer
+        capturer = Capturer(cfg.capture_buffer_capacity, capture_buffer_events)
+        env.set_capturer(capturer)
+        capturer_events = {
+            "start_capture", "stop_capture", "clear_capture", "save_capture",
+            "get_capture_buffer_events"}
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
+        result_queue.put((None, e))
         return
+    while True:
+        task = None
+        try:
+            task = task_queue.get()
+            event = task.event
+            result = None
+            if isinstance(event, CloseEvent):
+                result = env.close()
+                return
+            if event.name in capturer_events:
+                result = capturer.__getattribute__(event.name)(*event.args, **event.kwargs)
+            else:
+                result = env.__getattribute__(event.name)(*event.args, **event.kwargs)
+            result = (task.id, result)
+            result_queue.put(result)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
+            result_queue.put((task.id, e))
+
+
+class EnvController:
+    def __init__(self, env_cfg):
+        self.process = EnvProcess(env_cfg)
 
     def set_setting(self, key, value):
-        self.send(MethodCallEvent(f"set_{key}", value))
+        # Interface
+        return self.process.send(MethodCallEvent(f"set_{key}", value))
 
-    def get_output(self, key):
-        return self.output_buffers[key]
+    def get_output(self):
+        # Interface, returns output data queue buffer.
+        return self.process.data_buffer
+
+    def get_output_metadata(self, ordinal):
+        return self.process.send(MethodCallEvent(
+            "get_output_metadata", kwargs=dict(ordinal=ordinal)))
 
     def start(self):
-        self.send(MethodCallEvent("start"))
+        # Interface
+        return self.process.send(MethodCallEvent("start"))
+
+    def stop(self):
+        return self.process.send(MethodCallEvent("stop"))
 
     def close(self):
-        self.send(CloseEvent())
+        # Interface
+        result = self.process.send(CloseEvent())
+        self.process.close()
+        return result
 
-    def _main_loop(self):
-        while True:
-            task = None
-            try:
-                # print("Controller ready, waiting for new data...")
-                task = self.task_queue.get()
-                event = task.event
-                if isinstance(event, CloseEvent):
-                    print("Closing controller")
-                    self.model.close()
-                    return
-                print("EVENT")
-                print(event)
-                result = self.model.__getattribute__(event.name)(*event.args,
-                                                                **event.kwargs)
-                task.set_result(result)
-                task.set_ready()
-            except Exception as e:
-                print(e)
-                print(traceback.format_exc())
-                task.set_error(e)
-                task.set_ready()
+    def get_settings(self):
+        result = self.process.send(MethodCallEvent("get_settings"))
+        return result
+
+    def start_capture(self):
+        return self.process.send(MethodCallEvent("start_capture"))
+
+    def stop_capture(self):
+        return self.process.send(MethodCallEvent("stop_capture"))
+
+    def save_capture(self, path):
+        return self.process.send(MethodCallEvent("save_capture", args=(path, )))
+
+    def clear_capture(self):
+        self.process.send(MethodCallEvent("clear_capture"))
+
+    def get_capture_buffer_events(self):
+        return self.process.capture_buffer_events
 
 
+class MainController:
+
+    def __init__(self):
+        self.envs = {}
+
+    def open_environment(self, name: str, env_cfg):
+        env = EnvController(env_cfg)
+        self.envs[name] = env
+        return env
+
+    def get_env(self, name):
+        return self.envs[name]
+
+    def close_env(self, name):
+        self.envs[name].close()
+
+    def close(self):
+        for _, env in self.envs.items():
+            env.close()

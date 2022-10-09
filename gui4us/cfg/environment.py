@@ -18,8 +18,6 @@ class LinearFunction:
 @dataclass(frozen=True)
 class HardwareEnvironment:
     """
-    Note: initial TGC curve value is
-
     :param session_cfg: path to the session configuration file
     :param tx_rx_sequence: TX/RX sequence. Note: the tgc curve value
       (tgc_start, tgc_slope, tgc_curve) will be ignored in favor of
@@ -57,5 +55,12 @@ class HardwareEnvironment:
 
 @dataclass(frozen=True)
 class DatasetEnvironment:
-    filepath: str
-    processing: object
+    """
+    An environment that provides a data from buffer.
+    """
+    input: dict  # A dict with keys ('data', 'metadata')
+    pipeline: object = None  # None means no additional processing
+    input_nr: int = None  # None means use alle
+    medium: object = None
+    max_frame_rate: float = 20
+    capture_buffer_capacity: int = 25

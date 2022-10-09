@@ -2,6 +2,8 @@ from gui4us.view.widgets import *
 from gui4us.state_graph import *
 from gui4us.view.common import *
 import numpy as np
+from datetime import datetime
+
 
 # Supported file extensions
 _FILE_EXTENSIONS = ";;".join([
@@ -55,8 +57,7 @@ class CaptureBufferComponent(Panel):
         )
         self.state = StateGraphIterator(
             self.state_graph, start_state="empty")
-        self.buffer_state_output = self.controller.get_output(
-            "capture_buffer_events")
+        self.buffer_state_output = self.controller.get_capture_buffer_events()
         self.thread = QThread()
         self.worker = ViewWorker(self.update)
         self.worker.moveToThread(self.thread)
@@ -105,13 +106,15 @@ class CaptureBufferComponent(Panel):
         self.save_button.enable()
 
     def on_save(self, event):
-        filename, extension = QFileDialog.getSaveFileName(
-            parent=None, caption="Save File", directory=".",
-            filter=_FILE_EXTENSIONS)
-        if extension == "":
-            event.stop()
-            return
-        self.controller.save_capture(filename)
+        # TODO fix the below when matploltib display will not be used anymore
+        # (matplotlib funcanimation clock can starve main GUI window).
+        # filename, extension = QFileDialog.getSaveFileName(
+        #     parent=None, caption="Save File", directory=".",
+        #     filter=_FILE_EXTENSIONS)
+        # if extension == "":
+        #     event.stop()
+        #     return
+        self.controller.save_capture(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
         self.controller.clear_capture()
 
     def on_empty_buffer(self, event):

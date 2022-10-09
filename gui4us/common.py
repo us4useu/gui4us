@@ -2,9 +2,10 @@ import queue
 import numpy as np
 from dataclasses import dataclass
 import typing
+import multiprocessing as mp
 
 
-EventQueue = queue.Queue
+EventQueue = mp.Queue
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,26 @@ class ImageMetadata:
     dtype: str
     extents: tuple
     units: tuple
-    ids: tuple
+    ids: tuple = None
+
+
+class DataBuffer:
+
+    def __init__(self, size=0):
+        self.size = size
+        self.queue = mp.Queue(self.size)
+
+    def get(self):
+        return self.queue.get()
+
+    def put(self, data):
+        self.queue.put(data)
+
+    def try_put(self, data):
+        try:
+            self.queue.put_nowait(data)
+        except queue.Full:
+            pass
 
 
 

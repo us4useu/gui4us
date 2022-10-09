@@ -27,14 +27,13 @@ import matplotlib
 matplotlib.use("tkagg")
 
 from gui4us.view.widgets import Panel
-from gui4us.view.common import *
 import gui4us.cfg
 from typing import Dict
 
 
 class DisplayPanel(Panel):
 
-    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], controller,
+    def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D], env,
                  parent_window, title="Display"):
         super().__init__(title)
         # Validate configuration.
@@ -43,11 +42,10 @@ class DisplayPanel(Panel):
             raise ValueError("Currently only a single display is supported")
         _, self.cfg = list(cfg.items())[0]
         if len(self.cfg.layers) > 1:
-            raise ValueError("Currently only a single layer of data is "
-                             "supported.")
+            raise ValueError("Currently only a single layer of data is supported.")
         self.layer_cfg = self.cfg.layers[0]
-        self.controller = controller
-        image_metadata = self.controller.get_image_metadata(0).get_result()
+        self.env = env
+        image_metadata = self.env.get_output_metadata(0).get_result()
         self.figure = Figure(figsize=(6, 6))
         img_canvas = FigureCanvas(self.figure)
         self.layout.addWidget(img_canvas)
@@ -64,41 +62,40 @@ class DisplayPanel(Panel):
         if self.layer_cfg.ax_labels is not None:
             label_oz, label_ox = self.layer_cfg.ax_labels
         else:
-            label_oz, label_ox = image_metadata.ids
+            label_oz, label_ox = "", ""
         if self.layer_cfg.units is not None:
             unit_oz, unit_ox = self.layer_cfg.units
         else:
             unit_oz, unit_ox = image_metadata.units
-        ax_vmin, ax_vmax = None, None
+        self.ax_vmin, self.ax_vmax = None, None
         if self.layer_cfg.value_range is not None:
-            ax_vmin, ax_vmax = self.layer_cfg.value_range
-
-
+            self.ax_vmin, self.ax_vmax = self.layer_cfg.value_range
         cmap = self.layer_cfg.cmap
-
         ax.set_xlabel(self.get_ax_label(label_ox, unit_ox))
         ax.set_ylabel(self.get_ax_label(label_oz, unit_oz))
         init_data = np.zeros(input_shape, dtype=dtype)
         self.img_canvas = ax.imshow(
-            init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
-            extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]])
+            init_data, cmap=cmap, vmin=self.ax_vmin, vmax=self.ax_vmax,
+            extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]],
+            interpolation="none", interpolation_stage="data"
+        )
         self.img_canvas.figure.tight_layout()
         self.figure.colorbar(self.img_canvas)
         # View worker
         self.is_started = False  # TODO state_graph
-        self.input = self.controller.get_output("out_0")
+        self.input = self.env.get_output()
         self.i = 0
         self.ax = ax
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.figure, self.update, interval=0.01,
-                                  blit=True)
-        plt.show()
+        self.anim = FuncAnimation(self.figure, self.update, interval=50,
+                                  blit=True, repeat=True)
 
     def stop(self):
         self.is_started = False
         self.anim.pause()
+        plt.show()
 
     def close(self):
         self.stop()
@@ -106,15 +103,17 @@ class DisplayPanel(Panel):
     def update(self, ev):
         try:
             if self.is_started:
-                data = self.input.get()  # Data index
+                data = self.input.get()[0]  # Data index
                 if data is None or not self.is_started:
                     # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
+                if self.ax_vmin is None:
+                    self.ax_vmin, self.ax_vmax = np.min(data), np.max(data)
+                    self.img_canvas.set(clim=(self.ax_vmin, self.ax_vmax))
                 self.img_canvas.set_data(data)
                 self.img_canvas.figure.canvas.draw()
-                self.ax.set_title(f"{self.cfg.title}")
         except Exception as e:
             # TODO notify that there was an error while drawing
             print(e)
