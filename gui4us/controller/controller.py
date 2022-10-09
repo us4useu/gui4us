@@ -77,7 +77,7 @@ class Promise:
 
 class EnvProcess:
 
-    def __init__(self, env_cfg):
+    def __init__(self, env_cfg_path):
         self._promises = {}
         self.task_queue = mp.Queue()
         self.result_queue = mp.Queue()
@@ -89,9 +89,11 @@ class EnvProcess:
         self.result_queue_runner.start()
         self.event_queue_runner = mp.Process(
             target=_env_controller_main_loop,
-            args=(env_cfg, self.task_queue, self.result_queue, self.capture_buffer_events,
+            args=(env_cfg_path, self.task_queue, self.result_queue, self.capture_buffer_events,
                   self.data_buffer))
+        print("Starting DAQ process")
         self.event_queue_runner.start()
+        print("Process started")
 
     def send(self, event: Event):
         """
@@ -131,11 +133,14 @@ class EnvProcess:
                 promise.set_ready()
 
 
-def _env_controller_main_loop(cfg, task_queue, result_queue, capture_buffer_events,
+def _env_controller_main_loop(cfg_path, task_queue, result_queue, capture_buffer_events,
                               data_buffer):
     # Puts (None, exc) if exception on initialization
     # Puts (id, result|exc) otherwise
     try:
+        import gui4us.cfg
+        cfg = gui4us.cfg.load_cfg(cfg_path)
+        cfg = cfg.environment
         # Don't wait for the queue to be empty.
         task_queue.cancel_join_thread()
         result_queue.cancel_join_thread()
@@ -182,8 +187,8 @@ def _env_controller_main_loop(cfg, task_queue, result_queue, capture_buffer_even
 
 
 class EnvController:
-    def __init__(self, env_cfg):
-        self.process = EnvProcess(env_cfg)
+    def __init__(self, env_cfg_path):
+        self.process = EnvProcess(env_cfg_path)
 
     def set_setting(self, key, value):
         # Interface
@@ -235,8 +240,8 @@ class MainController:
     def __init__(self):
         self.envs = {}
 
-    def open_environment(self, name: str, env_cfg):
-        env = EnvController(env_cfg)
+    def open_environment(self, name: str, env_cfg_path):
+        env = EnvController(env_cfg_path)
         self.envs[name] = env
         return env
 

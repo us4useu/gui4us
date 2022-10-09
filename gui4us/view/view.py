@@ -99,7 +99,7 @@ class View(QtWidgets.QMainWindow):
     _PYTHON_EXTENSION = "Python configuration file (*.py)"
 
     _FILE_EXTENSIONS = ";;".join([
-        _PICKLE_EXTENSION, _PYTHON_EXTENSION
+        _PYTHON_EXTENSION, _PICKLE_EXTENSION,
     ])
 
     def __init__(self, title, controller: MainController):
@@ -179,7 +179,7 @@ class View(QtWidgets.QMainWindow):
                 self.env_views[name] = env_view
         elif extension == View._PYTHON_EXTENSION:
             cfg = load_cfg(path)
-            env = self.controller.open_environment(path, cfg)
+            env = self.controller.open_environment(path, path)
             env_view = EnvironmentView(self, cfg=cfg.view_cfg, controller=env)
             self.env_views[name] = env_view
         else:

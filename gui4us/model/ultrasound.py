@@ -103,8 +103,14 @@ class HardwareEnv(Environment):
         self.session.stop_scheme()
 
     def close(self):
-        self.session.stop_scheme()
-        self.session.close()
+        try:
+            self.session.stop_scheme()
+        except Exception as e:
+            print(f"While stopping: {e}")
+        try:
+            self.session.close()
+        except Exception as e:
+            print(f"While closing {e}")
 
     def set(self, key: str, value: object):
         method = getattr(self, f"set_{key}")
@@ -196,7 +202,7 @@ class HardwareEnv(Environment):
             step=round(150 / downsampling_factor)) / fs * c / 2
 
     def _determine_image_z_grid(self, ordinal, cfg):
-        grid = self.metadata[ordinal].data_description.grid
+        grid = self.metadata[ordinal].data_description.grid[-2]
         fs = self.metadata[ordinal].data_description.sampling_frequency
         n_samples = self.metadata[ordinal].input_shape[-2]  # Rows
         if grid is None:
@@ -226,9 +232,9 @@ class HardwareEnv(Environment):
             for element in elements:
                 out_data.append(element.data.copy())
                 element.release()
-
             if self.capturer.is_capturing:
                 self.capturer.append(out_data)
+            self.output_buffer.put(tuple(out_data))
         except Exception as e:
             print(e)
             print(traceback.format_exc())
