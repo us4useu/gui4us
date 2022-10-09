@@ -18,6 +18,7 @@ from arrus.utils.imaging import (
 from collections.abc import Iterable
 import traceback
 from gui4us.model.model import Environment
+from gui4us.model.common import get_image_extent
 
 
 class Output:
@@ -31,7 +32,7 @@ class Output:
 class HardwareEnv(Environment):
     DEFAULT_LOG_FILE = "arrus.log"
 
-    def __init__(self, cfg: gui4us.cfg.HardwareEnvironment):
+    def __init__(self, cfg: gui4us.cfg.HardwareEnvironment, data_buffer: DataBuffer):
         self.cfg = cfg
         # LOGGING.
         self.log_file = self.cfg.log_file
@@ -57,7 +58,7 @@ class HardwareEnv(Environment):
         )
         self.metadata = self.session.upload(scheme)
         if not isinstance(self.metadata, Iterable):
-            self.metadata = (self.metadata, )
+            self.metadata = (self.metadata,)
         # PREPARE SETTINGS.
         # NOTE: the below code should replaced soon by the possibility to
         # read settable session parameters.
@@ -65,39 +66,35 @@ class HardwareEnv(Environment):
         # TODO there should be a function in arrus that allows to determine
         # TGC sampling points for a given tgc sampling step
         # TODO consider using grid determined by RF sampling depth
-        _, self.img0_oz_grid, _, _ = self._determine_image_metadata(ordinal=0)
-        self.tgc_sampling = self._get_tgc_sampling_points(self.cfg)
+        z_grid = self._determine_image_z_grid(0, self.cfg)
+        self.tgc_sampling = self._get_tgc_sampling_points(z_grid, self.cfg)
         self.device_tgc_sampling_points = self._get_device_tgc_sampling_points(
             metadata=self.metadata[0], medium=cfg.medium)
         # Prepare initial configuration.
         self.settings = self.create_settings()
         for setting in self.settings:
             self.set(setting.id, setting.init_value)
-        # OUTPUTS
-        # Set environment observation outputs.
-        self.outputs = {
-            "main_events": Output(),
-            "capture_buffer_events": Output()
-        }
-        for i in range(len(self.metadata)):
-            self.outputs[f"out_{i}"] = Output()
+        self.output_buffer = data_buffer
 
-        # TODO outputs_method
-        self.output_buffers = {}
-        for key, output in self.model.outputs.items():
-            worker = OutputWorker()
-            output.add_callback(worker.put)
-            self.output_buffers[key] = worker
+    def set_capturer(self, capturer):
+        self.capturer = capturer
+        self.capturer.set_metadata(self.metadata)
 
-    def get_output_metadata(self, ordinal):
-        image_metadata = self._determine_image_metadata(ordinal)
-        x_grid, z_grid, units, ids = image_metadata
+    def get_output_metadata(self, ordinal) -> ImageMetadata:
+        output_grids = self.metadata[ordinal].data_description.grid
+        if output_grids is None:
+            # Fallback option: treat all the values as the raw delays
+            output_grids = [
+                arrus.metadata.RegularGridDescriptor(0, 1, n=i, unit=arrus.metadata.Units.PIXELS)
+                for i in self.metadata[ordinal].input_shape
+            ]
+        extents = get_image_extent(output_grids)
+        units = [grid.unit for grid in output_grids]
         return ImageMetadata(
             shape=self.metadata[ordinal].input_shape,
             dtype=self.metadata[ordinal].dtype,
-            extents=self._get_image_extent((z_grid, x_grid)),
-            units=units,
-            ids=ids)
+            extents=extents,
+            units=tuple(units))
 
     def start(self):
         self.session.start_scheme()
@@ -113,13 +110,10 @@ class HardwareEnv(Environment):
         method = getattr(self, f"set_{key}")
         method(value)
 
-    def set_output_callback(self, output_key, func):
-        self.outputs[output_key].add_callback(func)
-
     def create_settings(self):
         # TODO move this to arrus.session.get_parameters
         n_tgc_samples = len(self.tgc_sampling)
-        tgc_sampling_label = tuple(str(v*1e3) for v in self.tgc_sampling)
+        tgc_sampling_label = tuple(str(v * 1e3) for v in self.tgc_sampling)
         return [
             Setting(
                 id="tx_voltage",
@@ -129,7 +123,7 @@ class HardwareEnv(Environment):
                                        default_step=self.cfg.tx_voltage_step),
                 init_value=self.cfg.tx_voltage,
                 unit="V",
-                shape=(1, )
+                shape=(1,)
             ),
             Setting(
                 id="tgc",
@@ -138,7 +132,7 @@ class HardwareEnv(Environment):
                 domain=ContinuousRange(14, 54, default_step=self.cfg.tgc_step),
                 init_value=self._convert_tgc_to_ndarray(self.cfg.tgc_curve),
                 unit="dB",
-                shape=(n_tgc_samples, ),
+                shape=(n_tgc_samples,),
                 label=tgc_sampling_label
             )
         ]
@@ -164,19 +158,30 @@ class HardwareEnv(Environment):
         if isinstance(value, gui4us.cfg.LinearFunction):
             intercept = value.intercept
             slope = value.slope
-            return intercept + slope*self.tgc_sampling
+            return intercept + slope * self.tgc_sampling
         elif isinstance(value, Iterable):
             return np.asarray(value)
         elif not isinstance(value, (int, float)):
             # Treat it as a single integer value
-            return np.asarray([value]*len(self.tgc_sampling))
+            return np.asarray([value] * len(self.tgc_sampling))
         else:
             raise ValueError("Unhandled type of tgc curve instance: "
                              f"{type(value)}")
 
-    def _get_tgc_sampling_points(self, cfg):
-        oz_min, oz_max = np.min(self.img0_oz_grid), np.max(self.img0_oz_grid)
+    def _get_tgc_sampling_points(self, z_grid, cfg):
+        oz_min, oz_max = np.min(z_grid), np.max(z_grid)
         return np.arange(oz_min, oz_max, step=cfg.tgc_sampling)
+
+    def get_speed_of_sound(self, metadata, cfg):
+        if hasattr(metadata.context.sequence, "speed_of_sound"):
+            return metadata.context.sequence.speed_of_sound
+        else:
+            if cfg.medium is None:
+                raise ValueError("The speed of sound must be provided at as a part of "
+                                 "TX/RX sequence description or as a description "
+                                 "of medium.")
+            else:
+                return cfg.medium.speed_of_sound
 
     def _get_device_tgc_sampling_points(self, metadata, medium):
         # TODO verify every tx/rx has the same position
@@ -184,46 +189,31 @@ class HardwareEnv(Environment):
         downsampling_factor = seq.ops[0].rx.downsampling_factor
         end_sample = seq.ops[0].rx.sample_range[1]
         fs = metadata.context.device.sampling_frequency
-        # TODO(pjarosik) replace the below check with checking if Tx.speed_of_sound is not None
-        if hasattr(metadata.context.sequence, "speed_of_sound"):
-            c = metadata.context.sequence.speed_of_sound
-        else:
-            if medium is None:
-                raise ValueError("The speed of sound must be provided at as a part of "
-                                 "TX/RX sequence description or as a description "
-                                 "of medium.")
-            else:
-                c = medium.speed_of_sound
+        c = self.get_speed_of_sound(metadata, self.cfg)
         return np.arange(
-            start=round(150/downsampling_factor),
+            start=round(400 / downsampling_factor),
             stop=end_sample,
-            step=round(75/downsampling_factor))/fs*c
+            step=round(150 / downsampling_factor)) / fs * c / 2
 
-    def _determine_image_metadata(self, ordinal):
-        # TODO the output grid dimensions should be a part of the arrus metadata
-        if isinstance(self.cfg.pipeline, arrus.utils.imaging.Pipeline)\
-                and ordinal == 0:
-            grid_steps = [step for step in self.cfg.pipeline.steps
-                          if hasattr(step, "x_grid") and hasattr(step, "z_grid")
-                          ]
-            if len(grid_steps) > 0:
-                grid_step = grid_steps[-1]
-                return grid_step.x_grid, \
-                       grid_step.z_grid, \
-                       ("m", "m"), \
-                       ("OZ", "OX")
-
-        # otherwise: very simple fallback option: treat the data as raw
-        # channel data
-        input_shape = self.metadata[ordinal].input_shape
-        if len(input_shape) != 2:
-            raise ValueError("The pipeline's output should be a 2D image!")
-        pitch = self.metadata[ordinal].context.device.probe.model.pitch
+    def _determine_image_z_grid(self, ordinal, cfg):
+        grid = self.metadata[ordinal].data_description.grid
         fs = self.metadata[ordinal].data_description.sampling_frequency
-        n_points_x, n_points_z = input_shape
-        x_grid = np.arange(0, n_points_x)*pitch
-        z_grid = np.arange(0, n_points_z)/fs
-        return x_grid, z_grid, ("s", "m"), ("OZ", "OX")
+        n_samples = self.metadata[ordinal].input_shape[-2]  # Rows
+        if grid is None:
+            # determine basing on the max depth and sampling frequency
+            grid = arrus.metadata.RegularGridDescriptor(
+                start=0, step=1, n=n_samples,
+                unit=arrus.metadata.Units.PIXELS)
+        if grid.unit == arrus.metadata.Units.PIXELS:
+            grid = arrus.metadata.RegularGridDescriptor(
+                start=0, step=1 / fs, n=n_samples,
+                unit=arrus.metadata.Units.SECONDS
+            )
+        if grid.unit == arrus.metadata.Units.SECONDS:
+            c = self.get_speed_of_sound(self.metadata[0], cfg)
+            return grid.points * c / 2
+        else:
+            return grid.points
 
     def _get_image_extent(self, imaging_grids):
         ox_grid, oz_grid = imaging_grids
@@ -231,35 +221,16 @@ class HardwareEnv(Environment):
                 (np.min(oz_grid), np.max(oz_grid)))
 
     def _on_new_data(self, elements):
-        # TODO po prostu zapisz te dane do kolejki wyjsciowej,
-        # Teraz, jest wielu konsumentów tych danych:
-        # Capturer,
-        # Widoki
-        # Ta funkcja po prostu powinna pisac do bufora wyjsciowego
-        # skad wziac taki bufor wyjsciowy
         try:
-            is_capturing = self.is_capturing
-            if is_capturing:
-                out_data = []
-            for i, element in enumerate(elements):
-                output = self.outputs[f"out_{i}"]
-                for callback in output.callbacks:
-                    callback(element.data)
-                    if is_capturing:
-                        out_data.append(element.data.copy())
-                    element.release()
-            if is_capturing:
-                self.capture_buffer.append(out_data)
-                capture_buffer_output = self.outputs["capture_buffer_events"]
-                if self.capture_buffer.is_ready():
-                    self.stop_capture()
-                else:
-                    for callback in capture_buffer_output.callbacks:
-                        callback((self.capture_buffer.get_current_size(), False))
+            out_data = []
+            for element in elements:
+                out_data.append(element.data.copy())
+                element.release()
+
+            if self.capturer.is_capturing:
+                self.capturer.append(out_data)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
         except:
             print("Unknown exception")
-
-
