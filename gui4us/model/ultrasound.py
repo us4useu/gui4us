@@ -119,7 +119,7 @@ class HardwareEnv(Environment):
     def create_settings(self):
         # TODO move this to arrus.session.get_parameters
         n_tgc_samples = len(self.tgc_sampling)
-        tgc_sampling_label = tuple(str(v * 1e3) for v in self.tgc_sampling)
+        tgc_sampling_label = tuple(f"{v*1e3:.2f}" for v in self.tgc_sampling)
         return [
             Setting(
                 id="tx_voltage",

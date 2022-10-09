@@ -115,8 +115,18 @@ class View(QtWidgets.QMainWindow):
             self.main_widget = QWidget()
             self.setCentralWidget(self.main_widget)
             self.main_layout = QHBoxLayout(self.main_widget)
+
             self.control_panel_placeholder = QGroupBox("Control panel")
             self.display_placeholder = QGroupBox("Display")
+            self.size_policy_control = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred,
+                                                        QtWidgets.QSizePolicy.Policy.Preferred)
+            self.size_policy_display = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred,
+                                                        QtWidgets.QSizePolicy.Policy.Preferred)
+            self.size_policy_control.setHorizontalStretch(1)
+            self.size_policy_display.setHorizontalStretch(4)
+
+            self.control_panel_placeholder.setSizePolicy(self.size_policy_control)
+            self.display_placeholder.setSizePolicy(self.size_policy_display)
 
             self.main_layout.addWidget(self.control_panel_placeholder)
             self.main_layout.addWidget(self.display_placeholder)
@@ -196,3 +206,5 @@ class View(QtWidgets.QMainWindow):
         self.current_display.hide()
         self.current_control_panel = env_view.control_panel
         self.current_display = env_view.display_panel
+        self.current_control_panel.backend_widget.setSizePolicy(self.size_policy_control)
+        self.current_display.backend_widget.setSizePolicy(self.size_policy_display)

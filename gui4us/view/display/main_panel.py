@@ -24,6 +24,8 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import matplotlib
+import arrus.metadata
+
 matplotlib.use("tkagg")
 
 from gui4us.view.widgets import Panel
@@ -67,6 +69,8 @@ class DisplayPanel(Panel):
             unit_oz, unit_ox = self.layer_cfg.units
         else:
             unit_oz, unit_ox = image_metadata.units
+        unit_oz = self._convert_arrus_unit_to_string(unit_oz)
+        unit_ox = self._convert_arrus_unit_to_string(unit_ox)
         self.ax_vmin, self.ax_vmax = None, None
         if self.layer_cfg.value_range is not None:
             self.ax_vmin, self.ax_vmax = self.layer_cfg.value_range
@@ -77,7 +81,7 @@ class DisplayPanel(Panel):
         self.img_canvas = ax.imshow(
             init_data, cmap=cmap, vmin=self.ax_vmin, vmax=self.ax_vmax,
             extent=[extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]],
-            interpolation="none", interpolation_stage="data"
+            interpolation="none", interpolation_stage="rgba"
         )
         self.img_canvas.figure.tight_layout()
         self.figure.colorbar(self.img_canvas)
@@ -86,6 +90,14 @@ class DisplayPanel(Panel):
         self.input = self.env.get_output()
         self.i = 0
         self.ax = ax
+
+    def _convert_arrus_unit_to_string(self, unit):
+        if isinstance(unit, arrus.metadata.Units):
+            return {
+                arrus.metadata.Units.PIXELS: "px",
+                arrus.metadata.Units.METERS: "m",
+                arrus.metadata.Units.SECONDS: "s"
+            }[unit]
 
     def start(self):
         self.is_started = True
