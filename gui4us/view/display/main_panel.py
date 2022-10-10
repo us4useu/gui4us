@@ -46,6 +46,7 @@ class DisplayPanel(Panel):
 
         # One ax -> one display
         self.fig, self.axes = plt.subplots(1, n_displays)
+        self.fig.set_size_inches(6, 6)
         if n_displays == 1:
             self.axes = [self.axes]
         img_canvas = FigureCanvas(self.fig)
