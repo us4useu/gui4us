@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence, Dict
+from typing import Sequence, Dict, Callable
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,7 @@ class Layer2D:
     extent: tuple = None
     ax_labels: tuple = None
     units: tuple = None
+    value_func: Callable = None
 
 
 @dataclass(frozen=True)

@@ -28,7 +28,9 @@ class DatasetEnv(Environment):
             if len(self.metadata) > 1:
                 raise ValueError("Only a single input element can be fed "
                                  "to the provided Pipeline")
-            self.metadata = [self.pipeline.prepare(self.metadata[self.input_nr])]
+            print(self.metadata[0].input_shape)
+            print(self.data[0].shape)
+            self.metadata = self.pipeline.prepare(self.metadata[0])
         self.data_acq_thread = threading.Thread(target=self._main_loop)
         self.output = data_buffer
         self.is_working = False

@@ -31,8 +31,8 @@ class DataBuffer:
         self.size = size
         self.queue = mp.Queue(self.size)
 
-    def get(self):
-        return self.queue.get()
+    def get(self, timeout=None):
+        return self.queue.get(timeout=timeout)
 
     def put(self, data):
         self.queue.put(data)
