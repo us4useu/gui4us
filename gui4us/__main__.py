@@ -11,7 +11,7 @@ import logging
 import gui4us
 from gui4us.common import EventQueue
 from gui4us.view import View, start_view
-from gui4us.model.ultrasound import HardwareEnv
+from gui4us.model.ultrasound import Env
 from gui4us.controller import Controller
 
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         cfg = load_cfg(cfg_path)
 
         print("Creating model")
-        model = HardwareEnv(cfg.environment)
+        model = Env(cfg.environment)
         print("Creating controller")
         controller = Controller(model)
         print("Creating View")

@@ -35,7 +35,7 @@ fir_filter_taps = scipy.signal.firwin(
     64, np.array([0.5, 1.5]) * tx_frequency, pass_zero=False, fs=sampling_frequency)
 
 
-environment = HardwareEnvironment(
+environment = UltrasoundEnvironment(
     session_cfg="C:/Users/NDT/us4r.prototxt",
     tx_rx_sequence=StaSequence(
         tx_aperture_center_element=np.arange(0, 32),
