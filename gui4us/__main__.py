@@ -18,13 +18,16 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(
             description=f"GUI4us {gui4us.__version__}")
-        parser.add_argument("--cfg", dest="cfg", help="Path to the env configuration file.", required=True)
+        parser.add_argument(
+            "--cfg", dest="cfg",
+            help="Path to the env configuration file.",
+            required=True)
         # Read configuration.
         args = parser.parse_args()
         cfg_path = args.cfg
+
         # Start application (MVC).
         env = EnvController("main", cfg_path)
-
         result = start_view_app(
             title=f"gui4us {gui4us.__version__}",
             cfg_path=cfg_path,

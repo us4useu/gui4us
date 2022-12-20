@@ -28,7 +28,7 @@ class SettingsPanel(Panel):
     def _convert_to_field(self, setting: SettingDef):
         label = f"{setting.name}"
         space = setting.space
-        if space.unit is not None:
+        if space.unit is not None and setting.space.is_scalar():
             label += f" [{space.unit}]"
         setting_presentation = self.custom_presentation.get(setting.name, None)
         widget = self._convert(setting, setting_presentation)
@@ -44,10 +44,9 @@ class SettingsPanel(Panel):
         is_vector = space.is_vector()
 
         params = {
-            "value_range": (space.low, space.high),
+        "value_range": (space.low, space.high),
             "init_value": setting_def.initial_value,
             "data_type": space.dtype,
-            "step": setting_def.step
         }
         if presentation is not None:
             widget_type = getattr(widgets, presentation.type)
@@ -58,10 +57,18 @@ class SettingsPanel(Panel):
             else:
                 widget_type = Slider
         if is_scalar:
+            params["step"] = setting_def.step
             widget = widget_type(**params)
         elif is_vector:
+            dim_names = setting_def.space.name
+            dim_units = setting_def.space.unit
+            print(dim_names)
+            print(dim_units)
+            if dim_units is not None:
+                dim_names = [f"{n} [{u}]" for n, u in zip(dim_names, dim_units)]
             widget = WidgetSequence(self.layout,
-                                    widget_type, setting_def.name, **params)
+                                    widget_type, dim_names,
+                                    **params)
         else:
             raise ValueError("Settings panel supports only scalar and"
                              "vector settings.")

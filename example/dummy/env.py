@@ -57,14 +57,16 @@ class DummyEnv(Env):
                 step=1
             ),
             SettingDef(
-                name="range2",
+                name="TGC",
                 space=Box(
-                    shape=(1,),
+                    shape=(10,),
                     dtype=np.float32,
-                    low=0,
-                    high=100
+                    low=14,
+                    high=54,
+                    name=[f"{i} [mm]" for i in range(10)],
+                    unit=["dB"]*10
                 ),
-                initial_value=10,
+                initial_value=[20]*10,
                 step=1
             ),
         ]
@@ -80,7 +82,7 @@ class DummyEnv(Env):
     def close(self) -> None:
         self.stop()
 
-    def set(self, action: Action) -> None:
+    def set(self, action: SetAction) -> None:
         print(f"Got action: {action}")
 
     def get_stream(self) -> Stream:

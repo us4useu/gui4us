@@ -63,11 +63,13 @@ class Unit:
 class Space:
     shape: Sequence[int] = field(default=None, init=False)
     dtype: object = field(default=np.float32, init=False)
-    unit: Optional[Union[Unit, str]] = field(default=None, init=False)
+    name: Optional[Sequence[str]] = field(default=None, init=False)
+    unit: Optional[Sequence[Union[Unit, str]]] = field(default=None, init=False)
 
-    def __init__(self, shape, dtype, unit):
+    def __init__(self, shape, dtype, name=None, unit=None):
         self.shape = shape
         self.dtype = dtype
+        self.name = name
         self.unit = unit
 
     def is_empty(self):
@@ -89,8 +91,8 @@ class Box(Space):
     low: np.ndarray
     high: np.ndarray
 
-    def __init__(self, low, high, shape, dtype, unit=None):
-        super().__init__(shape, dtype, unit)
+    def __init__(self, low, high, shape, dtype, name=None, unit=None):
+        super().__init__(shape, dtype, name, unit)
         self.low = low
         self.high = high
 
