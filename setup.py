@@ -30,7 +30,8 @@ setuptools.setup(
     install_requires=[
         "arrus>=0.5.11",
         "pyyaml",
-        "PyQt5"
+        "PyQt5",
+        "matplotlib>=3.6.2"
     ],
     python_requires='>=3.8'
 )
