@@ -19,3 +19,4 @@ class App:
         """
         Closes all open environments.
         """
+        pass

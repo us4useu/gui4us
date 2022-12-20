@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from typing import Callable, Dict
 from dataclasses import dataclass, field
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Tuple, Any
 from numbers import Number
 from enum import Enum
 
@@ -27,7 +27,10 @@ class Stream(ABC):
     """
 
     @abstractmethod
-    def append_on_new_data_callback(self, callback: Callable):
+    def append_on_new_data_callback(
+            self,
+            callback: Callable[[Tuple[np.ndarray, ...]], Any]
+    ):
         """
         A signal emitted when new data (observations) arrive.
         """

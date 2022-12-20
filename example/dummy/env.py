@@ -5,7 +5,8 @@ from gui4us.common import ImageMetadata
 from gui4us.model import *
 from gui4us.logging import get_logger
 
-DATA_SHAPE = (100, 100)
+DATA_SHAPE_1 = (100, 100)
+DATA_SHAPE_2 = (50, 100)
 
 
 class DummyStream(Stream):
@@ -28,22 +29,35 @@ class DummyStream(Stream):
 
     def _produce_data(self):
         while self._is_running:
-            data = np.random.rand(*DATA_SHAPE).astype(np.float32)
+            data1 = np.random.rand(*DATA_SHAPE_1).astype(np.float32)
+            data2 = np.random.rand(*DATA_SHAPE_2)
             for c in self.callbacks:
-                c(data)
+                c((data1, data2))
 
 
 class DummyEnv(Env):
 
-    def __init__(self):
+    def __init__(self, n_outputs=1):
         self.logger = get_logger(type(self))
         self.stream = DummyStream()
         self._state_lock = threading.Lock()
+        self.n_outputs = n_outputs
 
     def get_settings(self) -> Sequence[SettingDef]:
         return [
             SettingDef(
-                name="range",
+                name="range1",
+                space=Box(
+                    shape=(1,),
+                    dtype=np.float32,
+                    low=0,
+                    high=100
+                ),
+                initial_value=10,
+                step=1
+            ),
+            SettingDef(
+                name="range2",
                 space=Box(
                     shape=(1,),
                     dtype=np.float32,
@@ -75,8 +89,18 @@ class DummyEnv(Env):
     def get_stream_metadata(self) -> MetadataCollection:
         return MetadataCollection({
             StreamDataId("default", 0): ImageMetadata(
-                shape=DATA_SHAPE,
-                dtype=np.float32
+                shape=DATA_SHAPE_1,
+                dtype=np.float32,
+                ids=("OZ", "OX"),
+                units=("m", "m"),
+                extents=((0, 10), (-5, 5))
+            ),
+            StreamDataId("default", 1): ImageMetadata(
+                shape=DATA_SHAPE_2,
+                dtype=np.float32,
+                ids=("OZ", "OY"),
+                units=("m", "m"),
+                extents=((0, 5), (-5, 5))
             )
         })
 

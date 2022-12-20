@@ -1,6 +1,7 @@
 import queue
 
 import time
+import traceback
 
 import numpy as np
 import datetime
@@ -48,67 +49,88 @@ class DisplayPanel(Panel):
                  env: EnvController,
                  parent_window, title="Display"):
         super().__init__(title)
+
         self.logger = get_logger(type(self))
 
-        # Validate configuration.
-        # TODO handle multiple displays
-        if len(cfg) > 1:
-            raise ValueError("Currently only a single display is supported")
-        _, self.cfg = list(cfg.items())[0]
-        if len(self.cfg.layers) > 1:
-            raise ValueError("Currently only a single layer of data is "
-                             "supported.")
-        # Start configuring.
-        self.layer_cfg = self.cfg.layers[0]
+        n_displays = len(cfg.items())
+        self.cfg = cfg
         self.env = env
-        metadata_promise: Promise = self.env.get_stream_metadata()
-        self.metadata: ImageMetadata = metadata_promise.get_result().output(self.layer_cfg.input)
-        self.figure = Figure(figsize=(6, 6))
-        img_canvas = FigureCanvas(self.figure)
+
+        # One ax -> one display
+        self.fig, self.axes = plt.subplots(1, n_displays)
+        self.fig.set_size_inches(6, 6)
+        if n_displays == 1:
+            self.axes = [self.axes]
+        img_canvas = FigureCanvas(self.fig)
         self.layout.addWidget(img_canvas)
         self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
-        # Create a single axis.
-        ax = img_canvas.figure.subplots()
-        # Axis parameters.
-        input_shape = self.metadata.shape
-        dtype = self.metadata.dtype
-        if self.metadata.extents is not None:
-            extent_oz, extent_ox = self.metadata.extents
-            extent = [extent_ox[0], extent_ox[1], extent_oz[1], extent_oz[0]]
-        else:
-            extent = None
-        # Axis labels
-        label_oz, label_ox = "", ""
-        if self.cfg.ax_labels is not None:
-            label_oz, label_ox = self.cfg.ax_labels
-        elif self.metadata.ids is not None:
-            label_oz, label_ox = self.metadata.ids
+        self.canvases = []
+        self.layers = []  # Flatten list of layers.
+        metadata_promise: Promise = self.env.get_stream_metadata()
+        self.metadata_collection: MetadataCollection = metadata_promise.get_result()
+        for i, (name, display_cfg) in enumerate(cfg.items()):
+            ax = self.axes[i]
 
-        unit_oz, unit_ox = "", ""
-        if self.metadata.units is not None:
-            unit_oz, unit_ox = self.metadata.units
+            # extends for this axis (provided by user).
+            extents = None
+            if display_cfg.extents is not None:
+                extents = display_cfg.extents
 
-        ax_vmin, ax_vmax = None, None
-        if self.layer_cfg.value_range is not None:
-            ax_vmin, ax_vmax = self.layer_cfg.value_range
-        cmap = self.layer_cfg.cmap
-        ax.set_xlabel(self.get_ax_label(label_ox, unit_ox))
-        ax.set_ylabel(self.get_ax_label(label_oz, unit_oz))
-        init_data = np.zeros(input_shape, dtype=dtype)
-        self.img_canvas = ax.imshow(
-            init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
-            extent=extent)
-        self.img_canvas.figure.tight_layout()
-        self.figure.colorbar(self.img_canvas)
+            # axis labels (provided by user)
+            axis_labels = None
+            if display_cfg.ax_labels is not None:
+                axis_labels = display_cfg.ax_labels
+
+            for layer in display_cfg.layers:
+                self.layers.append(layer)
+                metadata: ImageMetadata = self.metadata_collection.output(layer.input)
+                input_shape = metadata.shape
+                dtype = metadata.dtype
+
+                # Extents.
+                # TODO: verify if all image metadata have exactly the
+                # same extents and ids
+                if extents is None and metadata.extents is not None:
+                    extents = metadata.extents
+                if extents is not None:
+                    extent_ox, extent_oz = extents
+                    extents = [extent_oz[0], extent_oz[1],
+                               extent_ox[1], extent_ox[0]]
+
+                # Axis labels defined per output image metadata.
+                # TODO: verify if all image metadata have exactly the
+                # same extents and ids
+                if axis_labels is None and metadata.ids is not None:
+                    axis_labels = metadata.ids
+                if axis_labels is None:
+                    axis_labels = "", ""
+                if metadata.units is not None:
+                    units = metadata.units
+                else:
+                    units = "", ""
+
+                ax_vmin, ax_vmax = None, None
+                if layer.value_range is not None:
+                    ax_vmin, ax_vmax = layer.value_range
+                cmap = layer.cmap
+                ax.set_xlabel(self.get_ax_label(axis_labels[0], units[0]))
+                ax.set_ylabel(self.get_ax_label(axis_labels[1], units[1]))
+
+                init_data = np.zeros(input_shape, dtype=dtype)
+                canvas = ax.imshow(
+                    init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
+                    extent=extents,
+                    interpolation="none", interpolation_stage="rgba")
+                self.canvases.append(canvas)
+        self.canvases[0].figure.tight_layout()
+        self.fig.colorbar(self.canvases[-1])
         # View worker
         self.is_started = False  # TODO state_graph
         self.data_queue = Queue(maxsize=2)
         self.env.get_stream().append_on_new_data_callback(
             self._put_input_data
         )
-        # Or simply append the image to some queue below.
         self.i = 0
-        self.ax = ax
 
     def _put_input_data(self, data):
         try:
@@ -118,9 +140,7 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.figure, self.update, interval=0.1,
-                                  blit=True)
-        plt.show()
+        self.anim = FuncAnimation(self.fig, self.update, interval=50, blit=True)
 
     def stop(self):
         self.is_started = False
@@ -132,17 +152,23 @@ class DisplayPanel(Panel):
     def update(self, ev):
         try:
             if self.is_started:
-                data = self.data_queue.get()  # Data index
+                data = self.data_queue.get()
                 if data is None or not self.is_started:
                     # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
-                self.img_canvas.set_data(data)
-                self.img_canvas.figure.canvas.draw()
+                for c, l in zip(self.canvases, self.layers):
+                    d = data[l.input.ordinal]
+                    c.set_data(d)
+                    if l.value_range is None:
+                        # FIXME the below shouldn't be called for each frame
+                        ax_vmin, ax_vmax = np.min(data), np.max(data)
+                        c.set(clim=(ax_vmin, ax_vmax))
+                    c.figure.canvas.draw()
+            return self.canvases
         except Exception as e:
             self.logger.exception(e)
-        return self.img_canvas,
 
     def get_ax_label(self, label, unit):
         label = f"{label}"

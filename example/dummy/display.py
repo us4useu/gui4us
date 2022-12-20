@@ -4,13 +4,23 @@ from gui4us.cfg.display import *
 # Display configuration file.
 
 displays = {
-    "main": Display2D(
+    "OX": Display2D(
         title=f"B-mode OX",
         layers=(
             Layer2D(
                 value_range=(-1.0, 1.0),
                 cmap="viridis",
                 input=StreamDataId("default", 0),
+            ),
+        ),
+    ),
+    "OY": Display2D(
+        title=f"B-mode OY",
+        layers=(
+            Layer2D(
+                value_range=(-1.0, 1.0),
+                cmap="viridis",
+                input=StreamDataId("default", 1),
             ),
         ),
     )
