@@ -58,7 +58,7 @@ class DisplayPanel(Panel):
 
         # One ax -> one display
         self.fig, self.axes = plt.subplots(1, n_displays)
-        self.fig.set_size_inches(6, 6)
+        self.fig.set_size_inches(3, 3*len(cfg.items()))
         if n_displays == 1:
             self.axes = [self.axes]
         img_canvas = FigureCanvas(self.fig)
@@ -120,10 +120,10 @@ class DisplayPanel(Panel):
                 canvas = ax.imshow(
                     init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
                     extent=extents,
-                    interpolation="none", interpolation_stage="rgba")
+                    interpolation="none")
                 self.canvases.append(canvas)
         self.canvases[0].figure.tight_layout()
-        self.fig.colorbar(self.canvases[-1])
+        # self.fig.colorbar(self.canvases[-1])
         # View worker
         self.is_started = False  # TODO state_graph
         self.data_queue = Queue(maxsize=2)
@@ -140,7 +140,7 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.fig, self.update, interval=50, blit=True)
+        self.anim = FuncAnimation(self.fig, self.update, interval=0.001, blit=True)
 
     def stop(self):
         self.is_started = False
