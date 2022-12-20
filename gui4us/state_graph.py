@@ -28,12 +28,21 @@ class Transition:
 
 class Event:
 
-    def __init__(self, state, transition=None):
+    def __init__(self, input_state, transition=None):
+        self.input_state = input_state
         self.transition = transition
         self.is_continue = True
 
     def stop(self):
         self.is_continue = False
+
+    def get_result(self):
+        return EventResult(is_continue=self.is_continue)
+
+
+@dataclass(frozen=True)
+class EventResult:
+    is_continue: bool
 
 
 @dataclass(frozen=True)
@@ -50,7 +59,6 @@ class StateGraph:
         object.__setattr__(self, "state_idx", state_idx)
         object.__setattr__(self, "transition_idx", transition_idx)
         object.__setattr__(self, "action_idx", action_idx)
-
 
     def get_state(self, state: Union[State, StateId]):
         if isinstance(state, State):
@@ -120,28 +128,28 @@ class StateGraphIterator:
         input_state = self.state_graph.get_state(transition.in_id)
         output_state = self.state_graph.get_state(transition.out_id)
 
-        event = Event(state=input_state, transition=transition)
+        event = Event(input_state=input_state, transition=transition)
         if input_state.on_exit is not None:
             input_state.on_exit(event)
             if not event.is_continue:
-                return
+                return event.get_result()
         if transition.on_enter is not None:
             transition.on_enter(event)
             if not event.is_continue:
-                return
+                return event.get_result()
         if output_state.on_enter is not None:
             output_state.on_enter(event)
             if not event.is_continue:
-                return
+                return event.get_result()
         self.current_state = output_state
+        return event.get_result()
 
     def go(self, state: Union[State, StateId]):
-
         transition = self.state_graph.get_transition(self.current_state, state)
         input_state = self.state_graph.get_state(state)
         output_state = self.state_graph.get_state(transition.out_id)
 
-        event = Event(state=input_state, transition=transition)
+        event = Event(input_state=input_state, transition=transition)
         if input_state.on_exit is not None:
             input_state.on_exit(event)
             if not event.is_continue:

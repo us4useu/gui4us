@@ -7,6 +7,8 @@ import traceback
 from collections.abc import Iterable
 import arrus.logging
 import arrus.utils.imaging
+
+import gui4us.model.core
 from gui4us.settings import *
 from gui4us.common import *
 from arrus.ops.us4r import *
@@ -49,14 +51,14 @@ class Output:
         self.callbacks.append(func)
 
 
-class Env(gui4us.model.env.Env):
+class UltrasoundEnv(gui4us.model.core.Env):
 
     def __init__(self, cfg: gui4us.cfg.UltrasoundEnvironment):
         self.cfg = cfg
         # LOGGING.
         self.log_file = self.cfg.log_file
         if self.log_file is None:
-            self.log_file = Env.DEFAULT_LOG_FILE
+            self.log_file = UltrasoundEnv.DEFAULT_LOG_FILE
         self.log_file_level = getattr(arrus.logging, self.cfg.log_file_level,
                                       None)
         if self.log_file_level is None:
@@ -126,7 +128,7 @@ class Env(gui4us.model.env.Env):
         self.session.start_scheme()
 
     def stop(self):
-        self.session.stop_scheme()
+        print(self._scheme.processing.pipeline)
 
     def close(self):
         self.session.stop_scheme()

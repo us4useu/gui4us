@@ -1,6 +1,7 @@
 from gui4us.view.widgets import *
 from gui4us.state_graph import *
 from gui4us.view.common import *
+from gui4us.controller.app import *
 import numpy as np
 
 # Supported file extensions
@@ -12,56 +13,61 @@ _FILE_EXTENSIONS = ";;".join([
 
 class CaptureBufferComponent(Panel):
 
-    def __init__(self, controller, title="Buffer"):
+    def __init__(self, title="Buffer"):
         super().__init__(title)
-        self.controller = controller
+        # TODO
+        # self.controller = controller
         # Action buttons
         self.capture_button = PushButton("Capture")
         self.save_button = PushButton("Save")
-        self.state_label = Label("Press capture ...")
+        # self.state_label = Label("Press capture ...")  # TODO
         self.add_component(self.capture_button)
         self.add_component(self.save_button)
-        self.add_component(self.state_label)
-        self.capture_button.on_pressed(self.__on_capture_button_press)
-        self.save_button.on_pressed(self.__on_save_button_press)
+        # self.add_component(self.state_label)
+        # TODO
+        # self.capture_button.on_pressed(self._on_capture_button_press)
+        # self.save_button.on_pressed(self._on_save_button_press)
 
         self.save_button.disable()
+        self.capture_button.disable()
 
-        self.state_graph = StateGraph(
-            states={
-                State("empty", on_enter=self.on_empty_buffer),
-                State("capturing"),
-                State("captured")
-            },
-            actions={
-                Action("capture"),
-                Action("capture_done"),
-                Action("save")
-            },
-            transitions={
-                Transition("empty", "capture", "capturing",
-                           self.on_capture_start),
-                Transition("capturing", "capture", "captured",
-                           self.on_capture_start),  # Reset capture buffer
-                Transition("capturing", "capture_done", "captured",
-                           self.on_capture_end),
-                Transition("capturing", "save", "empty",
-                           self.on_save),
-                Transition("captured", "capture", "capturing",
-                           self.on_capture_start),
-                Transition("captured", "save", "empty",
-                           self.on_save)
-            }
-        )
-        self.state = StateGraphIterator(
-            self.state_graph, start_state="empty")
-        self.buffer_state_output = self.controller.get_output(
-            "capture_buffer_events")
-        self.thread = QThread()
-        self.worker = ViewWorker(self.update)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.is_started = False
+        # Temporarily disabled.
+
+        # self.state_graph = StateGraph(
+        #     states={
+        #         State("empty", on_enter=self.on_empty_buffer),
+        #         State("capturing"),
+        #         State("captured")
+        #     },
+        #     actions={
+        #         Action("capture"),
+        #         Action("capture_done"),
+        #         Action("save")
+        #     },
+        #     transitions={
+        #         Transition("empty", "capture", "capturing",
+        #                    self.on_capture_start),
+        #         Transition("capturing", "capture", "captured",
+        #                    self.on_capture_start),  # Reset capture buffer
+        #         Transition("capturing", "capture_done", "captured",
+        #                    self.on_capture_end),
+        #         Transition("capturing", "save", "empty",
+        #                    self.on_save),
+        #         Transition("captured", "capture", "capturing",
+        #                    self.on_capture_start),
+        #         Transition("captured", "save", "empty",
+        #                    self.on_save)
+        #     }
+        # )
+        # self.state = StateGraphIterator(
+        #     self.state_graph, start_state="empty")
+        # self.buffer_state_output = self.controller.get_output(
+        #     "capture_buffer_events")
+        # self.thread = QThread()
+        # self.worker = ViewWorker(self.update)
+        # self.worker.moveToThread(self.thread)
+        # self.thread.started.connect(self.worker.run)
+        # self.is_started = False
 
     def start(self):
         self.is_started = True
@@ -86,10 +92,10 @@ class CaptureBufferComponent(Panel):
         except Exception as e:
             print(e)
 
-    def __on_capture_button_press(self):
+    def _on_capture_button_press(self):
         self.state.do("capture")
 
-    def __on_save_button_press(self):
+    def _on_save_button_press(self):
         self.state.do("save")
 
     def on_capture_reset(self):

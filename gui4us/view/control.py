@@ -15,29 +15,27 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import pyqtSlot
 
+from gui4us.controller.env import EnvController
+from gui4us.model import Env
 
 from gui4us.view.widgets import *
 from gui4us.view.settings import SettingsPanel
 from gui4us.view.capture_buffer import CaptureBufferComponent
 from gui4us.state_graph import *
+from typing import Callable
 
 
 class ControlPanel(Panel):
 
-    def __init__(self, controller, title="Control panel"):
+    def __init__(self, env: EnvController, title: str = "Control panel"):
         super().__init__(title)
-        self.controller = controller
-        self.actions_panel = ActionsPanel(controller)
-        self.buffer_panel = CaptureBufferComponent(controller)
-        settings = self.controller.get_settings().get_result()
+        self.env = env
+        self.actions_panel = ActionsPanel()
+        self.buffer_panel = CaptureBufferComponent()
 
-        self.settings_panel = SettingsPanel(
-            controller,
-            settings=settings,
-        )
+        self.settings_panel = SettingsPanel(env)
         # Settings panel should take all the available space.
         self.settings_panel.layout.insertStretch(-1, 1)
-
         self.panels = (
             self.actions_panel,
             self.buffer_panel,
@@ -51,9 +49,8 @@ class ActionsPanel(Panel):
     """
     Start, stop, previous, next panel.
     """
-    def __init__(self, controller, title="Actions"):
+    def __init__(self, title="Actions"):
         super().__init__(title)
-        self.controller = controller
         # Action buttons
         self.start_stop_button = PushButton("Start")
         self.add_component(self.start_stop_button)
@@ -62,14 +59,27 @@ class ActionsPanel(Panel):
         self.is_started = False
 
     def on_start_stop(self, *args):
-        if self.is_started:
-            self.controller.stop()
-            self.start_stop_button.set_text("Start")
-        else:
-            self.controller.start()
-            self.start_stop_button.set_text("Freeze")
         for callback in self.on_start_stop_callbacks:
-            callback()
+            is_continue = callback()
+            if not is_continue:
+                # Stop executing callbacks and keep the current state.
+                return
+        if not self.is_started:
+            self.is_started = True
+            self.start_stop_button.set_text("Freeze")
+        else:
+            self.is_started = False
+            self.start_stop_button.set_text("Start")
 
-    def add_on_start_stop_callback(self, callback):
-        self.on_start_stop_callbacks.append(callback)
+    def add_on_start_stop_callback(self, callback: Callable[[], bool]):
+        """
+        Adds callback to be run when the start/stop button is pressed.
+        The callback function should return True if it was executed
+        """
+        def callback_wrapper():
+            try:
+                return callback()
+            except:
+                return False
+
+        self.on_start_stop_callbacks.append(callback_wrapper)

@@ -2,13 +2,14 @@ import queue
 import numpy as np
 from dataclasses import dataclass
 import typing
+from gui4us.model import Metadata
 
 
 EventQueue = queue.Queue
 
 
 @dataclass(frozen=True)
-class ImageMetadata:
+class ImageMetadata(Metadata):
     """
     :param shape: (number of pixels OZ, number of pixels OX)
     :param dtype: image data type, acceptable: float32
@@ -19,9 +20,9 @@ class ImageMetadata:
     """
     shape: tuple
     dtype: str
-    extents: tuple
-    units: tuple
-    ids: tuple
+    extents: tuple = None
+    units: tuple = None
+    ids: tuple = None
 
 
 

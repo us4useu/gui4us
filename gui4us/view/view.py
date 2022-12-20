@@ -1,110 +1,92 @@
 import sys
+import enum
+import threading
 
 from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QAction
+from PyQt5.QtWidgets import QMenu
+from PyQt5 import QtWidgets
 
-from gui4us.controller.controller import *
+from gui4us.controller.app import *
 from gui4us.view.control import *
 from gui4us.view.display import *
 from gui4us.state_graph import *
+from gui4us.cfg.display import *
+import gui4us.version
+from gui4us.view.env import EnvironmentView
 
 APP = None
 
 
-def start_view(*args):
+def start_view_app(env, **view_kwargs):
     global APP
     APP = QApplication(sys.argv)
     APP.setStyle("Fusion")
-    view = View(*args)
+    view = View(**view_kwargs)
+    view.set_environment("main", env)
     view.show()
     return APP.exec_()
 
 
 class View(QtWidgets.QMainWindow):
-
-    def __init__(self, title, cfg, controller: Controller):
+    """
+    Main window view.
+    """
+    def __init__(self, title, cfg_path: str):
         super().__init__()
-        self.controller = controller
+        self.cfg = load_cfg(os.path.join(cfg_path, "display.py"), "display")
+        self.view_cfg = self.cfg.VIEW_CFG
+        self.env_views: Dict[EnvId, EnvironmentView] = {}
         self.text_format = Qt.MarkdownText
         self.statusBar().showMessage('Configuring...')
-        try:
-            self.setWindowTitle(title)
-            # Main layout
-            self.main_widget = QWidget()
-            self.setCentralWidget(self.main_widget)
-            self.main_layout = QHBoxLayout(self.main_widget)
-            self.control_panel = ControlPanel(controller)
-            self.display_panel = DisplayPanel(cfg.displays, controller, self)
+        self.setWindowTitle(title)
+        # Create and adjust main layout
+        self.main_widget = QWidget()
+        self.setCentralWidget(self.main_widget)
+        self.main_layout = QHBoxLayout(self.main_widget)
 
-            self.main_layout.addWidget(self.control_panel.backend_widget)
-            self.main_layout.addWidget(self.display_panel.backend_widget)
+        self.control_panel_placeholder = QGroupBox("Control panel")
+        self.display_placeholder = QGroupBox("Display")
+        self.size_policy_control = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Preferred)
+        self.size_policy_display = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Preferred)
+        self.size_policy_control.setHorizontalStretch(1)
+        self.size_policy_display.setHorizontalStretch(4)
 
-            # Main application state, enter the init state.
-            self.state_graph = StateGraph(
-                states={
-                    State("init", on_enter=self.on_init),
-                    State("started"),
-                    State("stopped")
-                },
-                actions={
-                    Action("start"),
-                    Action("stop")
-                },
-                transitions={
-                    Transition("init", "start", "started", self.on_init_start),
-                    Transition("started", "stop", "stopped", self.on_stopped),
-                    Transition("stopped", "start", "started", self.on_started)
-                }
-            )
+        self.control_panel_placeholder.setSizePolicy(self.size_policy_control)
+        self.display_placeholder.setSizePolicy(self.size_policy_display)
 
-            self.state = StateGraphIterator(
-                self.state_graph, start_state="init")
+        self.main_layout.addWidget(self.control_panel_placeholder)
+        self.main_layout.addWidget(self.display_placeholder)
+        self.current_control_panel = self.control_panel_placeholder
+        self.current_display = self.display_placeholder
+        # Main application state, enter the init state.
+        self.statusBar().showMessage("Open environment to start.")
+        screen_size = APP.primaryScreen().size()
+        height, width = screen_size.height(), screen_size.width()
+        height, width = 3 * height // 4, 3 * width // 4
+        self.setMinimumSize(width, height)
 
-            # Register callbacks to be called when some events occur.
-            self.control_panel.actions_panel.add_on_start_stop_callback(
-                self.on_start_stop_pressed)
-            self.showMaximized()
-            # self.adjustSize()
-            # self.setFixedSize(self.size())
-
-        except Exception as e:
-            print(traceback.format_exc())
-            print(e)
-            self.controller.close()
-
-    def on_start_stop_pressed(self):
-        if self.state.is_current_state({"init", "stopped"}):
-            self.state.do("start")
-        else:
-            self.state.do("stop")
-
-    def on_init(self, event):
-        self.control_panel.actions_panel.enable()
-        self.control_panel.settings_panel.disable()
-        self.control_panel.buffer_panel.disable()
-        self.statusBar().showMessage(
-            "Ready, press 'Start' button to start the hardware.")
-
-    def on_init_start(self, event):
-        self.statusBar().showMessage("Starting system.")
-        self.on_started(event)
-
-    def on_started(self, event):
-        self.control_panel.settings_panel.enable()
-        self.control_panel.buffer_panel.enable()
-        self.display_panel.start()
-        self.control_panel.buffer_panel.start()
-        self.statusBar().showMessage("Running.")
-
-    def on_stopped(self, event):
-        self.control_panel.settings_panel.disable()
-        self.control_panel.actions_panel.disable()
-        self.statusBar().showMessage("Stopped.")
-
-    def closeEvent(self, event):
-        self.controller.close()
-        event.accept()
-
-
-
-
+    def set_environment(
+            self,
+            id: EnvId,
+            env: EnvController
+    ):
+        env_view = EnvironmentView(self, view_cfg=self.view_cfg, env=env)
+        self.env_views[id] = env_view
+        self.main_layout.replaceWidget(self.current_control_panel,
+                                   env_view.control_panel.backend_widget)
+        self.main_layout.replaceWidget(self.current_display,
+                                   env_view.display_panel.backend_widget)
+        self.current_control_panel.hide()
+        self.current_display.hide()
+        self.current_control_panel = env_view.control_panel
+        self.current_display = env_view.display_panel
+        self.current_control_panel.backend_widget.setSizePolicy(
+            self.size_policy_control)
+        self.current_display.backend_widget.setSizePolicy(
+            self.size_policy_display)

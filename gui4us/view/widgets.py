@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QDoubleSpinBox
 )
+import numpy as np
 
 
 @dataclass(frozen=True)
@@ -70,12 +71,17 @@ class PushButton(Widget):
 
 class SpinBox(Widget):
 
-    def __init__(self, value_range, step, init_value, on_change=None,
-                 line_edit_read_only=True, data_type="int"):
+    def __init__(self, value_range, step, init_value,
+                 resolution=None,
+                 on_change=None,
+                 line_edit_read_only=True,
+                 data_type="int"):
         if data_type == "int":
             spin_box = QSpinBox()
-        elif data_type == "float":
+            step = 1  # chosen arbitrarily
+        elif data_type == "float" or data_type == np.float32:
             spin_box = QDoubleSpinBox()
+            step = 1  # chosen arbitrarily
         else:
             raise ValueError(f"Unrecognized data type: {data_type}")
         super().__init__(spin_box)
@@ -104,11 +110,12 @@ class SpinBox(Widget):
 
 class Slider(Widget):
 
-    def __init__(self, value_range, step, init_value, on_change=None,
+    def __init__(self, value_range, init_value, resolution=100,
+                 on_change=None,
                  data_type="int"):
         super().__init__(QSlider(Qt.Horizontal))
         self.vmin, self.vmax = value_range
-        self.step = step
+        self.step = (self.vmax-self.vmin)/resolution
         # range
         self.backend_widget.setMinimum(self.to_qslider_value(self.vmin))
         self.backend_widget.setMaximum(self.to_qslider_value(self.vmax))

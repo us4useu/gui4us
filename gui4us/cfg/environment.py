@@ -3,10 +3,7 @@ import numpy as np
 from typing import Union, Iterable
 
 
-@dataclass(frozen=True)
-class LiveDataId:
-    name: str
-    ordinal: int
+
 
 
 @dataclass(frozen=True)
