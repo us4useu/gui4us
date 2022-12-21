@@ -54,7 +54,7 @@ class DummyEnv(Env):
                     high=100
                 ),
                 initial_value=10,
-                step=1
+                step=5
             ),
             SettingDef(
                 name="TGC",

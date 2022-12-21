@@ -78,10 +78,10 @@ class SpinBox(Widget):
                  data_type="int"):
         if data_type == "int":
             spin_box = QSpinBox()
-            step = 1  # chosen arbitrarily
+            step = step  # chosen arbitrarily
         elif data_type == "float" or data_type == np.float32:
             spin_box = QDoubleSpinBox()
-            step = 1  # chosen arbitrarily
+            step = step  # chosen arbitrarily
         else:
             raise ValueError(f"Unrecognized data type: {data_type}")
         super().__init__(spin_box)
