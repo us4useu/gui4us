@@ -90,7 +90,7 @@ class SpinBox(Widget):
         spin_box.setSingleStep(step)
         spin_box.setValue(init_value)
         if line_edit_read_only:
-            spin_box.lineEdit().setReadOnly(True)
+            spin_box.lineEdit().setReadOnly(False)
         if on_change is not None:
             spin_box.valueChanged.connect(on_change)
 
