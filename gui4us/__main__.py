@@ -15,6 +15,7 @@ LOGGER = get_logger(__name__)
 
 if __name__ == "__main__":
     # Read input parameters.
+    env = None
     try:
         parser = argparse.ArgumentParser(
             description=f"GUI4us {gui4us.__version__}")
@@ -37,7 +38,8 @@ if __name__ == "__main__":
     except Exception as e:
         LOGGER.exception(e)
     finally:
-        env.close()
+        if env is not None:
+            env.close()
         LOGGER.info("gui4us closed.")
 
 

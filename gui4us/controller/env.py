@@ -20,8 +20,13 @@ class EnvController:
         self.task_queue = queue.Queue()
         self.event_queue_runner = threading.Thread(target=self._main)
         self.env_ready_event = threading.Event()
+        self.started_properly = False
         self.event_queue_runner.start()
         self.env_ready_event.wait()
+        if not self.started_properly:
+            raise ValueError("Env controller didn't started properly, "
+                    "please check the other errors for more details.")
+
         self.logger.info("Environment is ready.")
 
     def start(self):
@@ -58,10 +63,12 @@ class EnvController:
         try:
             self.cfg = load_cfg(self.env_cfg_path, self.id)
             self.env = self.cfg.ENV
+            self.started_properly = True
             self.env_ready_event.set()
             self._event_loop()
         finally:
-            self.env.close()
+            if self.env is not None:
+                self.env.close()
             self.logger.info("Closed.")
 
     def _event_loop(self):
