@@ -66,10 +66,10 @@ class View(QtWidgets.QMainWindow):
         self.current_display = self.display_placeholder
         # Main application state, enter the init state.
         self.statusBar().showMessage("Open environment to start.")
-        screen_size = APP.primaryScreen().size()
-        height, width = screen_size.height(), screen_size.width()
-        height, width = 3 * height // 4, 3 * width // 4
-        self.setMinimumSize(width, height)
+        # screen_size = APP.primaryScreen().size()
+        # height, width = screen_size.height(), screen_size.width()
+        # height, width = 3 * height // 4, 3 * width // 4
+        # self.setMinimumSize(width, height)
 
     def set_environment(
             self,
