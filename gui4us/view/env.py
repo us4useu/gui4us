@@ -21,7 +21,8 @@ class EnvironmentView:
     a single environment.
     """
 
-    def __init__(self, parent, view_cfg: ViewCfg, env: EnvController):
+    def __init__(self, parent, view_cfg: ViewCfg, env: EnvController,
+                 capture_buffer_capacity: int):
         self.logger = get_logger(f"{type(self)}_id")
         self.parent = parent
         self.env = env
@@ -32,6 +33,7 @@ class EnvironmentView:
         )
         self.control_panel = ControlPanel(
             self.env,
+            capture_buffer_capacity=capture_buffer_capacity
         )
         self.state_graph = StateGraph(
             states={
