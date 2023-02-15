@@ -27,11 +27,14 @@ from typing import Callable
 
 class ControlPanel(Panel):
 
-    def __init__(self, env: EnvController, title: str = "Control panel"):
+    def __init__(self, env: EnvController, capture_buffer_capacity: int,
+                 title: str = "Control panel"):
         super().__init__(title)
         self.env = env
         self.actions_panel = ActionsPanel()
-        self.buffer_panel = CaptureBufferComponent()
+        self.buffer_panel = CaptureBufferComponent(
+            env,
+            capture_buffer_capacity=capture_buffer_capacity)
 
         self.settings_panel = SettingsPanel(env)
         # Settings panel should take all the available space.

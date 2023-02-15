@@ -1,8 +1,12 @@
+import pickle
+
 from gui4us.view.widgets import *
-from gui4us.state_graph import *
 from gui4us.view.common import *
-from gui4us.controller.app import *
+import gui4us.controller.app as app
+from gui4us.state_graph import *
 import numpy as np
+import queue
+from datetime import datetime
 
 # Supported file extensions
 _FILE_EXTENSIONS = ";;".join([
@@ -11,114 +15,117 @@ _FILE_EXTENSIONS = ";;".join([
 ])
 
 
+class CaptureBuffer:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self._counter = 0
+        self._data = [None]*self.capacity
+
+    def append(self, data):
+        if self.is_ready():
+            raise queue.Full()
+        self._data[self._counter] = data
+        self._counter += 1
+
+    def is_ready(self):
+        return self.capacity == self._counter
+
+    def get_current_size(self):
+        return self._counter
+
+    @property
+    def data(self):
+        return self._data
+
+
 class CaptureBufferComponent(Panel):
 
-    def __init__(self, title="Buffer"):
+    def __init__(self, env: app.EnvController, capture_buffer_capacity: int,
+                 title="Buffer"):
         super().__init__(title)
         # TODO
-        # self.controller = controller
+        self.env = env
         # Action buttons
         self.capture_button = PushButton("Capture")
         self.save_button = PushButton("Save")
-        # self.state_label = Label("Press capture ...")  # TODO
+        self.state_label = Label("Press capture ...")
         self.add_component(self.capture_button)
         self.add_component(self.save_button)
-        # self.add_component(self.state_label)
-        # TODO
-        # self.capture_button.on_pressed(self._on_capture_button_press)
-        # self.save_button.on_pressed(self._on_save_button_press)
+        self.add_component(self.state_label)
 
-        self.save_button.disable()
-        self.capture_button.disable()
+        self.capture_button.on_pressed(self._on_capture_button_press)
+        self.save_button.on_pressed(self._on_save_button_press)
+        self.state_graph = StateGraph(
+            states={
+                State("empty", on_enter=self.on_empty_buffer),
+                State("capturing"),
+                State("captured")
+            },
+            actions={
+                Action("capture"),
+                Action("capture_done"),
+                Action("save")
+            },
+            transitions={
+                Transition("empty", "capture", "capturing",
+                           self.on_capture_start),
+                Transition("capturing", "capture", "capturing",
+                           self.on_capture_start),  # Reset capture buffer
+                Transition("capturing", "capture_done", "captured",
+                           self.on_capture_end),
+                Transition("captured", "save", "empty",
+                           self.on_save),
+                Transition("captured", "capture", "capturing",
+                           self.on_capture_start),
+            }
+        )
+        self.state = StateGraphIterator(
+            self.state_graph, start_state="empty")
 
-        # Temporarily disabled.
+        self.env.get_stream().append_on_new_data_callback(self.update)
+        self.capture_buffer: CaptureBuffer = None
+        self.capture_buffer_capacity = capture_buffer_capacity
 
-        # self.state_graph = StateGraph(
-        #     states={
-        #         State("empty", on_enter=self.on_empty_buffer),
-        #         State("capturing"),
-        #         State("captured")
-        #     },
-        #     actions={
-        #         Action("capture"),
-        #         Action("capture_done"),
-        #         Action("save")
-        #     },
-        #     transitions={
-        #         Transition("empty", "capture", "capturing",
-        #                    self.on_capture_start),
-        #         Transition("capturing", "capture", "captured",
-        #                    self.on_capture_start),  # Reset capture buffer
-        #         Transition("capturing", "capture_done", "captured",
-        #                    self.on_capture_end),
-        #         Transition("capturing", "save", "empty",
-        #                    self.on_save),
-        #         Transition("captured", "capture", "capturing",
-        #                    self.on_capture_start),
-        #         Transition("captured", "save", "empty",
-        #                    self.on_save)
-        #     }
-        # )
-        # self.state = StateGraphIterator(
-        #     self.state_graph, start_state="empty")
-        # self.buffer_state_output = self.controller.get_output(
-        #     "capture_buffer_events")
-        # self.thread = QThread()
-        # self.worker = ViewWorker(self.update)
-        # self.worker.moveToThread(self.thread)
-        # self.thread.started.connect(self.worker.run)
-        # self.is_started = False
-
-    def start(self):
-        self.is_started = True
-        self.thread.start(priority=QThread.TimeCriticalPriority)
-
-    def stop(self):
-        self.is_started = False
-
-    def update(self):
+    def update(self, data):
         try:
-            event = self.buffer_state_output.get()
-            if event is None:
-                # event buffer closed
-                return
-            else:
-                capture_size, is_done = event
-                if is_done:
-                    self.state_label.set_text(f"Done, captured: {capture_size}")
+            if self.state.is_current_state("capturing"):
+                arrays = [np.copy(a) for a in data]
+                arrays = tuple(arrays)
+                self.capture_buffer.append(arrays)
+                self.state_label.set_text(
+                    f"Frames: {self.capture_buffer.get_current_size()}"
+                )
+                if self.capture_buffer.is_ready():
                     self.state.do("capture_done")
-                else:
-                    self.state_label.set_text(f"Captured frame {capture_size}")
         except Exception as e:
             print(e)
 
     def _on_capture_button_press(self):
+        print("Capture button pressed")
         self.state.do("capture")
 
     def _on_save_button_press(self):
         self.state.do("save")
 
-    def on_capture_reset(self):
-        # TODO
-        pass
-
     def on_capture_start(self, event):
+        self.capture_buffer = CaptureBuffer(self.capture_buffer_capacity)
         self.capture_button.enable()
-        self.save_button.enable()
-        self.controller.start_capture()
+        self.save_button.disable()
 
     def on_capture_end(self, event):
         self.save_button.enable()
 
     def on_save(self, event):
-        filename, extension = QFileDialog.getSaveFileName(
-            parent=None, caption="Save File", directory=".",
-            filter=_FILE_EXTENSIONS)
-        if extension == "":
-            event.stop()
-            return
-        self.controller.save_capture(filename)
-        self.controller.clear_capture()
+        timestamp = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"data_{timestamp}.pkl"
+        pickle.dump(self.capture_buffer.data, open(filename, "wb"))
+        self.state_label.set_text(f"Saved data to {filename}")
+        # filename, extension = QFileDialog.getSaveFileName(
+        #     parent=None, caption="Save File", directory=".",
+        #     filter=_FILE_EXTENSIONS)
+        # if extension == "":
+        #     event.stop()
+        #     return
 
     def on_empty_buffer(self, event):
         self.save_button.disable()
