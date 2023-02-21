@@ -1,4 +1,5 @@
 import queue
+from collections import deque
 
 import time
 import traceback
@@ -126,21 +127,18 @@ class DisplayPanel(Panel):
         # self.fig.colorbar(self.canvases[-1])
         # View worker
         self.is_started = False  # TODO state_graph
-        self.data_queue = Queue(maxsize=2)
+        self.data_queue = deque(maxlen=1)
         self.env.get_stream().append_on_new_data_callback(
             self._put_input_data
         )
         self.i = 0
 
     def _put_input_data(self, data):
-        try:
-            self.data_queue.put_nowait(data)
-        except queue.Full:
-            pass
+        self.data_queue.append(data)
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.fig, self.update, interval=0.001, blit=True)
+        self.anim = FuncAnimation(self.fig, self.update, interval=20e-3, blit=True)
 
     def stop(self):
         self.is_started = False
@@ -152,7 +150,10 @@ class DisplayPanel(Panel):
     def update(self, ev):
         try:
             if self.is_started:
-                data = self.data_queue.get()
+                if len(self.data_queue) == 0:
+                    # No data, no update.
+                    return self.canvases
+                data = self.data_queue[-1]
                 if data is None or not self.is_started:
                     # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
