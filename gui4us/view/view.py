@@ -36,6 +36,7 @@ class View(QtWidgets.QMainWindow):
     def __init__(self, title, cfg_path: str):
         super().__init__()
         self.cfg = load_cfg(os.path.join(cfg_path, "display.py"), "display")
+        self.app_cfg = load_cfg(os.path.join(cfg_path, "app.py"), "app")
         self.view_cfg = self.cfg.VIEW_CFG
         self.env_views: Dict[EnvId, EnvironmentView] = {}
         self.text_format = Qt.MarkdownText
@@ -66,17 +67,19 @@ class View(QtWidgets.QMainWindow):
         self.current_display = self.display_placeholder
         # Main application state, enter the init state.
         self.statusBar().showMessage("Open environment to start.")
-        # screen_size = APP.primaryScreen().size()
-        # height, width = screen_size.height(), screen_size.width()
-        # height, width = 3 * height // 4, 3 * width // 4
-        # self.setMinimumSize(width, height)
+        screen_size = APP.primaryScreen().size()
+        height, width = screen_size.height(), screen_size.width()
+        height, width = 3 * height // 4, 3 * width // 4
+        self.setMinimumSize(width, height)
 
     def set_environment(
             self,
             id: EnvId,
             env: EnvController
     ):
-        env_view = EnvironmentView(self, view_cfg=self.view_cfg, env=env)
+        env_view = EnvironmentView(
+            self, view_cfg=self.view_cfg, env=env,
+            capture_buffer_capacity=self.app_cfg.CAPTURE_BUFFER_SIZE)
         self.env_views[id] = env_view
         self.main_layout.replaceWidget(self.current_control_panel,
                                    env_view.control_panel.backend_widget)
