@@ -36,7 +36,8 @@ class UltrasoundEnv(Env):
                  medium: arrus.medium.Medium,
                  log_file_level, log_file, scheme,
                  tgc_sampling_points, initial_tgc_values,
-                 initial_voltage=5):
+                 initial_voltage=5,
+                 dump_metadata=False):
         """
         The scheme returned by the scheme function should contain:
         - arrus.utils.imaging.Processing object
@@ -62,12 +63,15 @@ class UltrasoundEnv(Env):
         self.scheme.processing.callback = self._on_new_data
         self._us4r_actions = {
             "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
-            "Voltage": self.us4r.set_hv_voltage
+            "Voltage": lambda value: self.us4r.set_hv_voltage(int(value)),
         }
         self.stream = ArrusStream()
-        self.metadata = self.session.upload(scheme)
+        self.metadata = self.session.upload(self.scheme)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
+        if dump_metadata:
+            pickle.dump(self.metadata, open("metadata.pkl", "wb"))
+        
 
     def start(self) -> None:
         self.session.start_scheme()
