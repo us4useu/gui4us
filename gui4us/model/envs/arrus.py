@@ -1,3 +1,4 @@
+import math
 import queue
 import gui4us.cfg
 import arrus
@@ -93,7 +94,7 @@ class UltrasoundEnv(Env):
         # TODO replace the below with settings read via arrus
         self._us4r_actions = {
             "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
-            "Voltage": self.us4r.set_hv_voltage
+            "Voltage": lambda value: self.us4r.set_hv_voltage(int(math.floor(value)))
         }
         self.stream = ArrusStream()
         # Configure.
