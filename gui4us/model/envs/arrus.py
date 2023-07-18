@@ -1,10 +1,5 @@
 import queue
 import gui4us.cfg
-import numpy as np
-import datetime
-import pickle
-import traceback
-from collections.abc import Iterable
 import arrus
 import arrus.logging
 import arrus.utils.imaging
@@ -12,13 +7,10 @@ import arrus.medium
 
 import gui4us.model.core
 from gui4us.model import *
-from gui4us.settings import *
 from gui4us.common import *
 from arrus.ops.us4r import *
-from arrus.utils.imaging import (
-    Processing,
-    Pipeline
-)
+from dataclasses import dataclass
+
 
 class ArrusStream(Stream):
 
@@ -29,43 +21,74 @@ class ArrusStream(Stream):
         self.callbacks.append(callback)
 
 
+@dataclass(frozen=True)
+class Curve:
+    points: Iterable[float]
+    values: Iterable[float]
+
+
+@dataclass(frozen=True)
+class ArrusEnvConfiguration:
+    medium: arrus.medium.Medium
+    scheme: arrus.ops.us4r.Scheme
+    tgc: Curve
+    voltage: float = 5  # [V]
+
+
+def get_depth_range(depth_grid: Iterable[float]):
+    """
+    Returns depth range that covers a given grid of points.
+
+    Currently this function can be considered
+    as a shortcut for (np.min(grid), np.max(grid)).
+    """
+    return (np.min(depth_grid), np.max(depth_grid))
+
+
 class UltrasoundEnv(Env):
-    DEFAULT_LOG_FILE = "arrus.log"
 
-    def __init__(self, session_cfg: str,
-                 medium: arrus.medium.Medium,
-                 log_file_level, log_file, scheme,
-                 tgc_sampling_points, initial_tgc_values,
-                 initial_voltage=5):
-        """
-        The scheme returned by the scheme function should contain:
-        - arrus.utils.imaging.Processing object
-        """
-        # LOGGING.
-        self.log_file = log_file
-        if self.log_file is None:
-            self.log_file = UltrasoundEnv.DEFAULT_LOG_FILE
+    LOG_FILE = "arrus.log"
+
+    def __init__(self,
+                 session_cfg: str,
+                 configure: Callable[[arrus.Session], ArrusEnvConfiguration],
+                 log_file_level=arrus.logging.INFO,
+                 log_file: Optional[str] = None
+                 ):
+        # Logging.
+        log_file = log_file if log_file is not None else UltrasoundEnv.LOG_FILE
         self.log_file_level = log_file_level
-        arrus.logging.add_log_file(self.log_file, self.log_file_level)
+        arrus.logging.add_log_file(log_file, log_file_level)
 
-        self.session = arrus.Session(session_cfg, medium=medium)
+        # Start session
+        self.session = arrus.Session(session_cfg)
         self.us4r = self.session.get_device("/Us4R:0")
         self.probe_model = self.us4r.get_probe_model()
-        self.medium = medium
-        self.tgc_sampling_points = tgc_sampling_points
-        self.initial_tgc_values = initial_tgc_values
-        self.initial_voltage = initial_voltage
-        if isinstance(scheme, Callable):
-            self.scheme = scheme(self.session)
+
+        # Load configuration.
+        if isinstance(configure, Callable):
+            self.cfg = configure(self.session)
         else:
             raise ValueError("The scheme object should be callable.")
+
+        # Initial values:
+        self.scheme = self.cfg.scheme
+        self.tgc_sampling_points = self.cfg.tgc.points
+        self.tgc_values = self.cfg.tgc.values
+        self.initial_voltage = self.cfg.voltage
+        self.medium = self.cfg.medium
         self.scheme.processing.callback = self._on_new_data
+
+        # TODO replace the below with settings read via arrus
         self._us4r_actions = {
             "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
             "Voltage": self.us4r.set_hv_voltage
         }
         self.stream = ArrusStream()
-        self.metadata = self.session.upload(scheme)
+        # Configure.
+        # NOTE: medium should be set before uploading the sequence.
+        self.session.medium = self.medium
+        self.metadata = self.session.upload(configure)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
 
@@ -131,7 +154,7 @@ class UltrasoundEnv(Env):
                           for i in self.tgc_sampling_points],
                     unit=["dB"]*len(self.tgc_sampling_points)
                 ),
-                initial_value=self.initial_tgc_values,
+                initial_value=self.tgc_values,
             ),
         ]
 
@@ -189,8 +212,7 @@ class UltrasoundEnv(Env):
             grid_step = grid_steps[-1]
             return grid_step.x_grid, grid_step.z_grid
         else:
-            raise ValueError("The processing should contain imaging "
-                             "step.")
+            raise ValueError("The processing should contain imaging step.")
 
 
 
