@@ -9,6 +9,7 @@ import gui4us.model.core
 from gui4us.model import *
 from gui4us.common import *
 from arrus.ops.us4r import *
+import dataclasses
 from dataclasses import dataclass
 
 
@@ -67,16 +68,26 @@ class UltrasoundEnv(Env):
 
         # Load configuration.
         if isinstance(configure, Callable):
-            self.cfg = configure(self.session)
+            cfg = configure(self.session)
         else:
             raise ValueError("The scheme object should be callable.")
 
         # Initial values:
-        self.scheme = self.cfg.scheme
-        self.tgc_sampling_points = self.cfg.tgc.points
-        self.tgc_values = self.cfg.tgc.values
-        self.initial_voltage = self.cfg.voltage
-        self.medium = self.cfg.medium
+        self.scheme = cfg.scheme
+        self.tgc_sampling_points = cfg.tgc.points
+        self.tgc_values = cfg.tgc.values
+        self.initial_voltage = cfg.voltage
+        self.medium = cfg.medium
+
+        # Set processing callback.
+        # In order to do that, it is necessary to wrap the input pipeline 
+        # into the Processing class instance.
+        if isinstance(self.scheme.processing, arrus.utils.imaging.Pipeline):
+            pipeline = self.scheme.processing
+            self.scheme = dataclasses.replace(
+                    self.scheme, 
+                    processing=arrus.utils.imaging.Processing(pipeline=pipeline))
+            
         self.scheme.processing.callback = self._on_new_data
 
         # TODO replace the below with settings read via arrus
@@ -86,9 +97,10 @@ class UltrasoundEnv(Env):
         }
         self.stream = ArrusStream()
         # Configure.
+        self.us4r.set_hv_voltage(self.initial_voltage)
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
-        self.metadata = self.session.upload(configure)
+        self.metadata = self.session.upload(self.scheme)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
 
@@ -169,13 +181,14 @@ class UltrasoundEnv(Env):
         return self.stream
 
     def get_stream_metadata(self) -> MetadataCollection:
-        # TODO determine extents basing on processing.pipeline
         x_grid, z_grid = self._determine_image_grid()
         oxz_extent = np.array([np.min(z_grid), np.max(z_grid),
                                np.min(x_grid), np.max(x_grid)])*1e3
 
         image_metadata = {}
+        print(self.metadata)
         for i, m in enumerate(self.metadata):
+            print(m)
             im = ImageMetadata(
                 shape=m.input_shape,
                 dtype=m.dtype,
@@ -203,8 +216,10 @@ class UltrasoundEnv(Env):
 
     def _determine_image_grid(self):
         # TODO the output grid dimensions should be a part of the arrus metadata
-        assert isinstance(self.scheme.processing, arrus.utils.imaging.Processing)
-        pipeline = self.scheme.processing.pipeline
+        if isinstance(self.scheme.processing, arrus.utils.imaging.Processing):
+            pipeline = self.scheme.processing.pipeline
+        else:
+            pipeline = self.scheme.processing
         grid_steps = [step for step in pipeline.steps
                       if hasattr(step, "x_grid") and hasattr(step, "z_grid")
                       ]
