@@ -102,6 +102,7 @@ class UltrasoundEnv(Env):
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
         self.metadata = self.session.upload(self.scheme)
+        self.set_tgc(self.tgc_sampling_points, self.tgc_values)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
 
