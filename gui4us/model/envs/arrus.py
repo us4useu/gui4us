@@ -41,10 +41,11 @@ def get_depth_range(depth_grid: Iterable[float]):
     """
     Returns depth range that covers a given grid of points.
 
-    Currently this function can be considered
+    Currently, this function can be considered
     as a shortcut for (np.min(grid), np.max(grid)).
     """
-    return (np.min(depth_grid), np.max(depth_grid))
+    # +5e-3 to cover most of the use cases
+    return np.min(depth_grid), np.max(depth_grid)+5e-3
 
 
 class UltrasoundEnv(Env):
