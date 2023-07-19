@@ -56,7 +56,7 @@ class UltrasoundEnv(Env):
                  session_cfg: str,
                  configure: Callable[[arrus.Session], ArrusEnvConfiguration],
                  log_file_level=arrus.logging.INFO,
-                 log_file: Optional[str] = None
+                 log_file: Optional[str] = None,
                  ):
         # Logging.
         log_file = log_file if log_file is not None else UltrasoundEnv.LOG_FILE
@@ -82,20 +82,20 @@ class UltrasoundEnv(Env):
         self.medium = cfg.medium
 
         # Set processing callback.
-        # In order to do that, it is necessary to wrap the input pipeline 
+        # In order to do that, it is necessary to wrap the input pipeline
         # into the Processing class instance.
         if isinstance(self.scheme.processing, arrus.utils.imaging.Pipeline):
             pipeline = self.scheme.processing
             self.scheme = dataclasses.replace(
-                    self.scheme, 
+                    self.scheme,
                     processing=arrus.utils.imaging.Processing(pipeline=pipeline))
-            
+
         self.scheme.processing.callback = self._on_new_data
 
         # TODO replace the below with settings read via arrus
         self._us4r_actions = {
             "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
-            "Voltage": lambda value: self.us4r.set_hv_voltage(int(math.floor(value)))
+            "Voltage": lambda value: self.us4r.set_hv_voltage(int(value)),
         }
         self.stream = ArrusStream()
         # Configure.
@@ -189,9 +189,7 @@ class UltrasoundEnv(Env):
                                np.min(x_grid), np.max(x_grid)])*1e3
 
         image_metadata = {}
-        print(self.metadata)
         for i, m in enumerate(self.metadata):
-            print(m)
             im = ImageMetadata(
                 shape=m.input_shape,
                 dtype=m.dtype,
