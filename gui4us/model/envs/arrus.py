@@ -184,6 +184,7 @@ class UltrasoundEnv(Env):
         return self.stream
 
     def get_stream_metadata(self) -> MetadataCollection:
+        # TODO assumming each output has exactly the same extent
         x_grid, z_grid = self._determine_image_grid()
         oxz_extent = np.array([np.min(z_grid), np.max(z_grid),
                                np.min(x_grid), np.max(x_grid)])*1e3

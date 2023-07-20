@@ -95,8 +95,8 @@ class DisplayPanel(Panel):
                     extents = metadata.extents
                 if extents is not None:
                     extent_ox, extent_oz = extents
-                    extents = [extent_oz[0], extent_oz[1],
-                               extent_ox[1], extent_ox[0]]
+                    matplotlib_extents = [extent_oz[0], extent_oz[1],
+                                          extent_ox[1], extent_ox[0]]
 
                 # Axis labels defined per output image metadata.
                 # TODO: verify if all image metadata have exactly the
@@ -120,7 +120,7 @@ class DisplayPanel(Panel):
                 init_data = np.zeros(input_shape, dtype=dtype)
                 canvas = ax.imshow(
                     init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
-                    extent=extents,
+                    extent=matplotlib_extents,
                     interpolation="none")
                 self.canvases.append(canvas)
         self.canvases[0].figure.tight_layout()
