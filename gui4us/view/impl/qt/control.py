@@ -1,27 +1,8 @@
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import (
-    QPushButton,
-    QSlider,
-    QSpinBox,
-    QGroupBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QWidget,
-    QFileDialog,
-    QMessageBox,
-    QDoubleSpinBox
-)
-from PyQt5.QtCore import pyqtSlot
-
 from gui4us.controller.env import EnvController
-from gui4us.model import Env
 
-from gui4us.view.widgets import *
+from gui4us.view.impl.qt.widgets import *
 from gui4us.view.settings import SettingsPanel
 from gui4us.view.capture_buffer import CaptureBufferComponent
-from gui4us.state_graph import *
 from typing import Callable
 
 

@@ -1,6 +1,6 @@
 import pickle
 
-from gui4us.view.widgets import *
+from gui4us.view.impl.qt.widgets import *
 from gui4us.view.common import *
 import gui4us.controller.app as app
 from gui4us.state_graph import *

@@ -1,19 +1,11 @@
 import sys
-import enum
-import threading
 
 from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtWidgets import QMenu
-from PyQt5 import QtWidgets
 
 from gui4us.controller.app import *
-from gui4us.view.control import *
-from gui4us.view.display import *
-from gui4us.state_graph import *
+from gui4us.view.impl.qt.control import *
 from gui4us.cfg.display import *
-import gui4us.version
 from gui4us.view.env import EnvironmentView
 
 APP = None

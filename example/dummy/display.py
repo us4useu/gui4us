@@ -5,25 +5,15 @@ from gui4us.cfg.display import *
 
 displays = {
     "OX": Display2D(
-        title=f"B-mode OX",
+        title=f"B-mode",
         layers=(
             Layer2D(
-                value_range=(-1.0, 1.0),
-                cmap="viridis",
+                value_range=(0, 255),
+                cmap="gray",
                 input=StreamDataId("default", 0),
             ),
         ),
     ),
-    "OY": Display2D(
-        title=f"B-mode OY",
-        layers=(
-            Layer2D(
-                value_range=(-1.0, 1.0),
-                cmap="viridis",
-                input=StreamDataId("default", 1),
-            ),
-        ),
-    )
 }
 
 VIEW_CFG = ViewCfg(displays)

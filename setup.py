@@ -27,8 +27,12 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Medical Science Apps."
     ],
+    entry_points={
+        "console_scripts": [
+            "gui4us = gui4us:main"
+        ]
+    },
     install_requires=[
-        "arrus>=0.5.11",
         "pyyaml",
         "PyQt5",
         "matplotlib>=3.6.2"

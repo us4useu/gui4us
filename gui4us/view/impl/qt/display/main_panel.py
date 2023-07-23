@@ -1,32 +1,9 @@
-import queue
 from collections import deque
 
-import time
-import traceback
-
-import numpy as np
-import datetime
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import (
-    QPushButton,
-    QSlider,
-    QSpinBox,
-    QGroupBox,
-    QVBoxLayout,
-    QHBoxLayout,
-    QFormLayout,
-    QWidget,
-    QFileDialog,
-    QMessageBox,
-    QDoubleSpinBox
-)
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-from matplotlib.backends.qt_compat import QtCore, QtWidgets
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 import matplotlib
 
 from gui4us.controller.env import EnvController
@@ -35,13 +12,12 @@ from gui4us.controller.task import Promise
 
 matplotlib.use("tkagg")
 
-from gui4us.view.widgets import Panel
+from gui4us.view.impl.qt.widgets import Panel
 from gui4us.view.common import *
 from gui4us.model import *
 from gui4us.logging import get_logger
 import gui4us.cfg
 from typing import Dict
-from queue import Queue
 
 
 class DisplayPanel(Panel):

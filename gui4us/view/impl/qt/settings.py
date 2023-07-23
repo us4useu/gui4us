@@ -1,5 +1,5 @@
-import gui4us.view.widgets as widgets
-from gui4us.view.widgets import *
+import gui4us.view.impl.qt.widgets as widgets
+from gui4us.view.impl.qt.widgets import *
 from gui4us.settings import *
 from gui4us.controller.env import *
 from gui4us.model import *

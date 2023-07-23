@@ -1,17 +1,6 @@
-import sys
-
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtWidgets import QMenu
-
-from gui4us.logging import get_logger
 from gui4us.controller.app import *
-from gui4us.view.control import *
-from gui4us.view.display import *
+from gui4us.view.impl.qt.control import *
 from gui4us.state_graph import *
-from gui4us.cfg.environment import *
-from gui4us.cfg import *
 from gui4us.cfg.display import *
 
 
