@@ -8,13 +8,7 @@ from gui4us.cfg.display import *
 import panel as pn
 
 
-@dataclass(frozen=True)
-class FrontendCfg:
-    env: EnvController
-    cfg_path: str
-
-
-class Frontend:
+class Application:
     """
     Front-end application.
 

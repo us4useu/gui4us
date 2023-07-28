@@ -1,12 +1,10 @@
-import sys
 import argparse
 
 import sys
 
 import gui4us
-from gui4us.controller import AppController, EnvController
 from gui4us.logging import get_logger
-from gui4us.model.app import App
+from gui4us.app import Application
 
 
 LOGGER = get_logger(__name__)
@@ -26,12 +24,6 @@ def main():
         args = parser.parse_args()
         cfg_path = args.cfg
 
-        env = EnvController("main", cfg_path)
-        result = start_view_app(
-            title=f"gui4us {gui4us.__version__}",
-            cfg_path=cfg_path,
-            env=env
-        )
         sys.exit(result)
     except Exception as e:
         LOGGER.exception(e)
