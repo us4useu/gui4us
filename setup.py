@@ -33,9 +33,10 @@ setuptools.setup(
         ]
     },
     install_requires=[
-        "pyyaml",
-        "PyQt5",
-        "matplotlib>=3.6.2"
+        "matplotlib>=3.6.0",
+        "flask==2.3.2",
+        "panel==1.2.0",
+        "vtk==9.2.6"
     ],
     python_requires='>=3.8'
 )

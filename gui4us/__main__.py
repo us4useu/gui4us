@@ -11,25 +11,25 @@ LOGGER = get_logger(__name__)
 
 
 def main():
-    # Read input parameters.
-    env = None
+    app: Application = None
     try:
         parser = argparse.ArgumentParser(
             description=f"GUI4us {gui4us.__version__}")
         parser.add_argument(
-            "--cfg", dest="cfg",
-            help="Path to the initial env configuration files.",
-            required=True)
-
+            "--port", dest="port",
+            help="The port the server will listen on",
+            default="7777",
+            required=False)
         args = parser.parse_args()
-        cfg_path = args.cfg
+        app = Application(
+            port=args.port,
+        )
 
-        sys.exit(result)
     except Exception as e:
         LOGGER.exception(e)
     finally:
-        if env is not None:
-            env.close()
+        if app is not None:
+            app.close()
         LOGGER.info("gui4us closed.")
 
 
