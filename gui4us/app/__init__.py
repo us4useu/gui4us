@@ -2,18 +2,26 @@ from typing import Dict
 from flask import Flask, redirect, request, render_template
 from threading import Lock
 from gui4us.app.env import EnvironmentApplication
+from gui4us.version import __version__
 
 
 class Application:
     MAIN_VIEW_ID = 1
 
-    def __init__(self, port: int = 7777, is_debug: bool = False):
+    def __init__(
+            self,
+            host: str = None,
+            port: int = 7777,
+            is_debug: bool = False
+    ):
         self.app = Flask(Application.__qualname__)
         self.port = port
         self.is_debug = is_debug
         self._null_env: EnvironmentApplication = EnvironmentApplication(
             id=0,
-            cfg_path=None
+            title=f"Welcome to GUI4us {__version__}",
+            cfg_path=None,
+            host=host
         )
         self._envs: Dict[int, EnvironmentApplication] = dict()
         self._state_lock = Lock()
@@ -39,12 +47,13 @@ class Application:
         def view_env(env_id: int):
             return self.view_env(env_id)
 
-        @self.app.route("/env/create" , methods=["GET"])
+        @self.app.route("/env/create", methods=["GET"])
         def view_create_env_form():
             return self.view_create_env_form()
 
         @self.app.route("/env/create", methods=["POST"])
-        def create_env(cfg_path: str):
+        def create_env():
+            cfg_path = request.form.get("cfg_path")
             return self.create_env(cfg_path)
 
         @self.app.route("/env/<env_id>/delete")
@@ -62,10 +71,10 @@ class Application:
     def display_main_view(self):
         with self._state_lock:
             if Application.MAIN_VIEW_ID in self._envs:
-                redirect(f"/env/{Application.MAIN_VIEW_ID}")
+                return redirect(f"/env/{Application.MAIN_VIEW_ID}", code=302)
             else:
                 # Redirect user to the "dummy view"
-                redirect("/env/create")
+                return redirect("/env/create", code=302)
 
     def view_env(self, env_id: int):
         with self._state_lock:
@@ -80,7 +89,6 @@ class Application:
             )
 
     def create_env(self, cfg_path: str):
-        # TODO cfg_path should be passed via POST
         with self._state_lock:
             # TODO
             # Check if there is env 1: if so, reset it

@@ -1,6 +1,6 @@
 import pickle
 
-from gui4us.view.impl.qt.widgets import *
+from gui4us.view.qt.widgets import *
 from gui4us.view.common import *
 import gui4us.controller.app as app
 from gui4us.state_graph import *
@@ -40,7 +40,7 @@ class CaptureBuffer:
 
 class CaptureBufferComponent(Panel):
 
-    def __init__(self, env: app.EnvController, capture_buffer_capacity: int,
+    def __init__(self, env: app.EnvironmentController, capture_buffer_capacity: int,
                  title="Buffer"):
         super().__init__(title)
         # TODO

@@ -122,8 +122,8 @@ class StateGraphIterator:
             return id == state
 
     def assert_state(self, expected_state):
-        if self.current_state != expected_state:
-            raise ValueError(f"Expected state: {expected_state},"
+        if self.current_state.id != expected_state:
+            raise ValueError(f"Expected state: {expected_state}, "
                              f"actual: {self.current_state}")
 
     def enter(self, state: Union[State, StateId]):

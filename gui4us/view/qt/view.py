@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWidgets
 
 from gui4us.controller.app import *
-from gui4us.view.impl.qt.control import *
+from gui4us.view.qt.control import *
 from gui4us.cfg.display import *
 from gui4us.view.env import EnvironmentView
 
@@ -67,7 +67,7 @@ class View(QtWidgets.QMainWindow):
     def set_environment(
             self,
             id: EnvId,
-            env: EnvController
+            env: EnvironmentController
     ):
         env_view = EnvironmentView(
             self, view_cfg=self.view_cfg, env=env,

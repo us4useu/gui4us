@@ -6,13 +6,13 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import matplotlib
 
-from gui4us.controller.env import EnvController
+from gui4us.controller.env import EnvironmentController
 from gui4us.common import ImageMetadata
 from gui4us.controller.task import Promise
 
 matplotlib.use("tkagg")
 
-from gui4us.view.impl.qt.widgets import Panel
+from gui4us.view.qt.widgets import Panel
 from gui4us.view.common import *
 from gui4us.model import *
 from gui4us.logging import get_logger
@@ -23,7 +23,7 @@ from typing import Dict
 class DisplayPanel(Panel):
 
     def __init__(self, cfg: Dict[str, gui4us.cfg.Display2D],
-                 env: EnvController,
+                 env: EnvironmentController,
                  parent_window, title="Display"):
         super().__init__(title)
 

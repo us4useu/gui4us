@@ -1,5 +1,5 @@
 from gui4us.controller.app import *
-from gui4us.view.impl.qt.control import *
+from gui4us.view.qt.control import *
 from gui4us.state_graph import *
 from gui4us.cfg.display import *
 
@@ -10,7 +10,7 @@ class EnvironmentView:
     a single environment.
     """
 
-    def __init__(self, parent, view_cfg: ViewCfg, env: EnvController,
+    def __init__(self, parent, view_cfg: ViewCfg, env: EnvironmentController,
                  capture_buffer_capacity: int):
         self.logger = get_logger(f"{type(self)}_id")
         self.parent = parent

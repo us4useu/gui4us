@@ -1,32 +1,34 @@
-import logging
-import sys
 import signal
-from dataclasses import dataclass
+import logging
+from abc import ABC, abstractmethod
+from typing import Optional, Union
+import panel as pn
 from bokeh.client import pull_session
 from bokeh.embed import server_session
 
-from gui4us.controller import EnvController
-from gui4us.controller.app import *
-from gui4us.view.impl.qt.control import *
-from gui4us.cfg.display import *
-import panel as pn
+
+Viewable = Union[pn.viewable.Viewable, pn.template.BaseTemplate]
 
 
-class View:
+class AbstractPanelView(ABC):
+
     def __init__(
             self,
             title: str,
-            cfg_path: str,
-            env: EnvController,
             address: Optional[str] = None
     ):
-        super().__init__()
-        self.cfg = load_cfg(os.path.join(cfg_path, "display.py"), "display")
-        self.view_cfg = self.cfg.VIEW_CFG
         self.title = title
-        self.env = env
-        self.template = self._create_template()
-
+        self.env_view = self._create_viewable()
+        self.template = pn.template.GoldenTemplate(
+            title="GUI4us",
+            busy_indicator=False,
+            header_background="gray",
+            header="black",
+            sidebar=[]
+        )
+        self.template.main.append(
+            self.env_view
+        )
         # Set server
         self.server: pn.io.server.Server = pn.serve(
             self.template.servable(),
@@ -37,7 +39,7 @@ class View:
             title=title,
             threaded=False,
             start=False  # Don't start the application here, it will be started
-                         # in the run method.
+            # in the run method.
         )
 
         def sig_exit(*args, **kwargs):
@@ -52,11 +54,9 @@ class View:
             pass  # Can't use signal on a thread
 
     def run(self):
-        # TODO is it sufficient?
-        # TODO sould it be run on a separate thread?
         logging.info(f"Starting view server: {self.title}, "
                      f"address: {self.address}, "
-                     f"port: {self.port}")
+                     f"port: {self.server.port}")
         self.server.start()
         try:
             self.server.io_loop.start()
@@ -72,9 +72,6 @@ class View:
         # TODO is it sufficient?
         self.server.io_loop.stop()
         self.server.stop()
-
-    def servable(self):
-        return self.template
 
     @property
     def port(self) -> int:
@@ -92,5 +89,9 @@ class View:
                 url=f"http://{self.address}:{self.port}"
             )
 
-    def _create_template(self) -> pn.Template:
+    def servable(self):
+        return self.template
+
+    @abstractmethod
+    def _create_viewable(self) -> Viewable:
         pass

@@ -3,6 +3,7 @@ import threading
 import queue
 import os.path
 from gui4us.logging import get_logger
+from gui4us.controller.base import AbstractController
 from gui4us.controller.event import *
 from gui4us.controller.task import *
 from gui4us.model import *
@@ -10,7 +11,7 @@ from gui4us.utils import load_cfg
 from enum import Enum
 
 
-class EnvController:
+class EnvironmentController(AbstractController):
     """
     TODO unload configuration after closing this controller
     """

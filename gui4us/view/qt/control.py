@@ -1,6 +1,6 @@
-from gui4us.controller.env import EnvController
+from gui4us.controller.env import EnvironmentController
 
-from gui4us.view.impl.qt.widgets import *
+from gui4us.view.qt.widgets import *
 from gui4us.view.settings import SettingsPanel
 from gui4us.view.capture_buffer import CaptureBufferComponent
 from typing import Callable
@@ -8,7 +8,7 @@ from typing import Callable
 
 class ControlPanel(Panel):
 
-    def __init__(self, env: EnvController, capture_buffer_capacity: int,
+    def __init__(self, env: EnvironmentController, capture_buffer_capacity: int,
                  title: str = "Control panel"):
         super().__init__(title)
         self.env = env

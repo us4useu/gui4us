@@ -1,3 +1,5 @@
+# TODO fix multiprocessing + logging
+
 from typing import Dict
 from flask import Flask, redirect
 import threading
@@ -9,10 +11,14 @@ import gui4us.state_graph
 from gui4us.state_graph import (
     StateGraph, StateGraphIterator, State, Action, Transition
 )
-from gui4us.controller.env import EnvController
-from gui4us.view import View
-
-# TODO jak naprawic multiprocessing + logging?
+from gui4us.controller import (
+    EnvironmentController,
+    DummyController
+)
+from gui4us.view import (
+    EnvironmentView,
+    DummyView
+)
 
 _DEFAULT_TIMEOUT = 60  # [s]
 
@@ -46,7 +52,14 @@ class EnvironmentApplication:
     :param cfg_path: path to the environment configuration package; if None,
         null (dummy) environment will be created
     """
-    def __init__(self, id: int, cfg_path: str = None):
+
+    def __init__(
+            self,
+            id: int,
+            title: str,
+            cfg_path: str = None,
+            host: str = None
+    ):
         self.id = id
         self.cfg_path = cfg_path
         self._action_lock = threading.Lock()
@@ -56,7 +69,9 @@ class EnvironmentApplication:
             target=_controller_main,
             kwargs=dict(
                 id=self.id,
+                title=title,
                 cfg_path=self.cfg_path,
+                host=host,
                 event_queue=self._event_queue,
                 event_result_queue=self._event_result_queue
             )
@@ -77,13 +92,13 @@ class EnvironmentApplication:
                     in_id=StateId.CREATED,
                     out_id=StateId.RUNNING,
                     action=ActionId.RUN,
-                    on_enter=self._run_impl
+                    on_enter=lambda _: self._run_impl
                 ),
                 Transition(
                     in_id=StateId.RUNNING,
                     out_id=StateId.CLOSED,
                     action=ActionId.CLOSE,
-                    on_enter=self._close_impl
+                    on_enter=lambda _: self._close_impl
                 ),
                 Transition(
                     in_id=StateId.CREATED,
@@ -155,18 +170,34 @@ class EnvironmentApplicationController:
     """
 
     def __init__(
-            self, id: int, cfg_path: str,
+            self,
+            id: int,
+            title: str,
+            cfg_path: str,
+            address: str,
             event_queue: mp.Queue,
             event_result_queue: mp.Queue
     ):
         self.id = id
         self.cfg_path = cfg_path
-        self.env: EnvController = EnvController(
-            id=f"env_{id}",
-            env_cfg_path=self.cfg_path
-        )
-        self.view: View = View(cfg_path=self.cfg_path)
-        # TODO connect view with environment
+        if self.cfg_path is None:
+            self.env = DummyController()
+            self.view = DummyView(
+                address=address,
+                title=title
+            )
+        else:
+            self.env: EnvironmentController = EnvironmentController(
+                id=f"env_{id}",
+                env_cfg_path=self.cfg_path
+            )
+            self.view: EnvironmentView = EnvironmentView(
+                title=title,
+                cfg_path=self.cfg_path,
+                env=self.env,
+                address=address
+            )
+            # TODO connect view with environment
         self.event_queue = event_queue
         self.event_result_queue = event_result_queue
         self._thread = threading.Thread(target=self._run_controller_loop)
@@ -175,6 +206,7 @@ class EnvironmentApplicationController:
     def run(self):
         self._thread.start()
         self._thread_is_ready.wait(timeout=_DEFAULT_TIMEOUT)
+        self.env.run()
         self.view.run()
 
     def close(self):
@@ -212,7 +244,7 @@ class EnvironmentApplicationController:
                         self.event_result_queue.put(result)
                     except Exception as e:
                         print(f"Error while sending result for action: "
-                                     "{event}, result: {result}")
+                              "{event}, result: {result}")
                         print(e)
                 except Exception as e:
                     print(e)
@@ -226,14 +258,18 @@ class EnvironmentApplicationController:
 
 def _controller_main(
         id: int,
+        title: str,
         cfg_path: str,
+        address: str,
         event_queue: mp.Queue,
         event_result_queue: mp.Queue
 ):
     try:
         controller = EnvironmentApplicationController(
             id=id,
+            title=title,
             cfg_path=cfg_path,
+            address=address,
             event_queue=event_queue,
             event_result_queue=event_result_queue
         )
@@ -242,4 +278,3 @@ def _controller_main(
         controller.join()
     except Exception as e:
         print(e)
-

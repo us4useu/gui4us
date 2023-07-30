@@ -14,7 +14,7 @@ from gui4us.controller.buffer import *
 
 class AppController:
     def __init__(self, cfg_path: str):
-        self._env_controllers: Dict[EnvId, EnvController] = {}
+        self._env_controllers: Dict[EnvId, EnvironmentController] = {}
         self.logger = get_logger(type(self))
         self._state_lock = threading.Lock()
         self.cfg = load_cfg(os.path.join(cfg_path, "app.py"), "gui4us_app")
@@ -65,7 +65,7 @@ class AppController:
             if id in self._env_controllers:
                 raise ValueError(f"Env {id} already exists.")
             # Load configuration file.
-            env_controller = EnvController(id, env_cfg_path)
+            env_controller = EnvironmentController(id, env_cfg_path)
             self._env_controllers[id] = env_controller
             env_controller.get_stream().append_on_new_data_callback(
                 self._app_default_callback

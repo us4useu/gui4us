@@ -24,6 +24,7 @@ def main():
         app = Application(
             port=args.port,
         )
+        app.run()
 
     except Exception as e:
         LOGGER.exception(e)

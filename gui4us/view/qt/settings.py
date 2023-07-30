@@ -1,5 +1,5 @@
-import gui4us.view.impl.qt.widgets as widgets
-from gui4us.view.impl.qt.widgets import *
+import gui4us.view.qt.widgets as widgets
+from gui4us.view.qt.widgets import *
 from gui4us.settings import *
 from gui4us.controller.env import *
 from gui4us.model import *
@@ -7,7 +7,7 @@ from gui4us.model import *
 
 class SettingsPanel(Panel):
 
-    def __init__(self, controller: EnvController,
+    def __init__(self, controller: EnvironmentController,
                  title="Settings",
                  custom_presentation=None):
         super().__init__(title)
