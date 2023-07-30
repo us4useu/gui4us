@@ -18,7 +18,7 @@
     {{ embed(roots.main) }}
     <br/>
     <!-- https://shoelace.style/components/dialog -->
-    <sl-dialog label="{{dialog_label}}" class="dialog-overview" style="--width: 550px;--height: 500px;">
+    <sl-dialog label="{{dialog_title}}" class="dialog-overview" style="--width: 800px;--height: 300px;">
         {{ embed(roots.dialog) }}
     <sl-button slot="footer" type="primary">Open</sl-button>
     {% if dialog_closable  %}

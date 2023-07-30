@@ -31,7 +31,7 @@ class AbstractPanelView(ABC):
         """
         self.title = title
         self.env_view = self._create_viewable()
-        self.dialog_view, self.dialog_title = self._create_dialog_view()
+        self.dialog_title, self.dialog_view = self._create_dialog_view()
         self.template = GUI4usLayout(
             app_url=app_url,
             main=self.env_view,
@@ -40,13 +40,6 @@ class AbstractPanelView(ABC):
             dialog_autostart=dialog_autostart,
             dialog_closable=dialog_closable
         )
-        # pn.template.GoldenTemplate(
-        # title="GUI4us",
-        # busy_indicator=None,
-        # header_background="gray",
-        # header_color="black",
-        # sidebar=[]
-        # ))
         # Set server
         self.server: pn.io.server.Server = pn.serve(
             self.template.servable(),
@@ -129,7 +122,7 @@ class AbstractPanelView(ABC):
     def _create_viewable(self) -> Viewable:
         pass
 
-    def _create_dialog_view(self) -> Tuple[bool, Viewable]:
+    def _create_dialog_view(self) -> Tuple[str, Viewable]:
         """
         Currently this is "Create env" dialog by default, but can be changed
         in the future.
@@ -151,7 +144,8 @@ class AbstractPanelView(ABC):
 
         code_editor = pn.Column(
             env_editor, display_editor
-        , name="Edit Environment")
+        ,
+            name="Edit Environment")
 
         create_env_tabs = pn.Tabs(
             file_selector,
