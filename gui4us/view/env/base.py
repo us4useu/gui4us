@@ -1,11 +1,13 @@
 import signal
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 import panel as pn
 from bokeh.client import pull_session
 from bokeh.embed import server_session
 from panel.io.server import StoppableThread
+
+from gui4us.view.env.layout import GUI4usLayout
 
 Viewable = Union[pn.viewable.Viewable, pn.template.BaseTemplate]
 
@@ -16,25 +18,35 @@ class AbstractPanelView(ABC):
             self,
             title: str,
             app_url: str,
-            address: Optional[str] = None
+            address: Optional[str] = None,
+            dialog_autostart=False,
+            dialog_closable=True,
     ):
         """
+        Abstract class for Holoviz Panel Views.
+
         :param app_url: parent (app) application address; this is the
-            allowed websocket origin (shold be hostname:port)
+            allowed websocket origin (should be hostname:port)
         :param address: websocket server address (should be hostname)
         """
         self.title = title
         self.env_view = self._create_viewable()
-        self.template = pn.template.GoldenTemplate(
-            title="GUI4us",
-            busy_indicator=None,
-            header_background="gray",
-            header_color="black",
-            sidebar=[]
+        self.dialog_view, self.dialog_title = self._create_dialog_view()
+        self.template = GUI4usLayout(
+            app_url=app_url,
+            main=self.env_view,
+            dialog=self.dialog_view,
+            dialog_title=self.dialog_title,
+            dialog_autostart=dialog_autostart,
+            dialog_closable=dialog_closable
         )
-        self.template.main.append(
-            self.env_view
-        )
+        # pn.template.GoldenTemplate(
+        # title="GUI4us",
+        # busy_indicator=None,
+        # header_background="gray",
+        # header_color="black",
+        # sidebar=[]
+        # ))
         # Set server
         self.server: pn.io.server.Server = pn.serve(
             self.template.servable(),
@@ -69,8 +81,8 @@ class AbstractPanelView(ABC):
 
     def _run_impl(self):
         print(f"Starting view server: {self.title}, "
-                     f"address: {self.address}, "
-                     f"port: {self.server.port}")
+              f"address: {self.address}, "
+              f"port: {self.server.port}")
         self.server.start()
         try:
             self.server.io_loop.start()
@@ -116,3 +128,34 @@ class AbstractPanelView(ABC):
     @abstractmethod
     def _create_viewable(self) -> Viewable:
         pass
+
+    def _create_dialog_view(self) -> Tuple[bool, Viewable]:
+        """
+        Currently this is "Create env" dialog by default, but can be changed
+        in the future.
+        """
+        file_selector = pn.widgets.FileSelector("~", name="Select directory")
+
+        env_editor = pn.widgets.CodeEditor(
+            value="# start here...",
+            sizing_mode="stretch_width",
+            language="python", height=300,
+            name="Environment"
+        )
+        display_editor = pn.widgets.CodeEditor(
+            value="# start here...",
+            sizing_mode="stretch_width",
+            language="python", height=300,
+            name="Display"
+        )
+
+        code_editor = pn.Column(
+            env_editor, display_editor
+        , name="Edit Environment")
+
+        create_env_tabs = pn.Tabs(
+            file_selector,
+            code_editor
+        )
+        title = "Select Environment"
+        return title, create_env_tabs

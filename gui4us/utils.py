@@ -1,6 +1,7 @@
 import importlib
 import sys
 import os
+import pathlib
 
 
 class CfgRegister:
@@ -41,3 +42,10 @@ def load_cfg(path, id):
 
 def unload_cfg(path):
     _CFG_REGISTER.remove(path)
+
+
+def get_gui4us_location() -> str:
+    """
+    Returns location to the gui4us module location.
+    """
+    return pathlib.Path(__file__).parent.__str__()

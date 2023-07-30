@@ -1,15 +1,21 @@
 import os
+import pathlib
 from typing import Dict
 from flask import Flask, redirect, request, render_template
 from threading import Lock
 from gui4us.view.app.env import EnvironmentApplication
 from gui4us.version import __version__
+import gui4us.utils
 
 DEFAULT_APP_HOST = "127.0.0.1"
 
 
-def get_url(host, port):
-    return f"{host if host is not None else DEFAULT_APP_HOST}:{port}"
+def get_url(host, port, is_secure=False):
+    address = f"{host if host is not None else DEFAULT_APP_HOST}:{port}"
+    if is_secure:
+        return f"https://{address}"
+    else:
+        return f"http://{address}"
 
 
 class Application:
@@ -24,7 +30,15 @@ class Application:
     ):
         self.app = Flask(
             Application.__qualname__,
-            template_folder="/home/pjarosik/src/us4useu/gui4us/gui4us/templates"
+            static_url_path="/static",
+            static_folder=os.path.join(
+                gui4us.utils.get_gui4us_location(),
+                "static"
+            ),
+            template_folder=os.path.join(
+                gui4us.utils.get_gui4us_location(),
+                "templates"
+            )
         )
         self.port = port
         self.is_debug = is_debug
