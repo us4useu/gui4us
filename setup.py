@@ -15,6 +15,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://us4us.eu",
     packages=setuptools.find_packages(exclude=[]),
+    setup_reuqires=[
+        "setuptools>=45",
+        "setuptools_scm>=6.2"
+    ],
+    include_package_data=True,
     classifiers=[
         "Development Status :: 1 - Planning",
 

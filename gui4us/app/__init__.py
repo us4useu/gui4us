@@ -1,5 +1,5 @@
 from typing import Dict
-from flask import Flask, redirect
+from flask import Flask, redirect, request, render_template
 from threading import Lock
 from gui4us.app.env import EnvironmentApplication
 
@@ -11,10 +11,14 @@ class Application:
         self.app = Flask(Application.__qualname__)
         self.port = port
         self.is_debug = is_debug
-        self._null_env: EnvironmentApplication = EnvironmentApplication()
+        self._null_env: EnvironmentApplication = EnvironmentApplication(
+            id=0,
+            cfg_path=None
+        )
         self._envs: Dict[int, EnvironmentApplication] = dict()
         self._state_lock = Lock()
         self._set_routes()
+        self._null_env.run()
 
     def run(self):
         self.app.run(port=self.port, debug=self.is_debug)
@@ -35,11 +39,11 @@ class Application:
         def view_env(env_id: int):
             return self.view_env(env_id)
 
-        @self.app.route("/env/create")
+        @self.app.route("/env/create" , methods=["GET"])
         def view_create_env_form():
             return self.view_create_env_form()
 
-        @self.app.route("/env/create")
+        @self.app.route("/env/create", methods=["POST"])
         def create_env(cfg_path: str):
             return self.create_env(cfg_path)
 
@@ -69,10 +73,14 @@ class Application:
 
     def view_create_env_form(self):
         with self._state_lock:
-            pass
+            script = self._null_env.get_view_script()
+            return render_template(
+                "templates/view.html",
+                script=script,
+            )
 
     def create_env(self, cfg_path: str):
-        # TODO cfg_path should be passed via
+        # TODO cfg_path should be passed via POST
         with self._state_lock:
             # TODO
             # Check if there is env 1: if so, reset it
