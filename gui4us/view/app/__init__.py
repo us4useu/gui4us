@@ -1,0 +1,1 @@
+from gui4us.view.app.base import Application

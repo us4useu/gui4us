@@ -1,10 +1,8 @@
 import argparse
 
-import sys
-
 import gui4us
 from gui4us.logging import get_logger
-from gui4us.app import Application
+from gui4us.view.app import Application
 
 
 LOGGER = get_logger(__name__)

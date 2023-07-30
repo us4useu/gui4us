@@ -2,7 +2,7 @@ import os
 from typing import Optional
 
 from gui4us.utils import load_cfg
-from gui4us.view.web.base import AbstractPanelView, Viewable
+from gui4us.view.env.base import AbstractPanelView, Viewable
 from gui4us.controller.env import EnvironmentController
 
 

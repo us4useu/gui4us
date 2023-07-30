@@ -106,7 +106,7 @@ class StateGraphIterator:
     def __init__(self, state_graph: StateGraph, start_state: StateId):
         self.state_graph = state_graph
         self.current_state = None
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.enter(start_state)
 
     def is_current_state(self, state):

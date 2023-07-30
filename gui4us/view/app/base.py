@@ -1,11 +1,19 @@
+import os
 from typing import Dict
 from flask import Flask, redirect, request, render_template
 from threading import Lock
-from gui4us.app.env import EnvironmentApplication
+from gui4us.view.app.env import EnvironmentApplication
 from gui4us.version import __version__
+
+DEFAULT_APP_HOST = "127.0.0.1"
+
+
+def get_url(host, port):
+    return f"{host if host is not None else DEFAULT_APP_HOST}:{port}"
 
 
 class Application:
+    NULL_VIEW_ID = 0
     MAIN_VIEW_ID = 1
 
     def __init__(
@@ -14,14 +22,18 @@ class Application:
             port: int = 7777,
             is_debug: bool = False
     ):
-        self.app = Flask(Application.__qualname__)
+        self.app = Flask(
+            Application.__qualname__,
+            template_folder="/home/pjarosik/src/us4useu/gui4us/gui4us/templates"
+        )
         self.port = port
         self.is_debug = is_debug
         self._null_env: EnvironmentApplication = EnvironmentApplication(
-            id=0,
+            id=Application.NULL_VIEW_ID,
             title=f"Welcome to GUI4us {__version__}",
             cfg_path=None,
-            host=host
+            address=host,
+            app_url=get_url(host, port)
         )
         self._envs: Dict[int, EnvironmentApplication] = dict()
         self._state_lock = Lock()
@@ -71,21 +83,24 @@ class Application:
     def display_main_view(self):
         with self._state_lock:
             if Application.MAIN_VIEW_ID in self._envs:
-                return redirect(f"/env/{Application.MAIN_VIEW_ID}", code=302)
+                return redirect(f"/env/{Application.MAIN_VIEW_ID}")
             else:
                 # Redirect user to the "dummy view"
-                return redirect("/env/create", code=302)
+                return redirect("/env/create")
 
     def view_env(self, env_id: int):
         with self._state_lock:
             pass
 
     def view_create_env_form(self):
+        print("Request: view create env form.")
         with self._state_lock:
-            script = self._null_env.get_view_script()
+            self._null_env.get_view_port()
+            view_url = self._null_env.get_view_url()
             return render_template(
-                "templates/view.html",
-                script=script,
+"view.html",
+                view_url=view_url,
+                template="Flask"
             )
 
     def create_env(self, cfg_path: str):

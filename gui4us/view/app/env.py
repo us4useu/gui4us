@@ -15,7 +15,7 @@ from gui4us.controller import (
     EnvironmentController,
     DummyController
 )
-from gui4us.view import (
+from gui4us.view.env import (
     EnvironmentView,
     DummyView
 )
@@ -34,6 +34,7 @@ class ActionId(Enum):
     CLOSE = auto()
     GET_VIEW_PORT = auto()
     GET_VIEW_SCRIPT = auto()
+    GET_VIEW_URL = auto()
 
 
 @dataclass(frozen=True)
@@ -57,8 +58,9 @@ class EnvironmentApplication:
             self,
             id: int,
             title: str,
+            app_url: str,
             cfg_path: str = None,
-            host: str = None
+            address: str = None
     ):
         self.id = id
         self.cfg_path = cfg_path
@@ -71,7 +73,8 @@ class EnvironmentApplication:
                 id=self.id,
                 title=title,
                 cfg_path=self.cfg_path,
-                host=host,
+                app_url=app_url,
+                address=address,
                 event_queue=self._event_queue,
                 event_result_queue=self._event_result_queue
             )
@@ -92,13 +95,13 @@ class EnvironmentApplication:
                     in_id=StateId.CREATED,
                     out_id=StateId.RUNNING,
                     action=ActionId.RUN,
-                    on_enter=lambda _: self._run_impl
+                    on_enter=lambda _: self._run_impl()
                 ),
                 Transition(
                     in_id=StateId.RUNNING,
                     out_id=StateId.CLOSED,
                     action=ActionId.CLOSE,
-                    on_enter=lambda _: self._close_impl
+                    on_enter=lambda _: self._close_impl()
                 ),
                 Transition(
                     in_id=StateId.CREATED,
@@ -135,21 +138,24 @@ class EnvironmentApplication:
     def _close_impl(self):
         # NOTE: this is state transition callback, therefore you can assume
         # with self._state.lock context
-        result = self._do(ActionId.CLOSE)
+        result = self._do(Event(ActionId.CLOSE))
         self.process.join(timeout=_DEFAULT_TIMEOUT)
         return result
 
     def get_view_port(self) -> int:
         with self._state.lock:
-            self._state.assert_state(StateId.RUNNING)
-            return self._do(ActionId.GET_VIEW_PORT)
+            return self._do(Event(id=ActionId.GET_VIEW_PORT))
 
     def get_view_script(self) -> str:
         with self._state.lock:
             self._state.assert_state(StateId.RUNNING)
-            return self._do(ActionId.GET_VIEW_SCRIPT)
+            return self._do(Event(ActionId.GET_VIEW_SCRIPT))
 
-    def _do(self, event: Enum, **kwargs):
+    def get_view_url(self) -> int:
+        with self._state.lock:
+            return self._do(Event(id=ActionId.GET_VIEW_URL))
+
+    def _do(self, event: Event, **kwargs):
         with self._state.lock, self._action_lock:
             self._state.assert_state(StateId.RUNNING)
             self._event_queue.put(event)
@@ -174,6 +180,7 @@ class EnvironmentApplicationController:
             id: int,
             title: str,
             cfg_path: str,
+            app_url: str,
             address: str,
             event_queue: mp.Queue,
             event_result_queue: mp.Queue
@@ -183,8 +190,9 @@ class EnvironmentApplicationController:
         if self.cfg_path is None:
             self.env = DummyController()
             self.view = DummyView(
+                title=title,
+                app_url=app_url,
                 address=address,
-                title=title
             )
         else:
             self.env: EnvironmentController = EnvironmentController(
@@ -204,10 +212,12 @@ class EnvironmentApplicationController:
         self._thread_is_ready = threading.Event()
 
     def run(self):
+        print(f"Starting new app controller.")
         self._thread.start()
         self._thread_is_ready.wait(timeout=_DEFAULT_TIMEOUT)
         self.env.run()
         self.view.run()
+        print(f"App controller for {self.env}, {self.view} started.")
 
     def close(self):
         self.view.close()
@@ -222,13 +232,19 @@ class EnvironmentApplicationController:
     def get_view_script(self) -> str:
         return self.view.script
 
+    def get_view_url(self) -> str:
+        return self.view.url
+
     def _run_controller_loop(self):
         action_map = {
             ActionId.GET_VIEW_PORT: self.get_view_port,
-            ActionId.GET_VIEW_SCRIPT: self.get_view_script
+            ActionId.GET_VIEW_SCRIPT: self.get_view_script,
+            ActionId.GET_VIEW_URL: self.get_view_url
         }
-        print("Us4R controller started.")
         self._thread_is_ready.set()
+        # Inform the interface that the controller has started.
+        self.event_result_queue.put(True)
+        print("Us4R controller started.")
         while True:
             event: Event = self.event_queue.get()
             print(f"Event: {event}")
@@ -260,6 +276,7 @@ def _controller_main(
         id: int,
         title: str,
         cfg_path: str,
+        app_url: str,
         address: str,
         event_queue: mp.Queue,
         event_result_queue: mp.Queue
@@ -269,6 +286,7 @@ def _controller_main(
             id=id,
             title=title,
             cfg_path=cfg_path,
+            app_url=app_url,
             address=address,
             event_queue=event_queue,
             event_result_queue=event_result_queue

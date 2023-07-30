@@ -2,13 +2,16 @@ from typing import Optional
 
 import panel as pn
 
-from gui4us.view.web.base import AbstractPanelView, Viewable
+from gui4us.view.env.base import AbstractPanelView, Viewable
 
 
 class DummyView(AbstractPanelView):
 
-    def __init__(self, title: str, address: Optional[str] = None):
-        super().__init__(title, address)
+    def __init__(self,
+                 title: str,
+                 app_url: str,
+                 address: Optional[str] = None):
+        super().__init__(title=title, app_url=app_url, address=address)
         self.template.modal.append(
             "This is gui4us!"
         )
