@@ -13,7 +13,7 @@
 
 <!-- goes in body -->
 {% block contents %}
-<div id="main" style="">
+<div id="main">
     <div id="gui4us-header">
         {{ embed(roots.header) }}
     </div>
@@ -33,7 +33,7 @@
 <!--Dialog window-->
 <script>
 (() => {
-    const dialog = document.querySelector('.dialog-overview');
+    const dialog = document.querySelector(".dialog-overview");
     {% if dialog_autostart %}
         window.addEventListener("DOMContentLoaded", function() {
             dialog.show();
@@ -64,53 +64,62 @@ var config = {
         showCloseIcon: false
     },
     content: [{
-        type: 'row',
+        type: "row",
         content:[
             {
-                type: 'component',
-                componentName: 'view',
-                componentState: { model: 'Control panel',
-                                  title: 'Controls',
-                                  width: 350,
-                                  css_classes:['scrollable']},
+                type: "component",
+                componentName: "view",
+                componentState: {
+                    model: '<div style="width: 100%; height: 100%">{{embed(roots.control_panel)}}</div>',
+                    title: "Control Panel",
+                    width: 350,
+                    css_classes:["scrollable"]
+                },
                 isClosable: false,
             },
             {
-                type: 'column',
+                type: "column",
                 content: [
                     {
-                        type: 'row',
+                        type: "row",
                         content:[
                             {
-                                type: 'component',
-                                componentName: 'view',
-                                componentState: { model: 'B-mode', title: 'B-mode'},
+                                type: "component",
+                                componentName: "view",
+                                componentState: { model: '{{embed(roots.display0)}}', title: "X=0"},
                                 isClosable: false,
                             },
                             {
-                                type: 'component',
-                                componentName: 'view',
-                                componentState: { model: '{{embed(roots.main)}}', title: 'NN-B-mode'},
+                                type: "component",
+                                componentName: "view",
+                                componentState: { model: '{{embed(roots.display1)}}', title: "Y=0"},
                                 isClosable: false,
                             }
                         ]
                     },
                     {
-                        type: 'row',
+                        type: "stack",
                         content:[
                             {
-                                type: 'component',
-                                componentName: 'view',
-                                componentState: { model: 'Environments', title: 'Environments'},
+                                type: "component",
+                                componentName: "view",
+                                componentState: {
+                                    model: '{{embed(roots.console)}}',
+                                    title: "Log",
+                                },
                                 isClosable: false,
                             },
                             {
-                                type: 'component',
-                                componentName: 'view',
-                                componentState: { model: 'NN-bmode', title: 'NN-B-mode'},
+                                type: "component",
+                                componentName: "view",
+                                componentState: {
+                                    model: '{{embed(roots.envs)}}',
+                                    title: "Environments",
+                                },
                                 isClosable: false,
                             }
-                        ]
+                        ],
+                        height: 10
                     }
                 ]
             }
@@ -119,19 +128,19 @@ var config = {
 };
 
 var myLayout = new GoldenLayout(config, "#gui4us-content");
-$("#gui4us-content").css({width: "100vw", height: "100vh", margin: "0px"});
+$("#gui4us-content").css({width: "99vw", height: "93vh", margin: "0px"});
 
-myLayout.registerComponent('view', function(container, componentState){
+myLayout.registerComponent("view", function(container, componentState){
     const {width, css_classes} = componentState;
     if(width) {
-        container.on('open', () => container.setSize(width, container.height));
+        container.on("open", () => container.setSize(width, container.height));
     }
     if (css_classes) {
         css_classes.map((item) => container.getElement().addClass(item));
     }
     container.setTitle(componentState.title);
     container.getElement().html(componentState.model);
-    container.on('resize', () => window.dispatchEvent(new Event('resize')));
+    container.on("resize", () => window.dispatchEvent(new Event("resize")));
 });
 
 myLayout.init();

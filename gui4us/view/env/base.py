@@ -1,7 +1,7 @@
 import signal
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 import panel as pn
 from bokeh.client import pull_session
 from bokeh.embed import server_session
@@ -9,7 +9,7 @@ from panel.io.server import StoppableThread
 
 from gui4us.view.env.layout import GUI4usLayout
 
-Viewable = Union[pn.viewable.Viewable, pn.template.BaseTemplate]
+Viewable = Union[pn.viewable.Viewer, pn.viewable.Viewable, pn.template.BaseTemplate]
 
 js_files = {
     "jquery": "https://code.jquery.com/jquery-1.11.1.min.js",
@@ -20,7 +20,7 @@ css_files = [
     "https://golden-layout.com/files/latest/css/goldenlayout-light-theme.css"
 ]
 
-pn.extension("vtk", js_files=js_files, css_files=css_files, design="material")
+pn.extension("vtk", "terminal", js_files=js_files, css_files=css_files, design="material")
 
 
 class AbstractPanelView(ABC):
@@ -41,11 +41,13 @@ class AbstractPanelView(ABC):
         :param address: websocket server address (should be hostname)
         """
         self.title = title
-        self.env_view = self._create_viewable()
         self.dialog_title, self.dialog_view = self._create_dialog_view()
         self.template = GUI4usLayout(
             app_url=app_url,
-            main=self.env_view,
+            control_panel=self._create_control_panel(),
+            displays=self._create_displays(),
+            envs=self._create_envs_panel(),
+            console=self._create_console_log_panel(),
             dialog=self.dialog_view,
             dialog_title=self.dialog_title,
             dialog_autostart=dialog_autostart,
@@ -130,7 +132,19 @@ class AbstractPanelView(ABC):
         return self.template
 
     @abstractmethod
-    def _create_viewable(self) -> Viewable:
+    def _create_control_panel(self) -> Viewable:
+        pass
+
+    @abstractmethod
+    def _create_displays(self) -> Dict[str, Viewable]:
+        pass
+
+    @abstractmethod
+    def _create_envs_panel(self) -> Viewable:
+        pass
+
+    @abstractmethod
+    def _create_console_log_panel(self) -> Viewable:
         pass
 
     def _create_dialog_view(self) -> Tuple[str, Viewable]:

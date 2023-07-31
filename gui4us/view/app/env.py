@@ -1,5 +1,5 @@
 # TODO fix multiprocessing + logging
-
+import logging
 from typing import Dict
 from flask import Flask, redirect
 import threading
@@ -263,7 +263,7 @@ class EnvironmentApplicationController:
                               "{event}, result: {result}")
                         print(e)
                 except Exception as e:
-                    print(e)
+                    logging.exception(e)
                     self.event_result_queue.put(e)
         # Exit model context.
         print("Model closed")
@@ -295,4 +295,4 @@ def _controller_main(
         # Close the process gracefully.
         controller.join()
     except Exception as e:
-        print(e)
+        logging.exception(e)

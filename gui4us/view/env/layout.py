@@ -14,7 +14,10 @@ class GUI4usLayout(pn.template.Template):
     def __init__(
             self,
             app_url: str,
-            main,
+            control_panel,
+            displays,
+            envs,
+            console,
             dialog,
             dialog_title: str,
             dialog_autostart: bool,
@@ -26,7 +29,14 @@ class GUI4usLayout(pn.template.Template):
         self.add_panel("header", self.get_header(
             app_url,
         ))
-        self.add_panel("main", main)
+        self.add_panel("control_panel", control_panel)
+        for i, (k, display) in enumerate(displays.items()):
+            self.add_panel(f"display{i}", display)
+
+        self.add_panel("envs", envs)
+        self.add_panel("console", console)
+
+        # Dialog
         self.add_panel("dialog", dialog)
         self.add_variable("dialog_title", dialog_title)
         self.add_variable("dialog_autostart", dialog_autostart)
