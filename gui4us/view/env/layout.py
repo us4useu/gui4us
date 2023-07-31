@@ -40,7 +40,6 @@ class GUI4usLayout(pn.template.Template):
                 margin=10,
                 link_url=base_url,
             ),
-            pn.pane.Markdown(f"{gui4us.version.__version__}"),
             styles={"background": "LightGray"},
             sizing_mode="stretch_width",
         )

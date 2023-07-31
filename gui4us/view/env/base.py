@@ -11,6 +11,17 @@ from gui4us.view.env.layout import GUI4usLayout
 
 Viewable = Union[pn.viewable.Viewable, pn.template.BaseTemplate]
 
+js_files = {
+    "jquery": "https://code.jquery.com/jquery-1.11.1.min.js",
+    "goldenlayout": "https://golden-layout.com/files/latest/js/goldenlayout.min.js"
+}
+css_files = [
+    "https://golden-layout.com/files/latest/css/goldenlayout-base.css",
+    "https://golden-layout.com/files/latest/css/goldenlayout-light-theme.css"
+]
+
+pn.extension("vtk", js_files=js_files, css_files=css_files, design="material")
+
 
 class AbstractPanelView(ABC):
 

@@ -13,27 +13,27 @@
 
 <!-- goes in body -->
 {% block contents %}
-{{ embed(roots.header) }}
-<div id="main" style="margin: 25px">
-    {{ embed(roots.main) }}
+<div id="main" style="">
+    <div id="gui4us-header">
+        {{ embed(roots.header) }}
+    </div>
+    <!--Main content-->
+    <div id="gui4us-content">
+<!--Place for golden layout content.-->
+    </div>
+<!--Dialog window-->
     <br/>
     <!-- https://shoelace.style/components/dialog -->
     <sl-dialog label="{{dialog_title}}" class="dialog-overview" style="--width: 800px;--height: 300px;">
         {{ embed(roots.dialog) }}
     <sl-button slot="footer" type="primary">Open</sl-button>
-    {% if dialog_closable  %}
-    <sl-button slot="footer" type="secondary">Cancel</sl-button>
-    {% endif %}
     </sl-dialog>
 </div>
 
+<!--Dialog window-->
 <script>
 (() => {
     const dialog = document.querySelector('.dialog-overview');
-    {% if dialog_closable %}
-    const closeButton = dialog.querySelector('sl-button[slot="footer"]');
-    closeButton.addEventListener('click', () => dialog.hide());
-    {% endif %}
     {% if dialog_autostart %}
         window.addEventListener("DOMContentLoaded", function() {
             dialog.show();
@@ -41,5 +41,101 @@
     {% endif %}
 })();
 </script>
+
+<!--Layout -->
+<style>
+:host {
+    width: auto;
+}
+</style>
+
+<script>
+var config = {
+    settings: {
+        hasHeaders: true,
+        constrainDragToContainer: true,
+        reorderEnabled: true,
+        selectionEnabled: false,
+        popoutWholeStack: false,
+        blockedPopoutsThrowError: true,
+        closePopoutsOnUnload: true,
+        showPopoutIcon: false,
+        showMaximiseIcon: true,
+        showCloseIcon: false
+    },
+    content: [{
+        type: 'row',
+        content:[
+            {
+                type: 'component',
+                componentName: 'view',
+                componentState: { model: 'Control panel',
+                                  title: 'Controls',
+                                  width: 350,
+                                  css_classes:['scrollable']},
+                isClosable: false,
+            },
+            {
+                type: 'column',
+                content: [
+                    {
+                        type: 'row',
+                        content:[
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: { model: 'B-mode', title: 'B-mode'},
+                                isClosable: false,
+                            },
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: { model: '{{embed(roots.main)}}', title: 'NN-B-mode'},
+                                isClosable: false,
+                            }
+                        ]
+                    },
+                    {
+                        type: 'row',
+                        content:[
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: { model: 'Environments', title: 'Environments'},
+                                isClosable: false,
+                            },
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: { model: 'NN-bmode', title: 'NN-B-mode'},
+                                isClosable: false,
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }]
+};
+
+var myLayout = new GoldenLayout(config, "#gui4us-content");
+$("#gui4us-content").css({width: "100vw", height: "100vh", margin: "0px"});
+
+myLayout.registerComponent('view', function(container, componentState){
+    const {width, css_classes} = componentState;
+    if(width) {
+        container.on('open', () => container.setSize(width, container.height));
+    }
+    if (css_classes) {
+        css_classes.map((item) => container.getElement().addClass(item));
+    }
+    container.setTitle(componentState.title);
+    container.getElement().html(componentState.model);
+    container.on('resize', () => window.dispatchEvent(new Event('resize')));
+});
+
+myLayout.init();
+</script>
+
 
 {% endblock %}

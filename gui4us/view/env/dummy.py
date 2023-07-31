@@ -17,7 +17,7 @@ class DummyView(AbstractPanelView):
             address=address,
             # Force environment selection
             dialog_closable=False,
-            dialog_autostart=True
+            dialog_autostart=False
         )
 
     def _create_viewable(self) -> Viewable:
