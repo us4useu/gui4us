@@ -22,15 +22,15 @@ class DummyView(AbstractPanelView):
             address=address,
             # Force environment selection
             dialog_closable=False,
-            dialog_autostart=False
+            dialog_autostart=True
         )
 
     def _create_control_panel(self) -> Viewable:
         return ControlPanel()
 
     def _create_displays(self) -> Dict[str, Viewable]:
-        data = np.load("/home/pjarosik/data/ats_549_cysta_p_15db.npy")
-        frame1 = np.clip(20*np.log10(np.abs(data[:])), a_min=30, a_max=80)
+        frame1 = np.random.rand(160, 160, 250).astype(np.float32)
+        # frame1 = np.clip(20*np.log10(np.abs(data[:])), a_min=30, a_max=80)
         return {
             "display1": Display2D(frame1[80].T),
             "display2": Display2D(frame1[:, 80].T)

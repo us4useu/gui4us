@@ -94,6 +94,10 @@ class Application:
         def restart_env(env_id: int):
             return self.restart_env(env_id)
 
+        @self.app.route("/favicon.ico")
+        def redirect_to_icon():
+            return redirect("/static/img/favicon.ico")
+
     def display_main_view(self):
         with self._state_lock:
             if Application.MAIN_VIEW_ID in self._envs:

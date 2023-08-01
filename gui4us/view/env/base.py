@@ -1,3 +1,4 @@
+import os
 import signal
 import logging
 from abc import ABC, abstractmethod
@@ -8,6 +9,7 @@ from bokeh.embed import server_session
 from panel.io.server import StoppableThread
 
 from gui4us.view.env.layout import GUI4usLayout
+from gui4us.view.env.widgets import FileSelector
 
 Viewable = Union[pn.viewable.Viewer, pn.viewable.Viewable, pn.template.BaseTemplate]
 
@@ -152,7 +154,7 @@ class AbstractPanelView(ABC):
         Currently this is "Create env" dialog by default, but can be changed
         in the future.
         """
-        file_selector = pn.widgets.FileSelector("~", name="Select directory")
+        file_selector = FileSelector(os.getcwd(), name="Select directory")
 
         env_editor = pn.widgets.CodeEditor(
             value="# start here...",
@@ -168,13 +170,14 @@ class AbstractPanelView(ABC):
         )
 
         code_editor = pn.Column(
-            env_editor, display_editor
+            env_editor,
+            display_editor
         ,
             name="Edit Environment")
 
         create_env_tabs = pn.Tabs(
             file_selector,
-            code_editor
+            # code_editor  TODO(pjarosik)
         )
         title = "Select Environment"
         return title, create_env_tabs

@@ -45,11 +45,11 @@ class GUI4usLayout(pn.template.Template):
     def get_header(self, base_url: str):
         return pn.Row(
             pn.pane.PNG(
-                f"{base_url}/static/img/logo.png",
-                height=30,
+                f"{base_url}/static/img/logo.svg",
+                height=40,
                 margin=10,
                 link_url=base_url,
             ),
-            styles={"background": "LightGray"},
+            styles={"background": "White"},
             sizing_mode="stretch_width",
         )
