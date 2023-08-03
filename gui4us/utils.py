@@ -28,6 +28,8 @@ def load_cfg(path, id):
     """
     module_name = f"gui4us_cfg_{id}"
     cfg_dirname = os.path.dirname(os.path.abspath(path))
+    if not os.path.exists(cfg_dirname):
+        raise ValueError(f"Directory does not exists: {cfg_dirname}.")
     try:
         spec = importlib.util.spec_from_file_location(module_name, path)
         module = importlib.util.module_from_spec(spec)
