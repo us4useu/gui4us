@@ -111,7 +111,6 @@ class Application:
             pass
 
     def view_create_env_form(self):
-        print("Request: view create env form.")
         with self._state_lock:
             self._null_env.get_view_port()
             view_url = self._null_env.get_view_url()
