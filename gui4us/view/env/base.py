@@ -11,6 +11,8 @@ from panel.io.server import StoppableThread
 from gui4us.view.env.layout import GUI4usLayout
 from gui4us.view.env.widgets import FileSelector
 
+from gui4us.logging import get_logger
+
 Viewable = Union[pn.viewable.Viewer, pn.viewable.Viewable, pn.template.BaseTemplate]
 
 js_files = {
@@ -42,6 +44,7 @@ class AbstractPanelView(ABC):
             allowed websocket origin (should be hostname:port)
         :param address: websocket server address (should be hostname)
         """
+        self.logger = get_logger(f"{type(self)} {title}")
         self.title = title
         self.dialog_title, self.dialog_view = self._create_dialog_view()
         self.template = GUI4usLayout(
@@ -88,19 +91,20 @@ class AbstractPanelView(ABC):
         self.server_thread.start()
 
     def _run_impl(self):
-        print(f"Starting view server: {self.title}, "
+        self.logger.info(f"Starting view server: {self.title}, "
               f"address: {self.address}, "
               f"port: {self.server.port}")
         self.server.start()
         try:
             self.server.io_loop.start()
-        except RuntimeError:
-            pass
-        except TypeError:
-            print(
+        except RuntimeError as e:
+            self.logger.exception(e)
+        except TypeError as e:
+            self.logger.error(
                 "IOLoop couldn't be started. Ensure it is started by "
                 "process invoking the panel.io.server.serve."
             )
+            self.logger.exception(e)
         finally:
             return self.server
 
@@ -126,7 +130,6 @@ class AbstractPanelView(ABC):
     @property
     def script(self) -> str:
         url = self.url
-        print(f"Getting script for url: {url}")
         with pull_session(url=url) as session:
             return server_session(session_id=session.id, url=url)
 

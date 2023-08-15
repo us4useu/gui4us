@@ -6,6 +6,7 @@ import threading
 import multiprocessing as mp
 from enum import Enum, auto
 from dataclasses import dataclass, field
+from gui4us.logging import get_logger
 
 import gui4us.state_graph
 from gui4us.state_graph import (
@@ -160,7 +161,6 @@ class EnvironmentApplication:
             self._state.assert_state(StateId.RUNNING)
             self._event_queue.put(event)
             result = self._event_result_queue.get(timeout=_DEFAULT_TIMEOUT)
-            print(f"Got result {result} for event: {event}")
             return self._handle_result(result)
 
     def _handle_result(self, result):
@@ -185,6 +185,7 @@ class EnvironmentApplicationController:
             event_queue: mp.Queue,
             event_result_queue: mp.Queue
     ):
+        self.logger = get_logger(f"{type(self)}_{id}")
         self.id = id
         self.cfg_path = cfg_path
         if self.cfg_path is None:
@@ -212,12 +213,12 @@ class EnvironmentApplicationController:
         self._thread_is_ready = threading.Event()
 
     def run(self):
-        print(f"Starting new app controller.")
+        self.logger.info(f"Starting new app controller.")
         self._thread.start()
         self._thread_is_ready.wait(timeout=_DEFAULT_TIMEOUT)
         self.env.run()
         self.view.run()
-        print(f"App controller for {self.env}, {self.view} started.")
+        self.logger.info(f"App controller for {self.env}, {self.view} started.")
 
     def close(self):
         self.view.close()
@@ -244,10 +245,10 @@ class EnvironmentApplicationController:
         self._thread_is_ready.set()
         # Inform the interface that the controller has started.
         self.event_result_queue.put(True)
-        print("Us4R controller started.")
+        self.logger.info("Us4R controller started.")
         while True:
             event: Event = self.event_queue.get()
-            print(f"Event: {event}")
+            self.logger.debug(f"Event: {event}")
             if event.id == ActionId.CLOSE:
                 self.close()
                 break
@@ -255,21 +256,19 @@ class EnvironmentApplicationController:
                 action = action_map[event.id]
                 try:
                     result = action(**event.kwargs)
-                    print(f"Event: {event.id}, result: {result}")
+                    self.logger.info(f"Event: {event.id}, result: {result}")
                     try:
                         self.event_result_queue.put(result)
                     except Exception as e:
-                        print(f"Error while sending result for action: "
+                        self.logger.error(f"Error while sending result for action: "
                               "{event}, result: {result}")
-                        print(e)
+                        self.logger.error(e)
                 except Exception as e:
                     logging.exception(e)
                     self.event_result_queue.put(e)
         # Exit model context.
-        print("Model closed")
+        self.logger.info("Model closed")
         self.event_result_queue.put(None)
-        print("Exiting")
-        return
 
 
 def _controller_main(
