@@ -18,10 +18,18 @@ def main():
             help="The port the server will listen on",
             default="7777",
             required=False)
+        parser.add_argument(
+            "--cfg", dest="cfg",
+            help="Environment to run.",
+            required=False,
+            default=None
+        )
         args = parser.parse_args()
         app = Application(
             port=args.port,
         )
+        if args.cfg is not None:
+            app.create_env(cfg_path=args.cfg)
         app.run()
 
     except Exception as e:

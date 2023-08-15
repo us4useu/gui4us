@@ -69,7 +69,7 @@ class Application:
         def main():
             return self.display_main_view()
 
-        @self.app.route("/env/<env_id>")
+        @self.app.route("/env/<int:env_id>")
         def view_env(env_id: int):
             return self.view_env(env_id)
 
@@ -80,7 +80,8 @@ class Application:
         @self.app.route("/env/create", methods=["POST"])
         def create_env():
             cfg_path = request.form.get("cfg_path")
-            return self.create_env(cfg_path)
+            id = self.create_env(cfg_path)
+            return redirect(f"/env/{id}")
 
         @self.app.route("/env/<env_id>/delete")
         def delete_env(env_id: int):
@@ -108,12 +109,16 @@ class Application:
 
     def view_env(self, env_id: int):
         with self._state_lock:
-            pass
+            env = self._envs[env_id]
+            view_url = env.get_view_url()
+            return render_template(
+                "view.html",
+                view_url=view_url,
+                template="Flask"
+            )
 
     def view_create_env_form(self):
-        print("Request: view create env form.")
         with self._state_lock:
-            self._null_env.get_view_port()
             view_url = self._null_env.get_view_url()
             return render_template(
 "view.html",
@@ -123,13 +128,12 @@ class Application:
 
     def create_env(self, cfg_path: str):
         with self._state_lock:
+            id = Application.MAIN_VIEW_ID
+            if id in self._envs:
+                self._envs[id].close()
             # TODO
-            # Check if there is env 1: if so, reset it
-            # create EnvironmentApplication with given configuration path
-            # run it
-
-            # start main
-            pass
+            self._envs[id] = self._null_env
+            return id
 
     def delete_env(self, env_id: int):
         with self._state_lock:
