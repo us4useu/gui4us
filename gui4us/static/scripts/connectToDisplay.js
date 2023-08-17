@@ -27,8 +27,7 @@ function connectToDisplay(container, config) {
 
 
     // Connect
-    client
-        .connect(config)
+    client.connect(config)
         .then((validClient) => {
             const viewStream = client.getImageStream().createViewStream('-1');
 
