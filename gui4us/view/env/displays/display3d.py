@@ -2,9 +2,6 @@ import numpy as np
 import panel as pn
 
 
-
-
-
 class Display3D(pn.viewable.Viewer):
 
     def __init__(self, **params):

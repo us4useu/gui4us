@@ -2,8 +2,7 @@ import vtkWSLinkClient from '@kitware/vtk.js/IO/Core/WSLinkClient';
 import SmartConnect from 'wslink/src/SmartConnect';
 import vtkRemoteView from '@kitware/vtk.js/Rendering/Misc/RemoteView';
 
-function connectToDisplay(container, config) {
-    // TODO is the below necessary?
+export default function connectToDisplay(container, config) {
     vtkWSLinkClient.setSmartConnectClass(SmartConnect);
     const client = vtkWSLinkClient.newInstance();
 
@@ -47,6 +46,6 @@ function connectToDisplay(container, config) {
         .catch((error) => {
             console.error(error);
         });
-
+    return client;
 }
 
