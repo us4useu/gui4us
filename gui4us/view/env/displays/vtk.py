@@ -65,8 +65,8 @@ class VTKDisplayServerProtocol(Gui4usServerProtocol):
 
     def initialize(self):
         self.register_vtk_web_protocol(protocols.vtkWebViewPort())
-        publish_protocol = protocols.vtkWebPublishImageDelivery(decode=False)
-        self.register_vtk_web_protocol(publish_protocol)
+        self.publish_protocol = protocols.vtkWebPublishImageDelivery(decode=False)
+        self.register_vtk_web_protocol(self.publish_protocol)
         self.register_vtk_web_protocol(
             protocols.vtkWebViewPortGeometryDelivery())
         # Update authentication key to use
@@ -75,6 +75,9 @@ class VTKDisplayServerProtocol(Gui4usServerProtocol):
         self.get_application().SetImageEncoding(0)
         self.get_application().GetObjectIdMap().SetActiveObject("VIEW",
                                                                 self.render_view)
+        self.publish_protocol.setMaxFrameRate(fps=100)
+        # TODO(pjarosik) Consider moving the below call
+        self.publish_protocol.startViewAnimation()
 
 
 class VTKDisplayServer:
