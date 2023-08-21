@@ -5,12 +5,22 @@ from gui4us.cfg.display import *
 
 displays = {
     "OX": Display2D(
-        title=f"B-mode",
+        title=f"OX",
         layers=(
             Layer2D(
                 value_range=(0, 255),
                 cmap="gray",
                 input=StreamDataId("default", 0),
+            ),
+        ),
+    ),
+    "OY": Display2D(
+        title=f"OY",
+        layers=(
+            Layer2D(
+                value_range=(0, 255),
+                cmap="gray",
+                input=StreamDataId("default", 1),
             ),
         ),
     ),
