@@ -2,6 +2,8 @@ import importlib
 import sys
 import os
 import pathlib
+import socket
+from contextlib import closing
 
 
 class CfgRegister:
@@ -51,3 +53,10 @@ def get_gui4us_location() -> str:
     Returns location to the gui4us module location.
     """
     return pathlib.Path(__file__).parent.__str__()
+
+
+def get_free_port_for_address(address: str):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind((address, 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]

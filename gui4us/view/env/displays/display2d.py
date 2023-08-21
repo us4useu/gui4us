@@ -6,34 +6,41 @@ from gui4us.view.env.displays.vtk import (
     VTKDisplayServer, VTKDisplayServerOptions
 )
 from .utils import to_vtk_image_data
+from gui4us.utils import get_free_port_for_address
 import vtk
 from pathlib import Path
 import threading
 import time
+from gui4us.logging import get_logger
 
 
 class Display2D(ReactiveHTML):
-    session_url = param.String(default="ws://localhost:1234/")
+    host = param.String(default="localhost")
+    port = param.Integer(default=0)
     display_name = param.String(default="Display2D")
 
     __javascript__ = [
-        "http://localhost:5006/env_static/connectToDisplay.js"
+        "content/connectToDisplay.js"
     ]
     _template = '<div id="display_2d"></div>'
     _scripts = {
-        "render": "state.client = connectToDisplay(display_2d, {application: data.display_name, sessionURL: data.session_url})"
+        "render":
+            "sessionURL = 'ws://' + data.host + ':' + data.port; "
+            "state.client = connectToDisplay(display_2d, {application: data.display_name, sessionURL: sessionURL})"
     }
 
-    def __init__(self, host: str, port: str, **params):
+    def __init__(self, **params):
         super().__init__(**params)
+        self.logger = get_logger(f"{type(self)}:{self.display_name}")
         self.render_view = self._create_pipeline()
+        if self.port == 0:
+            self.port = get_free_port_for_address(self.host)
         self.server = VTKDisplayServer(
             render_view=self.render_view,
             options=VTKDisplayServerOptions(
-                host=host,
-                port=port,
+                host=self.host,
+                port=self.port,
                 debug=True
-                # content=str(Path(__file__).parent / "content/")
             )
         )
         # Only for debug purposes
@@ -41,7 +48,8 @@ class Display2D(ReactiveHTML):
 
     def start(self):
         self._update_thread.start()
-        return self.server.start()
+        start_result = self.server.start()
+        self.logger.info(f"Server started at: ws://{self.host}:{self.port}")
 
     def _create_pipeline(self):
         self.bmodes = np.load(
@@ -90,7 +98,6 @@ class Display2D(ReactiveHTML):
     def _update(self):
         self.i = 0
         while True:
-            print("ALIVE!")
             data = vtk.util.numpy_support.numpy_to_vtk(
                 self.bmodes[self.i].ravel(), deep=False)
             self.i = (self.i + 1) % 100
