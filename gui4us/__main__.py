@@ -14,9 +14,15 @@ def main():
         parser = argparse.ArgumentParser(
             description=f"GUI4us {gui4us.__version__}")
         parser.add_argument(
+            "--host", dest="host",
+            help="Host address on which the application should run.",
+            default="localhost",
+            required=False)
+        parser.add_argument(
             "--port", dest="port",
             help="The port the server will listen on",
-            default="7777",
+            type=int,
+            default=7777,
             required=False)
         parser.add_argument(
             "--cfg", dest="cfg",
@@ -26,7 +32,9 @@ def main():
         )
         args = parser.parse_args()
         app = Application(
+            host=args.host,
             port=args.port,
+            cfg_path=args.cfg
         )
         if args.cfg is not None:
             app.create_env(cfg_path=args.cfg)

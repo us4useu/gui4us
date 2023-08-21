@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence, Dict
+from typing import Sequence, Dict, Union
 from gui4us.model import StreamDataId
 
 
@@ -23,5 +23,10 @@ class Display2D:
 
 
 @dataclass(frozen=True)
+class Display3D:
+    title: str
+
+
+@dataclass(frozen=True)
 class ViewCfg:
-    displays: Dict[str, Display2D]
+    displays: Dict[str, Union[Display2D, Display3D]]

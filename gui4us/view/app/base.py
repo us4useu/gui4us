@@ -24,9 +24,10 @@ class Application:
 
     def __init__(
             self,
-            host: str = None,
-            port: int = 7777,
-            is_debug: bool = False
+            host: str,
+            port: int,
+            is_debug: bool = False,
+            cfg_path: str = None
     ):
         self.app = Flask(
             Application.__qualname__,
@@ -45,7 +46,7 @@ class Application:
         self._null_env: EnvironmentApplication = EnvironmentApplication(
             id=Application.NULL_VIEW_ID,
             title=f"Welcome to GUI4us {__version__}",
-            cfg_path=None,
+            cfg_path=cfg_path,
             address=host,
             app_url=get_url(host, port)
         )

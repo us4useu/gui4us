@@ -2,16 +2,18 @@ import panel as pn
 import numpy as np
 import param
 from panel.reactive import ReactiveHTML
+
+from gui4us.model import MetadataCollection
 from gui4us.view.env.displays.vtk import (
     VTKDisplayServer, VTKDisplayServerOptions
 )
 from .utils import to_vtk_image_data
 from gui4us.utils import get_free_port_for_address
 import vtk
-from pathlib import Path
 import threading
 import time
 from gui4us.logging import get_logger
+import gui4us.cfg.display as display_cfg
 
 
 class Display2D(ReactiveHTML):
@@ -29,9 +31,15 @@ class Display2D(ReactiveHTML):
             "state.client = connectToDisplay(display_2d, {application: data.display_name, sessionURL: sessionURL})"
     }
 
-    def __init__(self, **params):
+    def __init__(
+            self,
+            cfg: display_cfg.Display2D,
+            metadatas: MetadataCollection,
+            **params):
         super().__init__(**params)
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
+        self.cfg = cfg
+        self.metadatas = metadatas
         self.render_view = self._create_pipeline()
         if self.port == 0:
             self.port = get_free_port_for_address(self.host)
@@ -48,7 +56,7 @@ class Display2D(ReactiveHTML):
 
     def start(self):
         self._update_thread.start()
-        start_result = self.server.start()
+        self.start_result = self.server.start()
         self.logger.info(f"Server started at: ws://{self.host}:{self.port}")
 
     def _create_pipeline(self):
@@ -92,7 +100,7 @@ class Display2D(ReactiveHTML):
         self.render_window.SetSize(300, 300)
         self.render_window.SetOffScreenRendering(1)
 
-        self.renderer.SetBackground(colors.GetColor3d('DarkSlateGray'))
+        self.renderer.SetBackground(colors.GetColor3d('Gray'))
         return self.render_window
 
     def _update(self):

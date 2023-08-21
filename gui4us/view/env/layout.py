@@ -30,9 +30,8 @@ class GUI4usLayout(pn.template.Template):
             app_url,
         ))
         self.add_panel("control_panel", control_panel)
-        for i, (k, display) in enumerate(displays.items()):
-            self.add_panel(f"display{i}", display)
-
+        self.display_rows = self._split_displays_to_rows(displays, n_cols=2)
+        self.add_variable("display_rows", self.display_rows)
         self.add_panel("envs", envs)
         self.add_panel("console", console)
 
@@ -53,3 +52,26 @@ class GUI4usLayout(pn.template.Template):
             styles={"background": "White"},
             sizing_mode="stretch_width",
         )
+
+    def _split_displays_to_rows(self, displays, n_cols):
+        result = []
+        # TODO(pjarosik) currently simply sort by display id,
+        # allow any custom layout in the future
+        displays = list(displays.items())
+        sorted(list(displays), key=lambda x: x[0])
+        displays = [p[1] for p in displays]
+        n_displays = len(displays)
+        n_rows = n_displays // n_cols
+        if n_rows * n_cols < len(displays):
+            n_rows += 1
+        for r in range(n_rows):
+            row = []
+            for c in range(n_cols):
+                i = r*n_cols + c
+                if i < len(displays):
+                    row.append(displays[i])
+                else:
+                    row.append(None)
+            result.append(row)
+        return result
+

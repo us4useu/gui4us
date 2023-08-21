@@ -202,9 +202,10 @@ class EnvironmentApplicationController:
             )
             self.view: EnvironmentView = EnvironmentView(
                 title=title,
+                app_url=app_url,
+                address=address,
                 cfg_path=self.cfg_path,
                 env=self.env,
-                address=address
             )
             # TODO connect view with environment
         self.event_queue = event_queue

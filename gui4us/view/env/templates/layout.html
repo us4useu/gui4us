@@ -80,23 +80,30 @@ var config = {
             {
                 type: "column",
                 content: [
+                    {% for row in display_rows %}
                     {
                         type: "row",
                         content:[
-                            {
-                                type: "component",
-                                componentName: "view",
-                                componentState: { model: '{{embed(roots.display0)}}', title: "X=0"},
-                                isClosable: false,
-                            },
-                            {
-                                type: "component",
-                                componentName: "view",
-                                componentState: { model: '{{embed(roots.display1)}}', title: "Y=0"},
-                                isClosable: false,
-                            }
+                            {% for display in row %}
+                                {% if display is not none %}
+                                {
+                                    type: "component",
+                                    componentName: "view",
+                                    componentState: { label: '{{embed(roots.display{ij})}}', title: "{{display.cfg.title}}"},
+                                    isClosable: false,
+                                },
+                                {% else %}
+                                {
+                                    type: "component",
+                                    componentName: "view",
+                                    componentState: { label: 'No display', title: 'No display'},
+                                    isClosable: false,
+                                },
+                                {% endif %}
+                            {% endfor %}
                         ]
                     },
+                    {% endfor %}
                     {
                         type: "stack",
                         content:[
