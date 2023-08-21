@@ -61,6 +61,8 @@ class EnvironmentView(AbstractPanelView):
                 cfg=cfg,
                 host=self.host_address,
                 metadatas=self.metadatas,
+                align="center",
+                sizing_mode="stretch_both"
             )
         return self.displays
 

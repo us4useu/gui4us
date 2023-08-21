@@ -74,6 +74,6 @@ class GUI4usLayout(pn.template.Template):
         self.add_variable("n_displays", n_displays)
         display_cfgs = []
         for i, display in enumerate(displays):
-            self.add_panel(f"display{i}", display)
+            self.add_panel(f"display{i}", pn.Column(display, sizing_mode="stretch_both"))
             display_cfgs.append(display.cfg)
         self.add_variable("display_cfgs", display_cfgs)

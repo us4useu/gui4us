@@ -24,7 +24,7 @@ class Display2D(ReactiveHTML):
     __javascript__ = [
         "content/connectToDisplay.js"
     ]
-    _template = '<div id="display_2d"></div>'
+    _template = '<div id="display_2d" style="width: 100%; height: 100%; margin: 0 auto;"></div>'
     _scripts = {
         "render":
             "sessionURL = 'ws://' + data.host + ':' + data.port; "
@@ -100,10 +100,10 @@ class Display2D(ReactiveHTML):
         self.renderer.AddActor(img)
         # TODO remove below?
         self.renderer.AddActor(self.axes)
-        self.render_window.SetSize(300, 300)
+        self.render_window.SetSize(300,300)
         self.render_window.SetOffScreenRendering(1)
 
-        self.renderer.SetBackground(colors.GetColor3d('Gray'))
+        self.renderer.SetBackground(colors.GetColor3d("silver"))
         return self.render_window
 
     def _update(self):

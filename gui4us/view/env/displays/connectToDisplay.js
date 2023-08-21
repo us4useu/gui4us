@@ -36,7 +36,7 @@ export default function connectToDisplay(container, config) {
             view.setSession(session);
             view.setContainer(container);
             // the scaled image compared to the clients view resolution
-            view.setInteractiveRatio(0.2);
+            view.setInteractiveRatio(1.0);
             // jpeg quality
             view.setInteractiveQuality(10);
             // TODO event listener on container resize?
