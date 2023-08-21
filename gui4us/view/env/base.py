@@ -90,6 +90,9 @@ class AbstractPanelView(ABC):
     def run(self):
         self.server_thread.start()
 
+    def join(self):
+        self.server_thread.join()
+
     def _run_impl(self):
         self.logger.info(f"Starting view server: {self.title}, "
               f"address: {self.address}, "

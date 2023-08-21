@@ -20,10 +20,9 @@ export default function connectToDisplay(container, config) {
         const message =
             (httpReq && httpReq.response && httpReq.response.error) ||
             "Connection close";
-        console.error(message);
+        console.warn(message);
         console.log(httpReq);
     });
-
 
     // Connect
     client.connect(config)
@@ -41,7 +40,9 @@ export default function connectToDisplay(container, config) {
             // jpeg quality
             view.setInteractiveQuality(10);
             // TODO event listener on container resize?
-            window.addEventListener('resize', view.resize);
+            window.addEventListener("resize", view.resize);
+            var img = container.querySelector("img");
+            img.style.zIndex = 0;
         })
         .catch((error) => {
             console.error(error);

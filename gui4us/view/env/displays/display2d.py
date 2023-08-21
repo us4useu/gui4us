@@ -48,7 +48,7 @@ class Display2D(ReactiveHTML):
             options=VTKDisplayServerOptions(
                 host=self.host,
                 port=self.port,
-                debug=True
+                debug=False
             )
         )
         # Only for debug purposes
@@ -58,6 +58,9 @@ class Display2D(ReactiveHTML):
         self._update_thread.start()
         self.start_result = self.server.start()
         self.logger.info(f"Server started at: ws://{self.host}:{self.port}")
+
+    def join(self):
+        self.server.join()
 
     def _create_pipeline(self):
         self.bmodes = np.load(

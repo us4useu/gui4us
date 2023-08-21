@@ -220,6 +220,8 @@ class EnvironmentApplicationController:
         self.env.run()
         self.view.run()
         self.logger.info(f"App controller for {self.env}, {self.view} started.")
+        self.logger.info("Waiting for view and environment to stop.")
+        self.view.join()
 
     def close(self):
         self.view.close()

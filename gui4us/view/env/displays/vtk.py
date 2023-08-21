@@ -1,17 +1,11 @@
+import asyncio
+from dataclasses import dataclass
 from typing import Optional, Sized
 
-import vtk
-from abc import abstractmethod
-from vtkmodules.web import protocols
-from vtkmodules.web import wslink as vtk_wslink
-from wslink import server
-from threading import RLock
-
-from wslink import websocket
-from wslink import register as exportRpc
-from vtkmodules.web import protocols
 from vtkmodules.vtkWebCore import vtkWebApplication
-from dataclasses import dataclass
+from vtkmodules.web import protocols
+from wslink import server
+from wslink import websocket
 
 
 class Gui4usServerProtocol(websocket.ServerProtocol):
@@ -53,7 +47,7 @@ class VTKDisplayServerOptions:
     fsEndpoints: Sized = ()
     ssl: str = ""
     ws: str = ""
-    nosignalhandlers: bool = False
+    nosignalhandlers: bool = True
 
 
 class VTKDisplayServerProtocol(Gui4usServerProtocol):
@@ -76,7 +70,6 @@ class VTKDisplayServerProtocol(Gui4usServerProtocol):
         self.get_application().GetObjectIdMap().SetActiveObject("VIEW",
                                                                 self.render_view)
         self.publish_protocol.setMaxFrameRate(fps=100)
-        # TODO(pjarosik) Consider moving the below call
         self.publish_protocol.startViewAnimation()
 
 
@@ -87,10 +80,26 @@ class VTKDisplayServer:
             render_view=render_view)
         self.options = options
         self.main_task = None
+        self.main_thread  = None
+        self.server_loop = asyncio.get_event_loop()# asyncio.new_event_loop()
 
     def start(self):
-        self.main_task = server.start_webserver(
-            options=self.options, protocol=self.protocol,
-            exec_mode="task",
-        )
-        print("STARTED!")
+        # NOTE: the below task will run in the current thread (main?)
+                # loop.
+        # Make sure to wait for all task before exiting this thread.
+        old_event_loop = asyncio.get_event_loop()
+        try:
+            # The below is necessary because asyncio.get_event_loop is
+            # used during start_webserver call
+            asyncio.set_event_loop(self.server_loop)
+            self.coroutine = server.start_webserver(
+                options=self.options, protocol=self.protocol,
+                exec_mode="coroutine")
+        finally:
+            # Cleanup
+            asyncio.set_event_loop(old_event_loop)
+        self.main_task = self.server_loop.create_task(self.coroutine)
+
+    def join(self):
+        asyncio.wait(self.main_task)
+

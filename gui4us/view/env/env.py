@@ -37,9 +37,15 @@ class EnvironmentView(AbstractPanelView):
         # initialization.
         super().__init__(title=title, app_url=app_url, address=address)
 
-    def start(self):
-        for _, display in self.displays:
+    def run(self):
+        super().run()
+        for _, display in self.displays.items():
             display.start()
+
+    def join(self):
+        super().join()
+        for _, d in self.displays.items():
+            d.join()
 
     def _create_control_panel(self) -> Viewable:
         return ControlPanel()
@@ -54,7 +60,7 @@ class EnvironmentView(AbstractPanelView):
             self.displays[key] = display_clz(
                 cfg=cfg,
                 host=self.host_address,
-                metadatas=self.metadatas
+                metadatas=self.metadatas,
             )
         return self.displays
 

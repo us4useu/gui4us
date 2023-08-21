@@ -30,8 +30,7 @@ class GUI4usLayout(pn.template.Template):
             app_url,
         ))
         self.add_panel("control_panel", control_panel)
-        self.display_rows = self._split_displays_to_rows(displays, n_cols=2)
-        self.add_variable("display_rows", self.display_rows)
+        self.set_displays(displays)
         self.add_panel("envs", envs)
         self.add_panel("console", console)
 
@@ -53,25 +52,28 @@ class GUI4usLayout(pn.template.Template):
             sizing_mode="stretch_width",
         )
 
-    def _split_displays_to_rows(self, displays, n_cols):
+    def set_displays(self, displays):
         result = []
         # TODO(pjarosik) currently simply sort by display id,
         # allow any custom layout in the future
+        # Sort displays by id.
         displays = list(displays.items())
         sorted(list(displays), key=lambda x: x[0])
         displays = [p[1] for p in displays]
+        # Set template panels/variables.
         n_displays = len(displays)
-        n_rows = n_displays // n_cols
-        if n_rows * n_cols < len(displays):
-            n_rows += 1
-        for r in range(n_rows):
-            row = []
-            for c in range(n_cols):
-                i = r*n_cols + c
-                if i < len(displays):
-                    row.append(displays[i])
-                else:
-                    row.append(None)
-            result.append(row)
-        return result
-
+        if n_displays == 1:
+            n_cols, n_rows = 1, 1
+        else:
+            n_cols = 2
+            n_rows = n_displays // n_cols
+            if n_rows*n_cols < n_displays:
+                n_rows += 1
+        self.add_variable("n_cols", n_cols)
+        self.add_variable("n_rows", n_rows)
+        self.add_variable("n_displays", n_displays)
+        display_cfgs = []
+        for i, display in enumerate(displays):
+            self.add_panel(f"display{i}", display)
+            display_cfgs.append(display.cfg)
+        self.add_variable("display_cfgs", display_cfgs)

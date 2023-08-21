@@ -80,16 +80,20 @@ var config = {
             {
                 type: "column",
                 content: [
-                    {% for row in display_rows %}
+                    {% for row in range(n_rows) %}
                     {
                         type: "row",
                         content:[
-                            {% for display in row %}
-                                {% if display is not none %}
+                            {% for col in range(n_cols) %}
+                            {% set i = row*n_cols + col %}
+                            {% if i < n_displays %}
+                                {% set id = i | string %}
+                                {% set display = roots.__getattr__("display" ~ id) %}
+                                {% set display_cfg = display_cfgs[i] %}
                                 {
                                     type: "component",
                                     componentName: "view",
-                                    componentState: { label: '{{embed(roots.display{ij})}}', title: "{{display.cfg.title}}"},
+                                    componentState: {model: '{{embed(display)}}', title: "{{display_cfg.title}}"},
                                     isClosable: false,
                                 },
                                 {% else %}
