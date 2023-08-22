@@ -23,6 +23,7 @@ from .utils import to_vtk_image_data, convert_from_named_to_vtk_cmap
 # then in the create_pipeline, simply use the vtk.util.numpy_support.numpy_to_vtk
 # and update should only run render method in order to update the current
 # display
+# Run _update for each layer and display in a separate thread
 class Display2D(ReactiveHTML):
     host = param.String(default="localhost")
     port = param.Integer(default=0)
@@ -55,7 +56,7 @@ class Display2D(ReactiveHTML):
         self.metadatas = metadatas
         self.vtk_inputs = []
         self.initial_arrays = []
-        self.vtk_img_actors = []
+        self.preprocessing_outputs = []
         self.vtk_main_img_actor = None
         self.render_view = self._create_pipeline(self.metadatas, self.cfg)
         if self.port == 0:
@@ -109,28 +110,28 @@ class Display2D(ReactiveHTML):
             dr_min, dr_max = layer_cfg.value_range
             vtk_cmap_lut = convert_from_named_to_vtk_cmap(layer_cfg.cmap)
             vtk_cmap_lut.SetTableRange(dr_min, dr_max)
+            vtk_cmap_lut.SetNanColor(0.0, 0.0, 0.0, 0.0)
             color_map = vtk.vtkImageMapToColors()
             color_map.SetInputConnection(flip.GetOutputPort())
             color_map.SetLookupTable(vtk_cmap_lut)
             color_map.Update()
-            img_actor = vtk.vtkImageActor()
-            img_actor.GetMapper().SetInputConnection(color_map.GetOutputPort())
-            self.vtk_img_actors.append(img_actor)
+
+            self.preprocessing_outputs.append(color_map)
 
            # Merge layers
-        if len(self.vtk_img_actors) > 1:
+        if len(self.preprocessing_outputs) > 1:
             # Blend and create the final actor
             blend = vtk.vtkImageBlend()
-            for i, actor in enumerate(self.vtk_img_actors):
-                blend.AddInputConnection(actor.GetMapper().GetInputConnection())
-                blend.blend.SetOpacity(i, 1.0)
+            for i, output in enumerate(self.preprocessing_outputs):
+                blend.AddInputConnection(output.GetOutputPort())
+                blend.SetOpacity(i, 1.0)
             self.vtk_main_img_actor = vtk.vtkImageActor()
-            self.vtk_main_img_actor.GetMapper().SetInputConnection(
-                    blend.GetOutputPort())
+            self.vtk_main_img_actor.GetMapper().SetInputConnection(blend.GetOutputPort())
         else:
-                        # Just set the main actor as the only one.
-            self.vtk_main_img_actor = self.vtk_img_actors[0]
-
+            # Just set the only output.
+            output = self.preprocessing_outputs[0]
+            self.vtk_main_img_actor = vtk.vtkImageActor()
+            self.vtk_main_img_actor.GetMapper().SetInputConnection(output.GetOutputPort())
         # Axes
         self.axes = vtk.vtkCubeAxesActor2D()
         self.axes.SetCamera(self.renderer.GetActiveCamera())
