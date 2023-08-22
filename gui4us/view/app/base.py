@@ -41,14 +41,15 @@ class Application:
                 "templates"
             )
         )
+        self.host = host
         self.port = port
         self.is_debug = is_debug
         self._null_env: EnvironmentApplication = EnvironmentApplication(
             id=Application.NULL_VIEW_ID,
             title=f"Welcome to GUI4us {__version__}",
             cfg_path=cfg_path,
-            address=host,
-            app_url=get_url(host, port)
+            address=self.host,
+            app_url=get_url(self.host, self.port)
         )
         self._envs: Dict[int, EnvironmentApplication] = dict()
         self._state_lock = Lock()
@@ -56,7 +57,7 @@ class Application:
         self._null_env.run()
 
     def run(self):
-        self.app.run(port=self.port, debug=self.is_debug)
+        self.app.run(host=self.host, port=self.port, debug=self.is_debug)
 
     def close(self):
         """

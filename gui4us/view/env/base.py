@@ -8,6 +8,7 @@ from bokeh.client import pull_session
 from bokeh.embed import server_session
 from panel.io.server import StoppableThread
 
+import gui4us.utils
 from gui4us.view.env.layout import GUI4usLayout
 from gui4us.view.env.widgets import FileSelector
 
@@ -59,11 +60,12 @@ class AbstractPanelView(ABC):
             dialog_closable=dialog_closable
         )
         # Set server
+        self.panel_port = gui4us.utils.get_free_port_for_address(address)
         self.server: pn.io.server.Server = pn.serve(
             self.template.servable(),
-            port=0,  # OS should choose port automatically
+            port=self.panel_port,
             address=address,
-            # allow_websocket_origin=[app_url],
+            allow_websocket_origin=[f"{address}:{self.panel_port}"],
             show=False,
             title=title,
             threaded=False,
