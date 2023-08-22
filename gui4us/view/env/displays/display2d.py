@@ -85,12 +85,26 @@ class Display2D(ReactiveHTML):
         self.render_window.AddRenderer(self.renderer)
 
         # pre-processing
+        # Flip the input image.
+        # Without that VTK will display image in the incorrect order.
         flip = vtk.vtkImageFlip()
         flip.SetInputData(self.vtk_img)
         flip.SetFilteredAxes(1)
 
+        # Colormap.
+        # TODO convert matplotlib colormap to VTK colormap
+        color_function = vtk.vtkColorTransferFunction()
+        color_function.AddRGBPoint(0.0, 0.0, 1.0, 0.0)
+        color_function.AddRGBPoint(255.0, 1.0, 0.0, 0.0)
+
+        color_map = vtk.vtkImageMapToColors()
+        color_map.SetInputConnection(flip.GetOutputPort())
+        color_map.SetLookupTable(color_function)
+        color_map.Update()
+
+        # Main Actor.
         img = vtk.vtkImageActor()
-        img.GetMapper().SetInputConnection(flip.GetOutputPort())
+        img.GetMapper().SetInputConnection(color_map.GetOutputPort())
 
         self.axes = vtk.vtkCubeAxesActor2D()
         self.axes.SetCamera(self.renderer.GetActiveCamera())
