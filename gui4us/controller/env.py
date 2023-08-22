@@ -11,6 +11,9 @@ from enum import Enum
 
 
 class EnvController:
+    """
+    TODO unload configuration after closing this controller
+    """
 
     def __init__(self, id: EnvId, env_cfg_path: str):
         self.logger = get_logger(f"{type(self)}_{id}")

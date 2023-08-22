@@ -1,0 +1,10 @@
+Release notes
+=============
+
+0.3.x
+-----
+
+0.3.0
+.....
+
+- Restructured configuration objects for ARRUS Environment.

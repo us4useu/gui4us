@@ -62,7 +62,7 @@ ENV = UltrasoundEnv(
     session_cfg="/home/us4us/us4r.prototxt",
     medium=arrus.medium.Medium(name="test_block", speed_of_sound=5780),
     log_file="arrus.log", log_file_level=arrus.logging.INFO,
-    scheme=create_scheme,
+    configure=create_scheme,
     initial_voltage=5,
     tgc_sampling_points=TGC_SAMPLING_POINTS,
     initial_tgc_values=TGC_VALUES
