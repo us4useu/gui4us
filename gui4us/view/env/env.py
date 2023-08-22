@@ -12,6 +12,7 @@ from gui4us.view.env.panes import ControlPanel, EnvironmentSelector, ConsoleLog
 from gui4us.cfg.display import ViewCfg
 import gui4us.cfg.display as display_cfg
 import gui4us.view.env.displays as displays
+from collections import defaultdict
 
 
 class EnvironmentView(AbstractPanelView):
@@ -32,10 +33,19 @@ class EnvironmentView(AbstractPanelView):
         self.env = env
         metadata_promise: Promise = self.env.get_stream_metadata()
         self.metadatas: MetadataCollection = metadata_promise.get_result()
+        self.metadata_by_display = self._split_metadata_by_display(
+            m=self.metadatas,
+            view_cfg=self.view_cfg
+        )
+        self.ordinals_by_display = self._get_ordinals_by_display(
+            self.view_cfg
+        )
         # Intentionally calling superclass constructor here.
         # note: some of the above properties are required on components
         # initialization.
         super().__init__(title=title, app_url=app_url, address=address)
+        self.stream = env.get_stream()
+        self.stream.append_on_new_data_callback(self._update)
 
     def run(self):
         super().run()
@@ -60,7 +70,7 @@ class EnvironmentView(AbstractPanelView):
             self.displays[key] = display_clz(
                 cfg=cfg,
                 host=self.host_address,
-                metadatas=self.metadatas,
+                metadatas=self.metadata_by_display[key],
                 align="center",
                 sizing_mode="stretch_both"
             )
@@ -72,4 +82,31 @@ class EnvironmentView(AbstractPanelView):
     def _create_console_log_panel(self) -> Viewable:
         return ConsoleLog()
 
+    def _split_metadata_by_display(
+            self,
+            m: MetadataCollection,
+            view_cfg: ViewCfg
+    ):
+        """
+        The returned lists are sorted by display layer order.
+        """
+        displays = view_cfg.displays
+        result = defaultdict(list)
+        for id, display in displays.items():
+            for layer in display.layers:
+                result[id].append(m.output(layer.input))
+        return result
 
+    def _update(self, data):
+        for display_id, display in self.displays:
+            # For that display, get outputs in the proper order.
+            ordinals = self.ordinals_by_display[display_id]
+            display_data = [data[o] for o in ordinals]
+            display.update(display_data)
+
+    def _get_ordinals_by_display(self, view_cfg: ViewCfg):
+        result = {}
+        for k, display_cfg in view_cfg.displays.items():
+            ordinals = [l.input.ordinal for l in display_cfg.layers]
+            result[k] = ordinals
+        return result

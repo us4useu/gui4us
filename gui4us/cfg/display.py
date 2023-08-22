@@ -25,6 +25,7 @@ class Display2D:
 @dataclass(frozen=True)
 class Display3D:
     title: str
+    input: StreamDataId
 
 
 @dataclass(frozen=True)

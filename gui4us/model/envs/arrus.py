@@ -205,6 +205,7 @@ class UltrasoundEnv(Env):
     def _on_new_data(self, input_elements):
         try:
             output_data = []
+            # TODO(pjarosik) avoid copying the data here?
             for input_element in input_elements:
                 output_data.append(input_element.data[:])
                 input_element.release()

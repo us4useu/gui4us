@@ -1,6 +1,7 @@
 import vtk
 import vtk.util.numpy_support
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def to_vtk_image_data(img):
@@ -39,4 +40,16 @@ def to_vtk_image_data(img):
     output.Modified()
     return output
 
+
+def convert_from_named_to_vtk_cmap(name: str):
+    matplotlib_cmap = plt.get_cmap(name)
+    vtk_cmap = vtk.vtkLookupTable()
+    vtk_cmap.SetNumberOfColors(matplotlib_cmap.N)
+    for i in range(matplotlib_cmap.N):
+        rgba_color = matplotlib_cmap(i)
+        # Convert to 8-bit RGB
+        vtk_color = [int(c * 255) for c in rgba_color]
+        # Set RGB values and alpha (255 for fully opaque)
+        vtk_cmap.SetTableValue(i, *vtk_color)
+    return vtk_cmap
 

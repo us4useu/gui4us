@@ -1,21 +1,27 @@
-import panel as pn
+from typing import List
+
 import numpy as np
 import param
+import vtk
 from panel.reactive import ReactiveHTML
 
-from gui4us.model import MetadataCollection
+import gui4us.cfg.display as display_cfg
+from gui4us.common import ImageMetadata
+from gui4us.logging import get_logger
+from gui4us.utils import get_free_port_for_address
 from gui4us.view.env.displays.vtk import (
     VTKDisplayServer, VTKDisplayServerOptions
 )
-from .utils import to_vtk_image_data
-from gui4us.utils import get_free_port_for_address
-import vtk
-import threading
-import time
-from gui4us.logging import get_logger
-import gui4us.cfg.display as display_cfg
+from .utils import to_vtk_image_data, convert_from_named_to_vtk_cmap
 
 
+# TODO possible optimization:
+# avoid calling vtk.util.numpy_support.numpy_to_vtk
+# envs should return "BufferStream" which has "data" property, which is a tuple
+# of numpy arrays
+# then in the create_pipeline, simply use the vtk.util.numpy_support.numpy_to_vtk
+# and update should only run render method in order to update the current
+# display
 class Display2D(ReactiveHTML):
     host = param.String(default="localhost")
     port = param.Integer(default=0)
@@ -36,13 +42,21 @@ class Display2D(ReactiveHTML):
     def __init__(
             self,
             cfg: display_cfg.Display2D,
-            metadatas: MetadataCollection,
+            metadatas: List[ImageMetadata],
             **params):
+        """
+        :param metadatas: list of output metadata; metadata[i] corresponds to
+            value[i] from the update method
+        """
         super().__init__(**params)
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
         self.cfg = cfg
         self.metadatas = metadatas
-        self.render_view = self._create_pipeline()
+        self.vtk_inputs = []
+        self.initial_arrays = []
+        self.vtk_img_actors = []
+        self.vtk_main_img_actor = None
+        self.render_view = self._create_pipeline(self.metadatas, self.cfg)
         if self.port == 0:
             self.port = get_free_port_for_address(self.host)
         self.server = VTKDisplayServer(
@@ -53,73 +67,109 @@ class Display2D(ReactiveHTML):
                 debug=False
             )
         )
-        # Only for debug purposes
-        self._update_thread = threading.Thread(target=self._update)
 
     def start(self):
-        self._update_thread.start()
         self.start_result = self.server.start()
         self.logger.info(f"Server started at: ws://{self.host}:{self.port}")
 
     def join(self):
         self.server.join()
 
-    def _create_pipeline(self):
-        self.bmodes = np.load(
-            "/home/pjarosik/data/us4useu/gui4us/data_2023-05-24_15-28-33_bmodes.npy")
+    def _create_pipeline(
+            self,
+            metadatas: List[ImageMetadata],
+            cfg: display_cfg.Display2D
+    ):
+        # General
         colors = vtk.vtkNamedColors()
+        layer_cfgs = cfg.layers
+        assert len(layer_cfgs) == metadatas
 
-        def to_img(bmode):
-            bmode = np.clip(bmode, 20, 80)
-            bmode_max, bmode_min = np.max(bmode), np.min(bmode)
-            bmode = (bmode-bmode_min) / (bmode_max-bmode_min)
-            return bmode * 255
-
-        self.bmodes = [to_img(b) for b in self.bmodes]
-
-        self.vtk_img = to_vtk_image_data(self.bmodes[0])
-
-        # Create a renderer, render window, and interactor
+        # Create a renderer, render window
         self.renderer = vtk.vtkRenderer()
         self.render_window = vtk.vtkRenderWindow()
         self.render_window.AddRenderer(self.renderer)
 
-        # pre-processing
-        # Flip the input image.
-        # Without that VTK will display image in the incorrect order.
-        flip = vtk.vtkImageFlip()
-        flip.SetInputData(self.vtk_img)
-        flip.SetFilteredAxes(1)
+        for i, layer_cfg in enumerate(layer_cfgs):
+            m = metadatas[i]
+            initial_array = np.zeros(m.shape, dtype=m.dtype)
+            self.initial_arrays.append(initial_array)
+            vtk_img = to_vtk_image_data(initial_array)
+            self.vtk_inputs.append(vtk_img)
 
-        # Colormap.
-        # TODO convert matplotlib colormap to VTK colormap
-        color_function = vtk.vtkColorTransferFunction()
-        color_function.AddRGBPoint(0.0, 0.0, 1.0, 0.0)
-        color_function.AddRGBPoint(255.0, 1.0, 0.0, 0.0)
+            # pre-processing
+            # Flip the input image.
+            # Without that VTK will display image flipped vertically.
+            flip = vtk.vtkImageFlip()
+            flip.SetInputData(vtk_img)
+            flip.SetFilteredAxes(1)
 
-        color_map = vtk.vtkImageMapToColors()
-        color_map.SetInputConnection(flip.GetOutputPort())
-        color_map.SetLookupTable(color_function)
-        color_map.Update()
+            # Map to colors and apply dynamic range.
+            dr_min, dr_max = layer_cfg.value_range
+            vtk_cmap_lut = convert_from_named_to_vtk_cmap(layer_cfg.cmap)
+            vtk_cmap_lut.SetTableRange(dr_min, dr_max)
+            color_map = vtk.vtkImageMapToColors()
+            color_map.SetInputConnection(flip.GetOutputPort())
+            color_map.SetLookupTable(vtk_cmap_lut)
+            color_map.Update()
+            img_actor = vtk.vtkImageActor()
+            img_actor.GetMapper().SetInputConnection(color_map.GetOutputPort())
+            self.vtk_img_actors.append(img_actor)
 
-        # Main Actor.
-        img = vtk.vtkImageActor()
-        img.GetMapper().SetInputConnection(color_map.GetOutputPort())
+           # Merge layers
+        if len(self.vtk_img_actors) > 1:
+            # Blend and create the final actor
+            blend = vtk.vtkImageBlend()
+            for i, actor in enumerate(self.vtk_img_actors):
+                blend.AddInputConnection(actor.GetMapper().GetInputConnection())
+                blend.blend.SetOpacity(i, 1.0)
+            self.vtk_main_img_actor = vtk.vtkImageActor()
+            self.vtk_main_img_actor.GetMapper().SetInputConnection(
+                    blend.GetOutputPort())
+        else:
+                        # Just set the main actor as the only one.
+            self.vtk_main_img_actor = self.vtk_img_actors[0]
 
+        # Axes
         self.axes = vtk.vtkCubeAxesActor2D()
         self.axes.SetCamera(self.renderer.GetActiveCamera())
         self.axes.SetZAxisVisibility(0)
-        ny, nx = self.bmodes[0].shape
+        reference_metadata = metadatas[0]
+        ny, nx = reference_metadata.shape
         self.axes.SetBounds(0, nx, 0, ny, 0, 1)
-        self.axes.SetRanges(-25, 25, 50, 0, 0, 1)
+
+        # Extent
+        extents = None
+        if cfg.extents is not None:
+            extents = cfg.extents
+        elif reference_metadata.extents is not None:
+            extents = reference_metadata.extents
+        if extents is not None:
+            min_x, max_x = extents[0]
+            min_z, max_z = extents[1]
+            self.axes.SetRanges(min_x, max_x, max_z, min_z, 0, 1)
         self.axes.UseRangesOn()
-        self.axes.SetXLabel("OX (mm)")
-        self.axes.SetYLabel("OY (mm)")
-        self.renderer.AddViewProp(self.axes)
+
+        # AXIS LABELS
+        axis_labels = None
+        if cfg.ax_labels is not None:
+            axis_labels = cfg.ax_labels
+        elif reference_metadata.ids is not None:
+            axis_labels = reference_metadata.ids
+        else:
+            axis_labels = "", ""
+
+        units = "" , ""
+        if reference_metadata.units is not None:
+            units = reference_metadata.units
+
+        self.axes.SetXLabel(f"{axis_labels[0]} ({units[0]})")
+        self.axes.SetYLabel(f"{axis_labels[1]} ({units[1]})")
 
         # Add the actor to the scene
+        self.renderer.AddViewProp(self.axes)
         self.renderer.ResetCamera()
-        self.renderer.AddActor(img)
+        self.renderer.AddActor(self.vtk_main_img_actor)
         self.renderer.AddActor(self.axes)
         self.renderer.GetActiveCamera().Zoom(1.5)
         self.render_window.SetOffScreenRendering(1)
@@ -127,13 +177,9 @@ class Display2D(ReactiveHTML):
         self.renderer.SetBackground(colors.GetColor3d("silver"))
         return self.render_window
 
-    def _update(self):
-        self.i = 0
-        while True:
-            data = vtk.util.numpy_support.numpy_to_vtk(
-                self.bmodes[self.i].ravel(), deep=False)
-            self.i = (self.i + 1) % 100
-            self.vtk_img.GetPointData().SetScalars(data)
+    def update(self, data):
+        for i, d in enumerate(data):
+            new_d = vtk.util.numpy_support.numpy_to_vtk(d.ravel(), deep=False)
+            self.vtk_inputs[i].GetPointData().SetScalars(new_d)
             self.render_window.Render()
-            time.sleep(0.05)
 
