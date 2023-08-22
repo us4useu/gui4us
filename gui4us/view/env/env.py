@@ -109,7 +109,7 @@ class EnvironmentView(AbstractPanelView):
         return result
 
     def _update(self, data):
-        for display_id, display in self.displays:
+        for display_id, display in self.displays.items():
             # For that display, get outputs in the proper order.
             ordinals = self.ordinals_by_display[display_id]
             display_data = [data[o] for o in ordinals]

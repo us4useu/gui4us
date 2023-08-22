@@ -14,7 +14,10 @@ class ActionsPanel(pn.viewable.Viewer):
             sizing_mode="stretch_width",
             button_type="primary"
         )
-        self._capture_button = pn.widgets.Button(name="Capture", sizing_mode="stretch_width")
+        self._capture_button = pn.widgets.Button(
+            name="Capture",
+            sizing_mode="stretch_width"
+        )
         self._layout = pn.Column(
             self._start_stop_button,
             self._capture_button
@@ -25,7 +28,7 @@ class ActionsPanel(pn.viewable.Viewer):
 
     def set_start_stop_button_callback(
             self, start_callback: Callable, stop_callback: Callable):
-        def internal_callback():
+        def internal_callback(*args, **kwargs):
             try:
                 if self._start_stop_button.name == "Start":
                     start_callback()
@@ -36,3 +39,4 @@ class ActionsPanel(pn.viewable.Viewer):
             except Exception as e:
                 self.logger.error("Exception while pressing start/stop button")
                 self.logger.exception(e)
+        self._start_stop_button.on_click(internal_callback)

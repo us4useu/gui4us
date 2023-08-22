@@ -1,4 +1,5 @@
 from typing import List
+import time
 
 import numpy as np
 import param
@@ -83,7 +84,7 @@ class Display2D(ReactiveHTML):
         # General
         colors = vtk.vtkNamedColors()
         layer_cfgs = cfg.layers
-        assert len(layer_cfgs) == metadatas
+        assert len(layer_cfgs) == len(metadatas)
 
         # Create a renderer, render window
         self.renderer = vtk.vtkRenderer()
@@ -171,7 +172,7 @@ class Display2D(ReactiveHTML):
         self.renderer.ResetCamera()
         self.renderer.AddActor(self.vtk_main_img_actor)
         self.renderer.AddActor(self.axes)
-        self.renderer.GetActiveCamera().Zoom(1.5)
+        self.renderer.GetActiveCamera().Zoom(1.3)
         self.render_window.SetOffScreenRendering(1)
 
         self.renderer.SetBackground(colors.GetColor3d("silver"))

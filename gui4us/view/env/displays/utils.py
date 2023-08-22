@@ -47,9 +47,7 @@ def convert_from_named_to_vtk_cmap(name: str):
     vtk_cmap.SetNumberOfColors(matplotlib_cmap.N)
     for i in range(matplotlib_cmap.N):
         rgba_color = matplotlib_cmap(i)
-        # Convert to 8-bit RGB
-        vtk_color = [int(c * 255) for c in rgba_color]
-        # Set RGB values and alpha (255 for fully opaque)
-        vtk_cmap.SetTableValue(i, *vtk_color)
+        # Set colormap values (color component: [0, 1])
+        vtk_cmap.SetTableValue(i, *rgba_color[:3], 1.0)
     return vtk_cmap
 

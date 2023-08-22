@@ -8,22 +8,22 @@ displays = {
         title=f"OX",
         layers=(
             Layer2D(
-                value_range=(0, 255),
-                cmap="gray",
+                value_range=(0.0, 1.0),
+                cmap="inferno",
                 input=StreamDataId("default", 0),
             ),
         ),
     ),
-    "OY": Display2D(
-        title=f"OY",
-        layers=(
-            Layer2D(
-                value_range=(0, 255),
-                cmap="gray",
-                input=StreamDataId("default", 1),
-            ),
-        ),
-    ),
+    # "OY": Display2D(
+    #     title=f"OY",
+    #     layers=(
+    #         Layer2D(
+    #             value_range=(0, 255),
+    #             cmap="gray",
+    #             input=StreamDataId("default", 1),
+    #         ),
+    #     ),
+    # ),
 }
 
 VIEW_CFG = ViewCfg(displays)
