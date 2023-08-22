@@ -58,7 +58,18 @@ class EnvironmentView(AbstractPanelView):
             d.join()
 
     def _create_control_panel(self) -> Viewable:
-        return ControlPanel()
+        control_panel = ControlPanel()
+        control_panel.set_start_stop_button_callback(
+            start_callback=self._start_controller,
+            stop_callback=self._stop_controller
+        )
+        return control_panel
+
+    def _start_controller(self):
+        self.env.start()
+
+    def _stop_controller(self):
+        self.env.stop()
 
     def _create_displays(self) -> Dict[str, Viewable]:
         cfg_to_clz = {
