@@ -7,6 +7,8 @@ import panel as pn
 from bokeh.client import pull_session
 from bokeh.embed import server_session
 from panel.io.server import StoppableThread
+import time
+import asyncio
 
 import gui4us.utils
 from gui4us.view.env.layout import GUI4usLayout
@@ -99,6 +101,10 @@ class AbstractPanelView(ABC):
         self.logger.info(f"Starting view server: {self.title}, "
               f"address: {self.address}, "
               f"port: {self.server.port}")
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         self.server.start()
         try:
             self.server.io_loop.start()

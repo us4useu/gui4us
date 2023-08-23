@@ -134,6 +134,15 @@ class Display2D(ReactiveHTML):
             self.vtk_main_img_actor.GetMapper().SetInputConnection(output.GetOutputPort())
         # Axes
         self.axes = vtk.vtkCubeAxesActor2D()
+        # TODO
+        # self.axes.GetXAxisActor2D().SetLabelFormat("%3.1f")
+        label_property = vtk.vtkTextProperty()
+        label_property.ItalicOff()
+        label_property.SetFontSize(10)
+        self.axes.SetAxisLabelTextProperty(label_property)
+        self.axes.SetAxisTitleTextProperty(label_property)
+        # self.axes.GetXAxisActor2D().SetLabelTextProperty(label_property)
+
         self.axes.SetCamera(self.renderer.GetActiveCamera())
         self.axes.SetZAxisVisibility(0)
         reference_metadata = metadatas[0]
@@ -147,13 +156,15 @@ class Display2D(ReactiveHTML):
         elif reference_metadata.extents is not None:
             extents = reference_metadata.extents
         if extents is not None:
-            min_x, max_x = extents[0]
-            min_z, max_z = extents[1]
+            min_z, max_z = extents[0]
+            min_x, max_x = extents[1]
             self.axes.SetRanges(min_x, max_x, max_z, min_z, 0, 1)
-        self.axes.UseRangesOn()
+            self.axes.UseRangesOn()
+        else:
+            raise ValueError
+
 
         # AXIS LABELS
-        axis_labels = None
         if cfg.ax_labels is not None:
             axis_labels = cfg.ax_labels
         elif reference_metadata.ids is not None:
@@ -164,9 +175,11 @@ class Display2D(ReactiveHTML):
         units = "" , ""
         if reference_metadata.units is not None:
             units = reference_metadata.units
+            unit_x, unit_y = f" ({units[0]})", f" ({units[1]})"
+            units = unit_x, unit_y
 
-        self.axes.SetXLabel(f"{axis_labels[0]} ({units[0]})")
-        self.axes.SetYLabel(f"{axis_labels[1]} ({units[1]})")
+        self.axes.SetXLabel(f"{axis_labels[0]}{units[0]}")
+        self.axes.SetYLabel(f"{axis_labels[1]}{units[1]}")
 
         # Add the actor to the scene
         self.renderer.AddViewProp(self.axes)
