@@ -184,20 +184,24 @@ class UltrasoundEnv(Env):
         return self.stream
 
     def get_stream_metadata(self) -> MetadataCollection:
-        # TODO assumming each output has exactly the same extent
-        x_grid, z_grid = self._determine_image_grid()
-        oxz_extent = np.array([np.min(z_grid), np.max(z_grid),
-                               np.min(x_grid), np.max(x_grid)])*1e3
-
         image_metadata = {}
+        print(self.metadata)
         for i, m in enumerate(self.metadata):
+            spacing = m.data_description.spacing
+            extents = []
+            if spacing is not None:
+                for coords in spacing.coordinates:
+                    extents.append((np.min(coords), np.max(coords)))
+                extents = tuple(extents)
+            else:
+                # Use the pixel units
+                for ax_dimension in m.input_shape:
+                    extents.append((0, ax_dimension))
+                extents=tuple(extents)
             im = ImageMetadata(
                 shape=m.input_shape,
                 dtype=m.dtype,
-                ids=("OX", "OZ"),
-                units=("mm", "mm"),
-                extents=((oxz_extent[0], oxz_extent[1]),
-                         (oxz_extent[2], oxz_extent[3]))
+                extents=extents
             )
             image_metadata[StreamDataId("default", i)] = im
         return MetadataCollection(image_metadata)
@@ -216,21 +220,3 @@ class UltrasoundEnv(Env):
             print(e)
         except:
             print("Unknown exception")
-
-    def _determine_image_grid(self):
-        # TODO the output grid dimensions should be a part of the arrus metadata
-        if isinstance(self.scheme.processing, arrus.utils.imaging.Processing):
-            pipeline = self.scheme.processing.pipeline
-        else:
-            pipeline = self.scheme.processing
-        grid_steps = [step for step in pipeline.steps
-                      if hasattr(step, "x_grid") and hasattr(step, "z_grid")
-                      ]
-        if len(grid_steps) > 0:
-            grid_step = grid_steps[-1]
-            return grid_step.x_grid, grid_step.z_grid
-        else:
-            raise ValueError("The processing should contain imaging step.")
-
-
-
