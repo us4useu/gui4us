@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 
 class ControlPanel(pn.viewable.Viewer):
 
-    def __init__(self, **kwargs):
+    def __init__(self, env_controller, **kwargs):
         super().__init__(**kwargs)
         self._actions_panel = ActionsPanel(name="Actions")
         self._layout = pn.Accordion(
             self._actions_panel,
-            SettingsPanel(name="Settings"),
+            SettingsPanel(name="Settings", controller=env_controller),
             toggle=False,
             sizing_mode="stretch_both",
             active=[0, 1]
