@@ -32,7 +32,7 @@ class GUI4usLayout(pn.template.Template):
             self.add_panel("header", self.get_header(
                 app_url,
             ))
-        self.add_panel("control_panel", control_panel)
+        self.add_panel("control_panel", pn.Column(control_panel, sizing_mode="stretch_both"))
         self.set_displays(displays)
         self.add_panel("envs", envs)
         self.add_panel("console", console)

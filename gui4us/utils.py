@@ -4,6 +4,7 @@ import os
 import pathlib
 import socket
 from contextlib import closing
+import webbrowser
 
 
 class CfgRegister:
@@ -60,3 +61,7 @@ def get_free_port_for_address(address: str):
         s.bind((address, 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+
+def open_browser(url):
+    webbrowser.open_new(url)

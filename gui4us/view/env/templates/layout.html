@@ -70,7 +70,7 @@ var config = {
                 type: "component",
                 componentName: "view",
                 componentState: {
-                    model: '<div style="width: 100%; height: 100%">{{embed(roots.control_panel)}}</div>',
+                    model: '<div id="control-panel-pane" style="width: 100%; height: 100%; overflow-y: auto; background: white">{{embed(roots.control_panel)}}<div style="clear:both;"></div></div>',
                     title: "Control Panel",
                     width: 350,
                     css_classes:["scrollable"]

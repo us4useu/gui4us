@@ -13,12 +13,20 @@ class ControlPanel(pn.viewable.Viewer):
     def __init__(self, env_controller, **kwargs):
         super().__init__(**kwargs)
         self._actions_panel = ActionsPanel(name="Actions")
+        accordion_stylsheet = """
+        .mdc-card, .accordion, .bk-panel-models-layout-Card {
+          box-shadow: none;
+          border: none;
+        }
+        """
         self._layout = pn.Accordion(
             self._actions_panel,
             SettingsPanel(name="Settings", controller=env_controller),
             toggle=False,
             sizing_mode="stretch_both",
-            active=[0, 1]
+            active=[0, 1],
+            styles={"box-shadow": "none", "border": "none"},
+            stylesheets=[accordion_stylsheet],
         )
 
     def __panel__(self) -> pn.viewable.Viewable:

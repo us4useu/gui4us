@@ -15,7 +15,7 @@ class SpinBox(Viewer):
             self._input = pn.widgets.FloatInput(**params)
         else:
             raise ValueError(f"Invalid data type: {data_type}")
-        super().__init__(**params)
+        super().__init__()
 
     def __panel__(self) -> pn.viewable.Viewable:
         return self._input
@@ -39,10 +39,9 @@ class Slider(Viewer):
             self._input = pn.widgets.EditableIntSlider(**params)
         elif data_type == "float" or data_type == np.float32 or data_type == np.float64:
             self._input = pn.widgets.EditableFloatSlider(**params)
-        super().__init__(**params)
+        super().__init__()
 
     def __panel__(self) -> pn.viewable.Viewable:
-        print(self._input)
         return self._input
 
     def on_change(self, clbk: Callable[[Any], None]):
@@ -50,7 +49,7 @@ class Slider(Viewer):
         def internal_callback(event):
             clbk(self._input.value)
 
-        self._input.param.watch(internal_callback, "value")
+        self._input.param.watch(internal_callback, "value_throttled")
 
     @property
     def value(self):
@@ -62,14 +61,14 @@ class WidgetSequence(Viewer):
     def __init__(self, widget_type, labels, **params):
         self._inputs = []
         fields = []
-        init_value = params["init_value"]
+        init_value = params["value"]
         for l, v in zip(labels, init_value):
             widget_params = params.copy()
-            widget_params["init_value"] = v
+            widget_params["value"] = v
             widget = widget_type(**widget_params)
             self._inputs.append(widget)
             field = pn.Column(
-                pn.pane.Markdown(l),
+                # pn.pane.Markdown(l),
                 widget
             )
             fields.append(field)

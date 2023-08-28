@@ -44,20 +44,20 @@ class SettingsPanel(pn.viewable.Viewer):
 
     def _create_fields(self, settings: Sequence[SettingDef]):
         fields = []
-        for setting in self.settings:
+        for setting in settings:
             if isinstance(setting, SettingDef):
                 fields.append(self._convert_to_field(setting))
         return fields
 
     def _convert_to_field(self, setting: SettingDef):
-        label = f"{setting.name}"
+        label = f"**{setting.name}**"
         space = setting.space
         if space.unit is not None and setting.space.is_scalar():
             label += f" [{space.unit}]"
         widget = self._convert(setting)
         return pn.Column(
             pn.pane.Markdown(label),
-            widget
+            widget,
         )
 
     def _convert(self, setting_def: SettingDef):
