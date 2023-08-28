@@ -1,4 +1,5 @@
 import pathlib
+from typing import Optional
 
 import panel as pn
 import param
@@ -13,7 +14,7 @@ class GUI4usLayout(pn.template.Template):
 
     def __init__(
             self,
-            app_url: str,
+            app_url: Optional[str],
             control_panel,
             displays,
             envs,
@@ -26,9 +27,11 @@ class GUI4usLayout(pn.template.Template):
         super().__init__(
             template=GUI4usLayout.TEMPLATE.read_text(),
         )
-        self.add_panel("header", self.get_header(
-            app_url,
-        ))
+
+        if app_url is not None:
+            self.add_panel("header", self.get_header(
+                app_url,
+            ))
         self.add_panel("control_panel", control_panel)
         self.set_displays(displays)
         self.add_panel("envs", envs)

@@ -35,7 +35,7 @@ class AbstractPanelView(ABC):
     def __init__(
             self,
             title: str,
-            app_url: str,
+            app_url: Optional[str],
             address: Optional[str] = None,
             dialog_autostart=False,
             dialog_closable=True,

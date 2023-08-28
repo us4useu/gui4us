@@ -21,7 +21,7 @@ class EnvironmentView(AbstractPanelView):
             self,
             title: str,
             address: Optional[str],
-            app_url: str,
+            app_url: Optional[str],
             cfg_path: str,
             env: EnvironmentController,
     ):
