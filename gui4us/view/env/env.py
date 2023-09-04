@@ -1,4 +1,6 @@
 import os
+import threading
+from multiprocessing.pool import ThreadPool
 from typing import Optional, Dict
 
 from gui4us.controller.task import Promise
@@ -46,9 +48,14 @@ class EnvironmentView(AbstractPanelView):
         super().__init__(title=title, app_url=app_url, address=address)
         self.stream = env.get_stream()
         self.stream.append_on_new_data_callback(self._update)
+        self.workers_pool = None
 
     def run(self):
         super().run()
+        # +1 is heuristic
+        # self.workers_pool = ThreadPool(processes=10)
+        # self.update_callbacks = [lambda data: d.update(data) for _, d in self.displays.items()]
+        # print(self.update_callbacks)
         for _, display in self.displays.items():
             display.start()
 
@@ -117,7 +124,9 @@ class EnvironmentView(AbstractPanelView):
             # For that display, get outputs in the proper order.
             ordinals = self.ordinals_by_display[display_id]
             display_data = [data[o] for o in ordinals]
-            display.update(display_data)
+            threading.Thread(target=lambda: display.update(display_data)).start()
+            # self.workers_pool.apply_async(lambda: display.update(display_data))
+            # display.update(display_data)
 
     def _get_ordinals_by_display(self, view_cfg: ViewCfg):
         result = {}
@@ -131,3 +140,15 @@ class EnvironmentView(AbstractPanelView):
                 raise ValueError(f"Unsupported display configuration: {display}")
             result[k] = ordinals
         return result
+
+    def _get_total_number_of_workers(self, displays):
+        result = 0
+        for k, display in displays.items():
+            if isinstance(display, display_cfg.Display3D):
+                result += 1
+            else:
+                for l in display.layers:
+                    result += 1
+        print(f"Number of workers: {result}")
+        return result
+
