@@ -14,6 +14,7 @@ from gui4us.view.env.displays.vtk import (
     VTKDisplayServer, VTKDisplayServerOptions
 )
 from .utils import to_vtk_image_data, convert_from_named_to_vtk_cmap
+from gui4us.model.core import SettingDef, SetAction, Box
 
 
 # TODO possible optimization:
@@ -57,6 +58,10 @@ class Display2D(ReactiveHTML):
         self.vtk_inputs = []
         self.initial_arrays = []
         self.preprocessing_outputs = []
+        self.settings = []
+        self.setters = []
+        self.current_dr_min = []
+        self.current_dr_max = []
         self.vtk_main_img_actor = None
         self.render_view = self._create_pipeline(self.metadatas, self.cfg)
         if self.port == 0:
@@ -115,6 +120,45 @@ class Display2D(ReactiveHTML):
             color_map.SetInputConnection(flip.GetOutputPort())
             color_map.SetLookupTable(vtk_cmap_lut)
             color_map.Update()
+
+            def setter_dr_min(action):
+                self.current_dr_min[i] = action.value
+                vtk_cmap_lut.SetTableRange(self.current_dr_min[i], self.current_dr_max[i])
+                color_map.Update()
+
+            def setter_dr_max(action):
+                self.current_dr_max[i] = action.value
+                vtk_cmap_lut.SetTableRange(self.current_dr_min[i], self.current_dr_max[i])
+                color_map.Update()
+
+            setting_dr_min = SettingDef(
+                name=f"{self.display_name}/{i}/dynamic_range_min",
+                space=Box(
+                    shape=(1,),
+                    dtype=np.float32,
+                    low=-np.inf,
+                    high=np.inf  # Read from us4R object
+                ),
+                initial_value=dr_min,
+                step=1
+            )
+
+            setting_dr_max = SettingDef(
+                name=f"{self.display_name}/{i}/dynamic_range_max",
+                space=Box(
+                    shape=(1,),
+                    dtype=np.float32,
+                    low=-np.inf,
+                    high=np.inf  # Read from us4R object
+                ),
+                initial_value=dr_max,
+                step=1
+            )
+
+            self.settings.append(setting_dr_min)
+            self.setters.append(setter_dr_min)
+            self.current_dr_min.append(dr_min)
+            self.current_dr_max.append(dr_max)
 
             self.preprocessing_outputs.append(color_map)
 
@@ -198,3 +242,17 @@ class Display2D(ReactiveHTML):
             self.vtk_inputs[i].GetPointData().SetScalars(new_d)
             self.render_window.Render()
 
+    def get_settings(self):
+        return [
+            SettingDef(
+                name=f"{self.display_name}/dynamic_range_min",
+                space=Box(
+                    shape=(1,),
+                    dtype=np.float32,
+                    low=-np.inf,
+                    high=np.inf  # Read from us4R object
+                ),
+                initial_value=self.initial_voltage,
+                step=5
+            ),
+        ]

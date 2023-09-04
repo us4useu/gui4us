@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class ControlPanel(pn.viewable.Viewer):
 
-    def __init__(self, env_controller, **kwargs):
+    def __init__(self, env_controller, displays, **kwargs):
         super().__init__(**kwargs)
         self._actions_panel = ActionsPanel(name="Actions")
         accordion_stylsheet = """
@@ -21,7 +21,8 @@ class ControlPanel(pn.viewable.Viewer):
         """
         self._layout = pn.Accordion(
             self._actions_panel,
-            SettingsPanel(name="Settings", controller=env_controller),
+            SettingsPanel(
+                name="Settings", controller=env_controller, displays=displays),
             toggle=False,
             sizing_mode="stretch_both",
             active=[0, 1],

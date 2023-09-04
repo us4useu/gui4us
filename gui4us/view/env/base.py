@@ -50,10 +50,11 @@ class AbstractPanelView(ABC):
         self.logger = get_logger(f"{type(self)} {title}")
         self.title = title
         self.dialog_title, self.dialog_view = self._create_dialog_view()
+        displays = self._create_displays()
         self.template = GUI4usLayout(
             app_url=app_url,
-            control_panel=self._create_control_panel(),
-            displays=self._create_displays(),
+            control_panel=self._create_control_panel(displays),
+            displays=displays,
             envs=self._create_envs_panel(),
             console=self._create_console_log_panel(),
             dialog=self.dialog_view,
@@ -148,7 +149,7 @@ class AbstractPanelView(ABC):
         return self.template
 
     @abstractmethod
-    def _create_control_panel(self) -> Viewable:
+    def _create_control_panel(self, displays) -> Viewable:
         pass
 
     @abstractmethod

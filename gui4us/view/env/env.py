@@ -57,8 +57,8 @@ class EnvironmentView(AbstractPanelView):
         for _, d in self.displays.items():
             d.join()
 
-    def _create_control_panel(self) -> Viewable:
-        control_panel = ControlPanel(self.env)
+    def _create_control_panel(self, displays) -> Viewable:
+        control_panel = ControlPanel(self.env, displays)
         control_panel.set_start_stop_button_callback(
             start_callback=self._start_controller,
             stop_callback=self._stop_controller
