@@ -6,7 +6,7 @@ from gui4us.model import *
 from gui4us.logging import get_logger
 
 DATA_SHAPE_1 = (100, 100)
-DATA_SHAPE_2 = (50, 100)
+DATA_SHAPE_2 = (100, 50, 50)
 
 
 class DummyStream(Stream):
@@ -15,6 +15,7 @@ class DummyStream(Stream):
         self.thread = threading.Thread(target=self._produce_data)
         self._is_running = False
         self.callbacks = []
+        self.data = np.random.rand(*((4, ) + DATA_SHAPE_2))*100
 
     def append_on_new_data_callback(self, callback: Callable):
         self.callbacks.append(callback)
@@ -28,9 +29,11 @@ class DummyStream(Stream):
         self.thread.start()
 
     def _produce_data(self):
+        i = 0
         while self._is_running:
             data1 = np.random.rand(*DATA_SHAPE_1).astype(np.float32)
-            data2 = np.random.rand(*DATA_SHAPE_2)
+            data2 = self.data[i]
+            i = (i+1) % 4
             for c in self.callbacks:
                 c((data1, data2))
 
