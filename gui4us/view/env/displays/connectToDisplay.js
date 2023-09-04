@@ -30,6 +30,7 @@ export default function connectToDisplay(container, config) {
             const viewStream = client.getImageStream().createViewStream('-1');
 
             const view = vtkRemoteView.newInstance({
+                rpcWheelEvent: 'viewport.mouse.zoom.wheel',
                 viewStream,
             });
             const session = validClient.getConnection().getSession();

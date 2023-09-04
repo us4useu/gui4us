@@ -30,25 +30,17 @@ class AbstractVTKDisplay(ReactiveHTML):
             "state.client = connectToDisplay(display_vtk, {application: data.display_name, sessionURL: sessionURL})"
     }
 
-    def __init__(
-            self,
-            cfg: Union[display_cfg.Display2D, display_cfg.Display3D],
-            metadatas: List[ImageMetadata],
-            **params
-    ):
+    def __init__(self, **params):
         """
         :param metadatas: list of output metadata; metadata[i] corresponds to
             value[i] from the update method
         """
         super().__init__(**params)
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
-        self.cfg = cfg
-        self.metadatas = metadatas
-        self.inputs, self.render_view = self._create_pipeline(self.metadatas, self.cfg)
         if self.port == 0:
             self.port = get_free_port_for_address(self.host)
         self.server = VTKDisplayServer(
-            render_view=self.render_view,
+            render_view=self.render_window,  # should be created by child
             options=VTKDisplayServerOptions(
                 host=self.host,
                 port=self.port,

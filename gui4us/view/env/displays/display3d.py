@@ -5,8 +5,6 @@ import param
 import scipy.ndimage
 import vtk
 
-import gui4us.cfg.display as display_cfg
-from gui4us.common import ImageMetadata
 from gui4us.logging import get_logger
 from gui4us.view.env.displays.vtk_display import AbstractVTKDisplay
 
@@ -16,14 +14,13 @@ class Display3D(AbstractVTKDisplay):
     port = param.Integer(default=0)
     display_name = param.String(default="Display3D")
 
-    def __init__(self, cfg: display_cfg.Display3D,
-                 metadatas: List[ImageMetadata],
-                 **params):
-        super().__init__(**params)
+    def __init__(self, cfg, metadatas, **params):
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
         self.cfg = cfg
         self.metadatas = metadatas
         self._create_pipeline(self.metadatas)
+        # Must be called after creating the pipeline
+        super().__init__(**params)
 
     def _create_pipeline(self, metadatas):
         colors = vtk.vtkNamedColors()

@@ -61,14 +61,14 @@ class VTKDisplayServerProtocol(Gui4usServerProtocol):
         self.register_vtk_web_protocol(protocols.vtkWebViewPort())
         self.publish_protocol = protocols.vtkWebPublishImageDelivery(decode=False)
         self.register_vtk_web_protocol(self.publish_protocol)
-        self.register_vtk_web_protocol(
-            protocols.vtkWebViewPortGeometryDelivery())
+        self.register_vtk_web_protocol(protocols.vtkWebViewPortGeometryDelivery())
+        # TODO fix the below
+        # self.register_vtk_web_protocol(protocols.vtkWebMouseHandler())
         # Update authentication key to use
         self.updateSecret(VTKDisplayServerProtocol.authKey)
 
         self.get_application().SetImageEncoding(0)
-        self.get_application().GetObjectIdMap().SetActiveObject("VIEW",
-                                                                self.render_view)
+        self.get_application().GetObjectIdMap().SetActiveObject("VIEW", self.render_view)
         self.publish_protocol.setMaxFrameRate(fps=100)
         self.publish_protocol.startViewAnimation()
 
@@ -80,8 +80,8 @@ class VTKDisplayServer:
             render_view=render_view)
         self.options = options
         self.main_task = None
-        self.main_thread  = None
-        self.server_loop = asyncio.get_event_loop()# asyncio.new_event_loop()
+        self.main_thread = None
+        self.server_loop = asyncio.get_event_loop()  # asyncio.new_event_loop()
 
     def start(self):
         # NOTE: the below task will run in the current thread (main?)

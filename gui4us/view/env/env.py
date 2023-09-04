@@ -104,8 +104,12 @@ class EnvironmentView(AbstractPanelView):
         displays = view_cfg.displays
         result = defaultdict(list)
         for id, display in displays.items():
-            for layer in display.layers:
-                result[id].append(m.output(layer.input))
+            # TODO make the 3D display multi-layered
+            if isinstance(display, display_cfg.Display3D):
+                result[id].append(m.output(display.input))
+            else:
+                for layer in display.layers:
+                    result[id].append(m.output(layer.input))
         return result
 
     def _update(self, data):
@@ -117,7 +121,13 @@ class EnvironmentView(AbstractPanelView):
 
     def _get_ordinals_by_display(self, view_cfg: ViewCfg):
         result = {}
-        for k, display_cfg in view_cfg.displays.items():
-            ordinals = [l.input.ordinal for l in display_cfg.layers]
+        for k, display in view_cfg.displays.items():
+            # TODO make 3D display multi-layered
+            if isinstance(display, display_cfg.Display3D):
+                ordinals = [display.input.ordinal]
+            elif isinstance(display, display_cfg.Display2D):
+                ordinals = [l.input.ordinal for l in display.layers]
+            else:
+                raise ValueError(f"Unsupported display configuration: {display}")
             result[k] = ordinals
         return result
