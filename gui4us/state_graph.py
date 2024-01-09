@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, Set
-from collections import Iterable
+from typing import Union, Set, Iterable
 
 StateId = str
 ActionId = str

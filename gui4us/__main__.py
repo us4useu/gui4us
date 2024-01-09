@@ -12,8 +12,7 @@ from gui4us.view import View, start_view_app
 
 LOGGER = get_logger(__name__)
 
-
-if __name__ == "__main__":
+def main():
     # Read input parameters.
     env = None
     try:
@@ -43,3 +42,5 @@ if __name__ == "__main__":
         LOGGER.info("gui4us closed.")
 
 
+if __name__ == "__main__":
+    main()

@@ -64,7 +64,13 @@ class EnvController:
         Creates underlying app model and starts event handler loop.
         """
         try:
-            self.cfg = load_cfg(self.env_cfg_path, self.id)
+            try:
+                self.cfg = load_cfg(self.env_cfg_path, self.id)
+            except Exception as e:
+                self.logger.exception(e)
+                self.started_properly = False
+                self.env_ready_event.set()  # wake up master thread
+                return
             self.env = self.cfg.ENV
             self.started_properly = True
             self.env_ready_event.set()
