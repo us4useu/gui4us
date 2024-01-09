@@ -12,6 +12,7 @@ from gui4us.common import *
 from arrus.ops.us4r import *
 import dataclasses
 from dataclasses import dataclass
+import numpy as np
 
 
 class ArrusStream(Stream):
@@ -31,10 +32,10 @@ class Curve:
 
 @dataclass(frozen=True)
 class ArrusEnvConfiguration:
-    medium: arrus.medium.Medium
     scheme: arrus.ops.us4r.Scheme
     tgc: Curve
-    voltage: float = 5  # [V]
+    medium: Optional[arrus.medium.Medium] = None
+    voltage: Optional[float] = 5  # [V]
 
 
 def get_depth_range(depth_grid: Iterable[float]):
@@ -99,7 +100,8 @@ class UltrasoundEnv(Env):
         }
         self.stream = ArrusStream()
         # Configure.
-        self.us4r.set_hv_voltage(self.initial_voltage)
+        if self.initial_voltage is not None:
+            self.us4r.set_hv_voltage(self.initial_voltage)
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
         self.metadata = self.session.upload(self.scheme)
@@ -146,8 +148,31 @@ class UltrasoundEnv(Env):
             arrus_processing_parameters,
             key=lambda setting: setting.name
         )
-        return arrus_processing_parameters + [
-            SettingDef(
+        if self.medium is not None:
+            tgc_space = Box(
+                shape=(len(self.tgc_sampling_points),),
+                dtype=np.float32,
+                low=14,
+                high=54,
+                name=[f"{i*1e3:.0f} [mm]"
+                    for i in self.tgc_sampling_points],
+                unit=["dB"]*len(self.tgc_sampling_points)
+            )
+        else:
+            # Seconds
+            tgc_space = Box(
+                shape=(len(self.tgc_sampling_points),),
+                dtype=np.float32,
+                low=14,
+                high=54,
+                name=[f"{i*1e6:.0f} [us]"
+                    for i in self.tgc_sampling_points],
+                unit=["dB"]*len(self.tgc_sampling_points)
+            )
+
+        parameters = arrus_processing_parameters
+        if self.initial_voltage is not None:
+            parameters += SettingDef(
                 name="Voltage",
                 space=Box(
                     shape=(1,),
@@ -157,27 +182,23 @@ class UltrasoundEnv(Env):
                 ),
                 initial_value=self.initial_voltage,
                 step=5
-            ),
+            )
+        return parameters + [
             SettingDef(
                 name="TGC",
-                space=Box(
-                    shape=(len(self.tgc_sampling_points),),
-                    dtype=np.float32,
-                    low=14,
-                    high=54,
-                    name=[f"{i*1e3:.0f} [mm]"
-                          for i in self.tgc_sampling_points],
-                    unit=["dB"]*len(self.tgc_sampling_points)
-                ),
+                space=tgc_space,
                 initial_value=self.tgc_values,
             ),
         ]
 
     def set_tgc(self, z, value):
         # Medium, z -> time
-        c = self.medium.speed_of_sound
-        z = np.asarray(z)
-        t = z/c*2
+        if self.medium:
+            c = self.medium.speed_of_sound
+            z = np.asarray(z)
+            t = z/c*2
+        else:
+            t = z
         self.us4r.set_tgc((t, value))
 
     def get_stream(self) -> Stream:
