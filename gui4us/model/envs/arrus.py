@@ -172,7 +172,7 @@ class UltrasoundEnv(Env):
 
         parameters = arrus_processing_parameters
         if self.initial_voltage is not None:
-            parameters += SettingDef(
+            parameters += [SettingDef(
                 name="Voltage",
                 space=Box(
                     shape=(1,),
@@ -182,7 +182,7 @@ class UltrasoundEnv(Env):
                 ),
                 initial_value=self.initial_voltage,
                 step=5
-            )
+            ), ]
         return parameters + [
             SettingDef(
                 name="TGC",
