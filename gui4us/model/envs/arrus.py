@@ -169,7 +169,7 @@ class UltrasoundEnv(Env):
                           for i in self.tgc_sampling_points],
                     unit=["dB"]*len(self.tgc_sampling_points)
                 ),
-                initial_value=self.tgc_values,
+                initial_value=np.round(self.tgc_values, decimals=2),
             ),
         ]
 

@@ -156,7 +156,9 @@ class Display2D(ReactiveHTML):
             )
 
             self.settings.append(setting_dr_min)
+            self.settings.append(setting_dr_max)
             self.setters.append(setter_dr_min)
+            self.setters.append(setter_dr_max)
             self.current_dr_min.append(dr_min)
             self.current_dr_max.append(dr_max)
 
@@ -243,16 +245,7 @@ class Display2D(ReactiveHTML):
             self.render_window.Render()
 
     def get_settings(self):
-        return [
-            SettingDef(
-                name=f"{self.display_name}/dynamic_range_min",
-                space=Box(
-                    shape=(1,),
-                    dtype=np.float32,
-                    low=-np.inf,
-                    high=np.inf  # Read from us4R object
-                ),
-                initial_value=self.initial_voltage,
-                step=5
-            ),
-        ]
+        return self.settings
+
+    def get_setters(self):
+        return self.setters

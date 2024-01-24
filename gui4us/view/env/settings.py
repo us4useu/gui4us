@@ -36,7 +36,7 @@ class SettingsPanel(pn.viewable.Viewer):
         settings = self.controller.get_settings()
         self.settings: Sequence[SettingDef] = settings.get_result()  # NOTE: must be list
         self.setters = [self.controller.set]*len(self.settings)
-        for d in displays:
+        for k, d in displays.items():
             self.settings.extend(d.get_settings())
             self.setters.extend(d.get_setters())
 
