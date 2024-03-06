@@ -27,7 +27,7 @@ class EnvironmentView:
         self.parent = parent
         self.env = env
         self.display_panel = DisplayPanel(
-            view_cfg.displays,
+            view_cfg,
             self.env,
             self.parent
         )

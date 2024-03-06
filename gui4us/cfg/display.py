@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence, Dict, Union
+from typing import Sequence, Dict, Union, Tuple, Optional
 from gui4us.model import StreamDataId
 
 
@@ -30,5 +30,19 @@ class Display1D:
 
 
 @dataclass(frozen=True)
+class DisplayLocation:
+    rows: Union[int, Tuple[int, int]]
+    columns: Union[int, Tuple[int, int]]
+
+
+@dataclass(frozen=True)
+class GridSpec:
+    n_rows: int
+    n_columns: int
+    locations: Sequence[DisplayLocation]
+
+
+@dataclass(frozen=True)
 class ViewCfg:
-    displays: Dict[str, Union[Display1D, Display2D]]
+    displays: Sequence[Union[Display1D, Display2D]]
+    grid_spec: Optional[GridSpec] = None

@@ -40,26 +40,51 @@ from gui4us.view.common import *
 from gui4us.model import *
 from gui4us.logging import get_logger
 import gui4us.cfg
-from typing import Dict
+from typing import Dict, Sequence
 from queue import Queue
 
 
 class DisplayPanel(Panel):
 
-    def __init__(self, cfg: Dict[str, Union[gui4us.cfg.Display2D, gui4us.cfg.Display1D]],
-                 env: EnvController,
+    def _create_ax_grid(self, cfg: gui4us.cfg.ViewCfg):
+        displays = cfg.displays
+        grid_spec = cfg.grid_spec
+        if grid_spec is None:
+            n_displays = len(displays)
+            grid_spec = gui4us.cfg.GridSpec(
+                n_rows=1,
+                n_columns=n_displays,
+                locations=[gui4us.cfg.DisplayLocation(rows=0, columns=i)
+                           for i in range(n_displays)]
+            )
+        fig = plt.figure()
+        gs = fig.add_gridspec(grid_spec.n_rows, grid_spec.n_columns)
+        axes = []
+        for l in grid_spec.locations:
+            rows, columns = l.rows, l.columns
+            if isinstance(rows, int):
+                rows = (rows, rows+1)
+            if isinstance(columns, int):
+                columns = (columns, columns+1)
+            ax = fig.add_subplot(gs[rows[0]:rows[1], columns[0]:columns[1]])
+            axes.append(ax)
+        return fig, axes
+
+    def __init__(self, cfg: gui4us.cfg.ViewCfg, env: EnvController,
                  parent_window, title="Display"):
         super().__init__(title)
 
         self.logger = get_logger(type(self))
 
-        n_displays = len(cfg.items())
+        n_displays = len(cfg.displays)
         self.cfg = cfg
         self.env = env
 
+        # sort displays by StreamDataId: (name, ordinal)
         # One ax -> one display
-        self.fig, self.axes = plt.subplots(1, n_displays)
-        self.fig.set_size_inches(3, 3*len(cfg.items()))
+
+        self.fig, self.axes = self._create_ax_grid(self.cfg)
+        # self.fig.set_size_inches(3, 3*len(cfg.items()))
         if n_displays == 1:
             self.axes = [self.axes]
         img_canvas = FigureCanvas(self.fig)
@@ -69,8 +94,10 @@ class DisplayPanel(Panel):
         self.layers = []  # Flatten list of layers.
         metadata_promise: Promise = self.env.get_stream_metadata()
         self.metadata_collection: MetadataCollection = metadata_promise.get_result()
-        for i, (name, display_cfg) in enumerate(cfg.items()):
+        for i, display_cfg in enumerate(cfg.displays):
             ax = self.axes[i]
+            if display_cfg.title is not None:
+                ax.set_title(display_cfg.title)
 
             # axis labels (provided by user)
             axis_labels = None
