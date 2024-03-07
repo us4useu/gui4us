@@ -84,9 +84,6 @@ class DisplayPanel(Panel):
         # One ax -> one display
 
         self.fig, self.axes = self._create_ax_grid(self.cfg)
-        # self.fig.set_size_inches(3, 3*len(cfg.items()))
-        if n_displays == 1:
-            self.axes = [self.axes]
         img_canvas = FigureCanvas(self.fig)
         self.layout.addWidget(img_canvas)
         self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
