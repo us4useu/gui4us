@@ -88,6 +88,7 @@ class DisplayPanel(Panel):
         self.layout.addWidget(img_canvas)
         self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
         self.canvases = []
+        self.axes_bg = []
         self.layers = []  # Flatten list of layers.
         metadata_promise: Promise = self.env.get_stream_metadata()
         self.metadata_collection: MetadataCollection = metadata_promise.get_result()
@@ -180,6 +181,7 @@ class DisplayPanel(Panel):
                         extent=matplotlib_extents,
                         interpolation="none")
                     self.canvases.append(canvas)
+                    self.axes_bg.append(self.fig.canvas.copy_from_bbox(ax.bbox))
                 self._update_func = self.update_display_2d
         self.canvases[0].figure.tight_layout()
         # self.fig.colorbar(self.canvases[-1])
@@ -212,19 +214,25 @@ class DisplayPanel(Panel):
                     # No data, no update.
                     return self.canvases
                 data = self.data_queue[-1]
+
                 if data is None or not self.is_started:
                     # None means that the buffer has stopped
                     # Just discard results if the current device now is stopped
                     # (e.g. when the save button was pressed).
                     return
+
                 for c, l in zip(self.canvases, self.layers):
                     d = data[l.input.ordinal]
                     c.set_data(d)
-                    if l.value_range is None:
-                        # FIXME the below shouldn't be called for each frame
-                        ax_vmin, ax_vmax = np.min(data), np.max(data)
-                        c.set(clim=(ax_vmin, ax_vmax))
-                    c.figure.canvas.draw()
+
+                for ax_bg in self.axes_bg:
+                    self.fig.canvas.restore_region(ax_bg)
+
+                for c, ax in zip(self.canvases, self.axes):
+                    ax.draw_artist(c)
+
+                for ax in self.axes:
+                    self.fig.canvas.blit(ax.bbox)
             return self.canvases
         except Exception as e:
             self.logger.exception(e)
