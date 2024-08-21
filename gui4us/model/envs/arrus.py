@@ -125,11 +125,9 @@ class UltrasoundEnv(Env):
 
     def set(self, action: SetAction):
         if action.name == "tx_focus":
-            self.session.stop_scheme()
             self.session.set_parameters({
                 "/Us4R:0/sequence:0/txFocus": int(action.value)
             })
-            self.session.start_scheme()
         else:
             if action.name not in self._us4r_actions:
                 self.scheme.processing.set_parameter(action.name, action.value)
