@@ -36,6 +36,7 @@ class ArrusEnvConfiguration:
     tgc: Curve
     medium: Optional[arrus.medium.Medium] = None
     voltage: Optional[float] = 5  # [V]
+    tx_focuses = None  # [m]
 
 
 def get_depth_range(depth_grid: Iterable[float]):
@@ -56,12 +57,14 @@ class UltrasoundEnv(Env):
     def __init__(self,
                  session_cfg: str,
                  configure: Callable[[arrus.Session], ArrusEnvConfiguration],
-                 log_file_level=arrus.logging.INFO,
+                 log_file_level=arrus.logging.TRACE,
                  log_file: Optional[str] = None,
+                 tx_focuses=None
                  ):
         # Logging.
         log_file = log_file if log_file is not None else UltrasoundEnv.LOG_FILE
         self.log_file_level = log_file_level
+        # arrus.logging.set_clog_level(arrus.logging.TRACE)
         arrus.logging.add_log_file(log_file, log_file_level)
 
         # Start session
@@ -81,6 +84,7 @@ class UltrasoundEnv(Env):
         self.tgc_values = cfg.tgc.values
         self.initial_voltage = cfg.voltage
         self.medium = cfg.medium
+        self.constants = tx_focuses
 
         # Set processing callback.
         # In order to do that, it is necessary to wrap the input pipeline
@@ -120,10 +124,17 @@ class UltrasoundEnv(Env):
         self.session.close()
 
     def set(self, action: SetAction):
-        if action.name not in self._us4r_actions:
-            self.scheme.processing.set_parameter(action.name, action.value)
+        if action.name == "tx_focus":
+            self.session.stop_scheme()
+            self.session.set_parameters({
+                "/Us4R:0/sequence:0/txFocus": int(action.value)
+            })
+            self.session.start_scheme()
         else:
-            self._us4r_actions[action.name](action.value)
+            if action.name not in self._us4r_actions:
+                self.scheme.processing.set_parameter(action.name, action.value)
+            else:
+                self._us4r_actions[action.name](action.value)
 
     def get_settings(self) -> Sequence[SettingDef]:
         parameters = self.scheme.processing.get_parameters()
@@ -182,6 +193,22 @@ class UltrasoundEnv(Env):
                 ),
                 initial_value=self.initial_voltage,
                 step=5
+            ), ]
+
+        if self.constants is not None:
+            focuses = list(range(len(self.constants)))
+            tx_focus_min = np.min(focuses)
+            tx_focus_max = np.max(focuses)
+            parameters += [SettingDef(
+                name="tx_focus",
+                space=Box(
+                    shape=(1,),
+                    dtype=np.float32,
+                    low=tx_focus_min,
+                    high=tx_focus_max
+                ),
+                initial_value=tx_focus_min,
+                step=1
             ), ]
         return parameters + [
             SettingDef(
