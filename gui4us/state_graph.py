@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, Set, get_args, Callable, Any
-from collections import Iterable
+from typing import Union, Set, get_args, Callable, Any, Iterable
 from enum import Enum
 import threading
 

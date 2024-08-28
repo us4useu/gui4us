@@ -73,7 +73,9 @@ class WidgetSequence(Viewer):
             )
             fields.append(field)
         self._layout = pn.Column(*fields)
-        super().__init__(**params)
+        print(type(self))
+        print(params)
+        super().__init__()
 
     def __panel__(self) -> pn.viewable.Viewable:
         return self._layout

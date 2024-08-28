@@ -240,6 +240,8 @@ class Display2D(ReactiveHTML):
 
     def update(self, data):
         for i, d in enumerate(data):
+            print("GOT NEW DATA!")
+            print(f"np min: {np.min(d)}, np max {np.max(d)}")
             new_d = vtk.util.numpy_support.numpy_to_vtk(d.ravel(), deep=False)
             self.vtk_inputs[i].GetPointData().SetScalars(new_d)
             self.render_window.Render()
