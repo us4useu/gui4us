@@ -206,8 +206,6 @@ class Display2D(ReactiveHTML):
             min_x, max_x = extents[1]
             self.axes.SetRanges(min_x, max_x, max_z, min_z, 0, 1)
             self.axes.UseRangesOn()
-        else:
-            raise ValueError
 
 
         # AXIS LABELS
@@ -232,7 +230,7 @@ class Display2D(ReactiveHTML):
         self.renderer.ResetCamera()
         self.renderer.AddActor(self.vtk_main_img_actor)
         self.renderer.AddActor(self.axes)
-        self.renderer.GetActiveCamera().Zoom(1.3)
+        self.renderer.GetActiveCamera().Zoom(1.6)
         self.render_window.SetOffScreenRendering(1)
 
         self.renderer.SetBackground(colors.GetColor3d("silver"))
@@ -240,11 +238,15 @@ class Display2D(ReactiveHTML):
 
     def update(self, data):
         for i, d in enumerate(data):
-            print("GOT NEW DATA!")
-            print(f"np min: {np.min(d)}, np max {np.max(d)}")
             new_d = vtk.util.numpy_support.numpy_to_vtk(d.ravel(), deep=False)
             self.vtk_inputs[i].GetPointData().SetScalars(new_d)
             self.render_window.Render()
+            # TODO Consider using a single render windows for all displays
+            # The below sleep is required for the proper work when multiple
+            # displays are used.
+            # For some reason, VTK deadlocks when multiple render_windows
+            # are used.
+            time.sleep(0.05)
 
     def get_settings(self):
         return self.settings

@@ -14,6 +14,9 @@ import gui4us.cfg.display as display_cfg
 import gui4us.view.env.displays as displays
 from collections import defaultdict
 
+import vtk
+vtk.vtkLogger.SetStderrVerbosity(vtk.vtkLogger.VERBOSITY_MAX)
+
 
 class EnvironmentView(AbstractPanelView):
 

@@ -19,21 +19,20 @@ class Display3D(AbstractVTKDisplay):
     def __init__(self, cfg: display_cfg.Display3D,
                  metadatas: List[ImageMetadata],
                  **params):
-        super().__init__(**params)
+        super().__init__(cfg, metadatas, **params)
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
         self.cfg = cfg
         self.metadatas = metadatas
-        self._create_pipeline(self.metadatas)
 
-    def _create_pipeline(self, metadatas):
+    def _create_pipeline(self, metadatas, cfg):
         colors = vtk.vtkNamedColors()
         assert len(metadatas) == 1, "Exactly one input should be be connected to " \
                                     "the 3D display. "
         dimensions = metadatas[0].shape
 
-        ren1 = vtk.vtkRenderer()
+        self.ren1 = vtk.vtkRenderer()
         self.render_window = vtk.vtkRenderWindow()
-        self.render_window.AddRenderer(ren1)
+        self.render_window.AddRenderer(self.ren1)
 
         self.data = vtk.vtkImageData()
         dimensions = tuple(reversed(dimensions))
@@ -71,13 +70,15 @@ class Display3D(AbstractVTKDisplay):
         volume.SetMapper(volumeMapper)
         volume.SetProperty(volumeProperty)
 
-        ren1.AddVolume(volume)
-        ren1.SetBackground(colors.GetColor3d('Wheat'))
-        ren1.GetActiveCamera().Azimuth(-10)
-        ren1.GetActiveCamera().Elevation(-10)
-        ren1.GetActiveCamera().Roll(-90)
-        ren1.ResetCameraClippingRange()
-        ren1.ResetCamera()
+        self.ren1.AddVolume(volume)
+        self.ren1.SetBackground(colors.GetColor3d('silver'))
+        self.ren1.GetActiveCamera().Azimuth(-10)
+        self.ren1.GetActiveCamera().Elevation(-10)
+        self.ren1.GetActiveCamera().Roll(-90)
+        self.ren1.ResetCameraClippingRange()
+        self.ren1.ResetCamera()
+        self.render_window.SetOffScreenRendering(1)
+        return self.render_window
 
     def update(self, data):
         frames = data[0]
@@ -95,3 +96,11 @@ class Display3D(AbstractVTKDisplay):
             frames.ravel(), deep=True)
         self.data.GetPointData().SetScalars(volume_data)
         self.render_window.Render()
+
+    def get_settings(self):
+        # TODO
+        return []
+
+    def get_setters(self):
+        # TODO
+        return []

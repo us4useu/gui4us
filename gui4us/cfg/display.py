@@ -23,9 +23,14 @@ class Display2D:
 
 
 @dataclass(frozen=True)
+class Layer3D:
+    input: StreamDataId
+
+
+@dataclass(frozen=True)
 class Display3D:
     title: str
-    input: StreamDataId
+    layers: Sequence[Layer3D]
 
 
 @dataclass(frozen=True)

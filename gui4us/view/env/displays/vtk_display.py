@@ -44,7 +44,7 @@ class AbstractVTKDisplay(ReactiveHTML):
         self.logger = get_logger(f"{type(self)}:{self.display_name}")
         self.cfg = cfg
         self.metadatas = metadatas
-        self.inputs, self.render_view = self._create_pipeline(self.metadatas, self.cfg)
+        self.render_view = self._create_pipeline(self.metadatas, self.cfg)
         if self.port == 0:
             self.port = get_free_port_for_address(self.host)
         self.server = VTKDisplayServer(
