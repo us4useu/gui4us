@@ -206,7 +206,6 @@ class UltrasoundEnv(Env):
 
     def get_stream_metadata(self) -> MetadataCollection:
         image_metadata = {}
-        print(self.metadata)
         for i, m in enumerate(self.metadata):
             spacing = m.data_description.spacing
             extents = []

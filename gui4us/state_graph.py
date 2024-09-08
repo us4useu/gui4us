@@ -69,7 +69,6 @@ class StateGraph:
 
     def get_transition(self, in_state: Union[State, StateId],
                        out_state: Union[State, StateId]):
-        print(self.transition_idx)
 
         in_id = in_state if isinstance(in_state, StateId) else in_state.id
         out_id = out_state if isinstance(out_state, StateId) else out_state.id

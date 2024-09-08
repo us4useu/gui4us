@@ -24,15 +24,21 @@ class Display2D:
 
 @dataclass(frozen=True)
 class Display1D:
+    """
+    :param labels: curve labels
+    """
     title: str
+    input: StreamDataId
     ax_labels: tuple = None
     value_range: tuple = None
+    labels: Sequence[str] = None
 
 
 @dataclass(frozen=True)
 class DisplayLocation:
     rows: Union[int, Tuple[int, int]]
     columns: Union[int, Tuple[int, int]]
+    display_id: str = None
 
 
 @dataclass(frozen=True)

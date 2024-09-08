@@ -62,8 +62,6 @@ class SettingsPanel(Panel):
         elif is_vector:
             dim_names = setting_def.space.name
             dim_units = setting_def.space.unit
-            print(dim_names)
-            print(dim_units)
             if dim_units is not None:
                 dim_names = [f"{n} [{u}]" for n, u in zip(dim_names, dim_units)]
             widget = WidgetSequence(self.layout,
