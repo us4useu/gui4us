@@ -181,6 +181,7 @@ class DisplayPanel(Panel):
                     self.layers.append(layer)
                     self.layer_type.append(2)
                     metadata: ImageMetadata = self.metadata_collection.output(layer.input)
+                    imshow_params = {}
                     input_shape = metadata.shape
                     dtype = metadata.dtype
 
@@ -209,15 +210,31 @@ class DisplayPanel(Panel):
                     ax_vmin, ax_vmax = None, None
                     if layer.value_range is not None:
                         ax_vmin, ax_vmax = layer.value_range
-                    cmap = layer.cmap
                     ax.set_xlabel(self.get_ax_label(axis_labels[0], units[0]))
                     ax.set_ylabel(self.get_ax_label(axis_labels[1], units[1]))
-
+                    cmap = layer.cmap
                     init_data = np.zeros(input_shape, dtype=dtype)
+                    if len(input_shape) == 2:
+                        # 2D grayscale or some other array -- apply matplotlib
+                        # cmap to get the final image.
+                        imshow_params["cmap"] = cmap
+                    elif len(input_shape) == 3:
+                        # 3D -- RGB or RGBA
+                        # Check the last axis size
+                        if not input_shape[-1] in {3, 4}:
+                            raise ValueError("2D layer image should be "
+                                             "a 2D array or 3D array with "
+                                             "the last axis of size 3 or 4.")
+                    else:
+                        raise ValueError("2D layer image should be "
+                                         "a 2D array or 3D array with "
+                                         "the last axis of size 3 or 4.")
                     canvas = ax.imshow(
-                        init_data, cmap=cmap, vmin=ax_vmin, vmax=ax_vmax,
+                        init_data, vmin=ax_vmin, vmax=ax_vmax,
                         extent=matplotlib_extents,
-                        interpolation="none")
+                        interpolation="none",
+                        **imshow_params
+                    )
                     self.canvases.append(canvas)
                     self.axes_list.append(ax)
                     self.sampling_points.append(None)
