@@ -1,52 +1,54 @@
-import vtkWSLinkClient from '@kitware/vtk.js/IO/Core/WSLinkClient';
-import SmartConnect from 'wslink/src/SmartConnect';
-import vtkRemoteView from '@kitware/vtk.js/Rendering/Misc/RemoteView';
+export default function connectToDisplay(container, displayCfg) {
+    displayCfg = JSON.parse(displayCfg);
+    var config = {
+        sdpSemantics: "unified-plan"
+    };
+    var pc = new RTCPeerConnection(config);
 
-export default function connectToDisplay(container, config) {
-    vtkWSLinkClient.setSmartConnectClass(SmartConnect);
-    const client = vtkWSLinkClient.newInstance();
-
-    // Error
-    client.onConnectionError((httpReq) => {
-        const message =
-            (httpReq && httpReq.response && httpReq.response.error) ||
-            "Connection error";
-        console.error(message);
-        console.log(httpReq);
-    });
-
-    // Close
-    client.onConnectionClose((httpReq) => {
-        const message =
-            (httpReq && httpReq.response && httpReq.response.error) ||
-            "Connection close";
-        console.warn(message);
-        console.log(httpReq);
-    });
-
-    // Connect
-    client.connect(config)
-        .then((validClient) => {
-            const viewStream = client.getImageStream().createViewStream('-1');
-
-            const view = vtkRemoteView.newInstance({
-                viewStream,
+    function negotiate() {
+        pc.addTransceiver("video", {direction: "recvonly"});
+        pc.createOffer().then((offer) => {
+            return pc.setLocalDescription(offer);
+        }).then(() => {
+            // wait for ICE gathering to complete
+            return new Promise((resolve) => {
+                if (pc.iceGatheringState === "complete") {
+                    resolve();
+                } else {
+                    const checkState = () => {
+                        if (pc.iceGatheringState === "complete") {
+                            pc.removeEventListener("icegatheringstatechange", checkState);
+                            resolve();
+                        }
+                    };
+                    pc.addEventListener("icegatheringstatechange", checkState);
+                }
             });
-            const session = validClient.getConnection().getSession();
-            view.setSession(session);
-            view.setContainer(container);
-            // the scaled image compared to the clients view resolution
-            view.setInteractiveRatio(1.0);
-            // jpeg quality
-            view.setInteractiveQuality(10);
-            // TODO event listener on container resize?
-            window.addEventListener("resize", view.resize);
-            var img = container.querySelector("img");
-            img.style.zIndex = 0;
-        })
-        .catch((error) => {
-            console.error(error);
+        }).then(() => {
+            var offer = pc.localDescription;
+            return fetch(`${displayCfg.sessionURL}/offer`, {
+                body: JSON.stringify({
+                    sdp: offer.sdp,
+                    type: offer.type,
+                }),
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                method: "POST"
+            });
+        }).then((response) => {
+            return response.json();
+        }).then((answer) => {
+            return pc.setRemoteDescription(answer);
+        }).catch((e) => {
+            alert(e);
         });
-    return client;
+    }
+
+    pc.addEventListener("track", (evt) => {
+        container.srcObject = evt.streams[0];
+    });
+    // negotiate communication
+    negotiate();
 }
 

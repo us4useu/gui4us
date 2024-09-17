@@ -40,6 +40,7 @@ setuptools.setup(
         "panel==1.2.0",
         "vtk>=9.2.6",
         "wslink==1.11.1"  # required by vtkweb (it must be 1.x.y)
+        "aiortc==1.9.0"
     ],
     python_requires='>=3.8'
 )
