@@ -1,5 +1,4 @@
 export default function connectToDisplay(container, displayCfg) {
-    displayCfg = JSON.parse(displayCfg);
     var config = {
         sdpSemantics: "unified-plan"
     };

@@ -35,7 +35,7 @@ class Display2D(ReactiveHTML):
     _template = '<video id="display_2d" autoplay="true" playsinline="true" style="width: 50%; height: 50%; margin: 0 auto;"></video>'
     _scripts = {
         "render":
-            "sessionURL = 'ws://' + data.host + ':' + data.port; "
+            "sessionURL = 'http://' + data.host + ':' + data.port; "
             "state.client = connectToDisplay(display_2d, {application: data.display_name, sessionURL: sessionURL})"
     }
 
@@ -69,7 +69,7 @@ class Display2D(ReactiveHTML):
 
     def start(self):
         self.server.start()
-        self.logger.info(f"Server started at: ws://{self.host}:{self.port}")
+        self.logger.info(f"Server started at: http://{self.host}:{self.port}")
 
     def join(self):
         pass # TODO

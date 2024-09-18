@@ -1,3 +1,5 @@
+import threading
+
 from aiohttp import web
 import asyncio
 import os
@@ -33,16 +35,36 @@ class RTCServer:
         self.logger = get_logger(f"{type(self)}:{host}:{port}")
         self.host = host
         self.port = port
-        self.app = web.Application()
-        self.app.on_shutdown.append(self.on_shutdown)
-        # self.app.router.add_get("/client.js", javascript)
-        self.app.router.add_post("/offer", self.offer)
+        self.server_thread = threading.Thread(target=self._run_server)
         # TODO SSL certificate
         self.pcs = set()
         self.input_queue = input_queue
+        self.server_thread.start()
+
+    async def init_app(self):
+        self.app = web.Application()
+        self.app.on_shutdown.append(self.on_shutdown)
+        self.app.router.add_get("/client.js", self.javascript)
+        self.app.router.add_post("/offer", self.offer)
+        return self.app
+
+    def _run_server(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        app = loop.run_until_complete(self.init_app())
+        runner = web.AppRunner(app)
+        loop.run_until_complete(runner.setup())
+        site = web.TCPSite(runner, self.host, self.port)
+        loop.run_until_complete(site.start())
+        try:
+            print("STARTING")
+            loop.run_forever()
+        finally:
+            loop.run_until_complete(runner.cleanup())
+            loop.close()
 
     def start(self):
-        web.run_app(self.app, host=self.host, port=self.port, ssl_context=None)
+        pass
 
     def send(self, data):
         try:
@@ -56,9 +78,10 @@ class RTCServer:
         await asyncio.gather(*coros)
         self.pcs.clear()
 
-    # async def javascript(self, request):
-    #     content = open(os.path.join(ROOT, "client.js"), "r").read()
-    #     return web.Response(content_type="application/javascript", text=content)
+    async def javascript(self, request):
+        ROOT = os.path.dirname(__file__)
+        content = open(os.path.join(ROOT, "connectToDisplay.js"), "r").read()
+        return web.Response(content_type="application/javascript", text=content)
 
     async def offer(self, request):
         params = await request.json()
@@ -87,6 +110,8 @@ class RTCServer:
                 {"sdp": pc.localDescription.sdp,
                  "type": pc.localDescription.type}
             ),
+            # TODO OK?
+            headers={"Access-Control-Allow-Origin": "*"}
         )
 
 
