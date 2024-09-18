@@ -89,7 +89,7 @@ class Display2D(ReactiveHTML):
         buf = io.BytesIO()
         plt.savefig(buf, format="png")
         buf.seek(0)
-        image = np.asarray(bytesarray(buf.read()), dtype=np.uint8)
+        image = np.asarray(bytearray(buf.read()), dtype=np.uint8)
         image = cv2.imdecode(image, 1)
         plt.close()
         self.server.send(image)
