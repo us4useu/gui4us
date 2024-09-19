@@ -31,7 +31,8 @@ export default function connectToDisplay(container, displayCfg) {
                     type: offer.type,
                 }),
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
                 },
                 method: "POST"
             });

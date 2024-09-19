@@ -45,6 +45,7 @@ class RTCServer:
         self.app = web.Application()
         self.app.on_shutdown.append(self.on_shutdown)
         self.app.router.add_get("/client.js", self.javascript)
+        self.app.router.add_options("/offer", self.send_offer_options)
         self.app.router.add_post("/offer", self.offer)
         return self.app
 
@@ -82,6 +83,16 @@ class RTCServer:
         ROOT = os.path.dirname(__file__)
         content = open(os.path.join(ROOT, "connectToDisplay.js"), "r").read()
         return web.Response(content_type="application/javascript", text=content)
+
+    async def send_offer_options(self, _):
+        """BYPASS CORS TODO consider doing that in the other way"""
+        return web.json_response(
+            {"message": "Accept all hosts"},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
 
     async def offer(self, request):
         params = await request.json()
