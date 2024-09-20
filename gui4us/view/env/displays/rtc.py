@@ -9,6 +9,7 @@ from av import VideoFrame
 from gui4us.logging import get_logger
 import queue
 import numpy as np
+import time
 
 
 class VideoTrack(VideoStreamTrack):
@@ -25,10 +26,12 @@ class VideoTrack(VideoStreamTrack):
         """
         try:
             pts, time_base = await self.next_timestamp()
+            start = time.time()
             img = self.input_queue.get()
             frame = VideoFrame.from_ndarray(img, format="rgb24")
             frame.pts = pts
             frame.time_base = time_base
+            print(f"CONVERTING TO VIDEO FRAME: {time.time() - start}")
             return frame
         except Exception as e:
             self.logger.exception(e)

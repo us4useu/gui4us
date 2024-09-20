@@ -13,6 +13,7 @@ from gui4us.common import ImageMetadata
 from gui4us.logging import get_logger
 from gui4us.utils import get_free_port_for_address
 from gui4us.view.env.displays.rtc import RTCServer
+import time
 
 # TODO make the below configurable
 plt.style.use("dark_background")
@@ -77,6 +78,7 @@ class Display2D(ReactiveHTML):
             cfg: display_cfg.Display2D
     ):
         self.fig, self.ax = plt.subplots()
+        self.fig.set_size_inches(3, 3)
         self.canvases = []
         self.axes_bg = []
         self.layers = []  # Flatten list of layers.
@@ -154,6 +156,7 @@ class Display2D(ReactiveHTML):
     def update(self, data):
         # Time critical part (consider moving to a separate process?)
         try:
+            start = time.time()
             # Restore the background
             for ax_bg in self.axes_bg:
                 self.fig.canvas.restore_region(ax_bg)
@@ -166,12 +169,14 @@ class Display2D(ReactiveHTML):
                 self.ax.draw_artist(c)
                 j += 1
                 self.fig.canvas.blit(self.ax.bbox)
+            print(f"DRAWING: {time.time()-start}"); start = time.time()
             buf = io.BytesIO()
             self.fig.savefig(buf, format="raw")
             buf.seek(0)
             image = np.asarray(bytearray(buf.read()), dtype=np.uint8)
             image = image.reshape(self.fig_height, self.fig_width, 4)
             image = image[..., :3]
+            print(f"WRITING TO RGB ARRAY: {time.time() - start}"); start = time.time()
             self.server.send(image)
         except Exception as e:
             self.logger.exception(e)

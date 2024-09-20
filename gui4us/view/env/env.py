@@ -13,9 +13,11 @@ from gui4us.cfg.display import ViewCfg
 import gui4us.cfg.display as display_cfg
 import gui4us.view.env.displays as displays
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
-import vtk
-vtk.vtkLogger.SetStderrVerbosity(vtk.vtkLogger.VERBOSITY_MAX)
+
+def _update_display(display, data):
+    display.update(data)
 
 
 class EnvironmentView(AbstractPanelView):
@@ -49,6 +51,8 @@ class EnvironmentView(AbstractPanelView):
         super().__init__(title=title, app_url=app_url, address=address)
         self.stream = env.get_stream()
         self.stream.append_on_new_data_callback(self._update)
+        self.n_displays = len(self.view_cfg.displays)
+        self.thread_pool = ThreadPoolExecutor(max_workers=self.n_displays)
 
     def run(self):
         super().run()
@@ -112,11 +116,16 @@ class EnvironmentView(AbstractPanelView):
         return result
 
     def _update(self, data):
+        futures = []
         for display_id, display in self.displays.items():
             # For that display, get outputs in the proper order.
             ordinals = self.ordinals_by_display[display_id]
             display_data = [data[o] for o in ordinals]
-            display.update(display_data)
+            future = self.thread_pool.submit(_update_display, display, display_data)
+            futures.append(future)
+        # join to threads
+        for f in futures:
+            f.result(timeout=10)
 
     def _get_ordinals_by_display(self, view_cfg: ViewCfg):
         result = {}
