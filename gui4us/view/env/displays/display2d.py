@@ -149,8 +149,10 @@ class Display2D(ReactiveHTML):
             self.axes_bg.append(self.fig.canvas.copy_from_bbox(self.ax.bbox))
         self.canvases[0].figure.tight_layout()
         self.n_canvases = len(self.canvases)
+        self.fig_width, self.fig_height = self.fig.canvas.get_width_height()
 
     def update(self, data):
+        # Time critical part (consider moving to a separate process?)
         try:
             # Restore the background
             for ax_bg in self.axes_bg:
@@ -165,10 +167,11 @@ class Display2D(ReactiveHTML):
                 j += 1
                 self.fig.canvas.blit(self.ax.bbox)
             buf = io.BytesIO()
-            self.fig.savefig(buf, format="png")
+            self.fig.savefig(buf, format="raw")
             buf.seek(0)
             image = np.asarray(bytearray(buf.read()), dtype=np.uint8)
-            image = cv2.imdecode(image, 1)
+            image = image.reshape(self.fig_height, self.fig_width, 4)
+            image = image[..., :3]
             self.server.send(image)
         except Exception as e:
             self.logger.exception(e)

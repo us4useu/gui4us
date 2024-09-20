@@ -8,25 +8,32 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from av import VideoFrame
 from gui4us.logging import get_logger
 import queue
+import numpy as np
 
 
 class VideoTrack(VideoStreamTrack):
     def __init__(self, input_queue):
         super().__init__()
+        self.logger = get_logger(f"{type(self)}_{id(self)}")
         self.counter = 0
         self.input_queue = input_queue
+        self.saved = False
 
     async def recv(self):
         """
         Time-critical part (consider moving to a separate process?)
-        TODO consider sending non-rgb values
         """
-        pts, time_base = await self.next_timestamp()
-        img = self.input_queue.get()
-        frame = VideoFrame.from_ndarray(img, format="bgr24")
-        frame.pts = pts
-        frame.time_base = time_base
-        return frame
+        try:
+            pts, time_base = await self.next_timestamp()
+            img = self.input_queue.get()
+            frame = VideoFrame.from_ndarray(img, format="rgb24")
+            frame.pts = pts
+            frame.time_base = time_base
+            return frame
+        except Exception as e:
+            self.logger.exception(e)
+        except:
+            self.logger("Unknown exception")
 
 
 class RTCServer:

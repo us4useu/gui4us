@@ -44,7 +44,7 @@ class ControlPanel(pn.viewable.Viewer):
 class EnvironmentSelector(pn.viewable.Viewer):
 
     def __init__(self, **params):
-        self._content = "**Test value**"
+        self._content = "**Main environment__ current display**"
         super().__init__(**params)
         self._layout = pn.Row(self._content)
 
