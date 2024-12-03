@@ -13,6 +13,7 @@ from arrus.ops.us4r import *
 import dataclasses
 from dataclasses import dataclass
 import numpy as np
+from typing import Iterable
 
 
 class ArrusStream(Stream):
@@ -89,7 +90,7 @@ class UltrasoundEnv(Env):
             pipeline = self.scheme.processing
             self.scheme = dataclasses.replace(
                     self.scheme,
-                    processing=arrus.utils.imaging.Processing(pipeline=pipeline))
+                    processing=arrus.utils.imaging.Processing(graph=pipeline))
 
         self.scheme.processing.callback = self._on_new_data
 
@@ -229,8 +230,12 @@ class UltrasoundEnv(Env):
     def _on_new_data(self, input_elements):
         try:
             output_data = []
+
+            if not isinstance(input_elements, Iterable):
+                input_elements = (input_elements,)
             for input_element in input_elements:
-                output_data.append(input_element.data[:])
+                for array in input_element.arrays:
+                    output_data.append(array[:])
                 input_element.release()
             output_data = tuple(output_data)
             for cb in self.stream.callbacks:
