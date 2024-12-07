@@ -265,7 +265,7 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.fig, self.update_display, interval=20e-3, blit=True)
+        self.anim = FuncAnimation(self.fig, self.update_display, interval=10e-3, blit=True)
 
     def stop(self):
         self.is_started = False
@@ -288,11 +288,6 @@ class DisplayPanel(Panel):
                     # (e.g. when the save button was pressed).
                     return self.canvases
 
-                # Restore the background
-                # TODO ponizsze prawdopodobnie moze byc pominiete dla 2D?
-                for ax_bg in self.axes_bg:
-                    self.fig.canvas.restore_region(ax_bg)
-
                 # Draw
                 for j in range(self.n_canvases):
                     l_t = self.layer_type[j]
@@ -306,18 +301,12 @@ class DisplayPanel(Panel):
                         for scanline in d:
                             canvas = self.canvases[j]
                             canvas.set_ydata(scanline)
-                            ax.draw_artist(canvas)
-                            j += 1
                     else:
                         # 2D
                         c = self.canvases[j]
                         c.set_data(d)
-                        ax.draw_artist(c)
                         j += 1
-                # The below is an fig update that should minimize time needed
-                # to refresh display.
-                for ax in self.unique_axes_list:
-                    self.fig.canvas.blit(ax.bbox)
+                self.canvases[0].figure.canvas.draw()
             return self.canvases
         except Exception as e:
             self.logger.exception(e)

@@ -33,10 +33,10 @@ setuptools.setup(
         ]
     },
     install_requires=[
-        "arrus>=0.5.11",
-        "pyyaml",
-        "PyQt5",
-        "matplotlib>=3.6.2"
+        "arrus>=0.10.0",
+        "pyyaml==6.0",
+        "PyQt5==5.15.9",
+        "matplotlib==3.7.2"
     ],
     python_requires='>=3.8'
 )

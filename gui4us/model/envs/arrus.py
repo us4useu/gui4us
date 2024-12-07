@@ -90,9 +90,16 @@ class UltrasoundEnv(Env):
             pipeline = self.scheme.processing
             self.scheme = dataclasses.replace(
                     self.scheme,
-                    processing=arrus.utils.imaging.Processing(graph=pipeline))
+                    processing=arrus.utils.imaging.Processing(pipeline))
+        
+        arrus_version = arrus.__version__
+        arrus_version_major_minor = tuple(int(v) for v in arrus_version.split(".")[:2])
+        print(arrus_version_major_minor)
 
-        self.scheme.processing.callback = self._on_new_data
+        if arrus_version_major_minor <= (0, 10):
+            self.scheme.processing.callback = self._on_new_data_arrus010
+        else:
+            self.scheme.processing.callback = self._on_new_data
 
         # TODO replace the below with settings read via arrus
         self._us4r_actions = {
@@ -244,3 +251,18 @@ class UltrasoundEnv(Env):
             print(e)
         except:
             print("Unknown exception")
+
+    def _on_new_data_arrus010(self, input_elements):
+        try:
+            output_data = []
+            for input_element in input_elements:
+                output_data.append(input_element.data[:])
+                input_element.release()
+            output_data = tuple(output_data)
+            for cb in self.stream.callbacks:
+                cb(output_data)
+        except Exception as e:
+            print(e)
+        except:
+            print("Unknown exception")
+

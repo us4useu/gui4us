@@ -71,7 +71,7 @@ class View(QtWidgets.QMainWindow):
         # height, width = screen_size.height(), screen_size.width()
         # height, width = 3 * height // 4, 3 * width // 4
         # self.setMinimumSize(width, height)
-        self.showMaximized()
+        # self.showMaximized()
         # self.showFullScreen()
 
     def set_environment(
