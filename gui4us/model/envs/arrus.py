@@ -27,12 +27,29 @@ class ArrusStream(Stream):
 
 @dataclass(frozen=True)
 class Curve:
+    """
+    TGC curve defintion.
+
+    :param points: depth points [m]
+    :param values: curve values [dB]
+    """
     points: Iterable[float]
     values: Iterable[float]
 
 
 @dataclass(frozen=True)
 class ArrusEnvConfiguration:
+    """
+    ARRUS environment configuration.
+
+    The instance of this class should be returned by the factory function
+    `configure`.
+
+    :param scheme: arrus Scheme (TX/RX sequence and processing)
+    :param tgc: tgc settings to apply
+    :param medium: the assumed ARRUS medium
+    :param voltage: initial voltage [V]
+    """
     scheme: arrus.ops.us4r.Scheme
     tgc: Curve
     medium: Optional[arrus.medium.Medium] = None
@@ -51,6 +68,19 @@ def get_depth_range(depth_grid: Iterable[float]):
 
 
 class UltrasoundEnv(Env):
+    """
+    ARRUS ultrasound environment.
+
+    This user class should provide a path to the .prototxt session configuration file
+    and a factory function ``configure``, with the implementation of ultrasound
+    environment, in particular: arrus Scheme(TX/RX sequence and processing in particular)
+    and default settings like TX voltage.
+
+    :param session_cfg: path to the session configuration file
+    :param configure: ARRUS scheme factory function
+    :param log_file_level: ARRUS logging level (output: file)
+    :param log_file: output log file
+    """
 
     LOG_FILE = "arrus.log"
 
