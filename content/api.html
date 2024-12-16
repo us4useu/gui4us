@@ -58,7 +58,12 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#environment">Environment</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#arrus-environment">ARRUS environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#arrus-environment">ARRUS environment</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gui4us.model.envs.arrus.UltrasoundEnv"><code class="docutils literal notranslate"><span class="pre">UltrasoundEnv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gui4us.model.envs.arrus.ArrusEnvConfiguration"><code class="docutils literal notranslate"><span class="pre">ArrusEnvConfiguration</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gui4us.model.envs.arrus.Curve"><code class="docutils literal notranslate"><span class="pre">Curve</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -190,6 +195,61 @@ The cells occupied by which displays can be defined via the <code class="docutil
 <h2>Environment<a class="headerlink" href="#environment" title="Permalink to this heading"></a></h2>
 <section id="arrus-environment">
 <h3>ARRUS environment<a class="headerlink" href="#arrus-environment" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="gui4us.model.envs.arrus.UltrasoundEnv">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gui4us.model.envs.arrus.</span></span><span class="sig-name descname"><span class="pre">UltrasoundEnv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_cfg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">configure</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">Session</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#gui4us.model.envs.arrus.ArrusEnvConfiguration" title="gui4us.model.envs.arrus.ArrusEnvConfiguration"><span class="pre">ArrusEnvConfiguration</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gui4us.model.envs.arrus.UltrasoundEnv" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Env</span></code></p>
+<p>ARRUS ultrasound environment.</p>
+<p>This user class should provide a path to the .prototxt session configuration file
+and a factory function <code class="docutils literal notranslate"><span class="pre">configure</span></code>, with the implementation of ultrasound
+environment, in particular: arrus Scheme(TX/RX sequence and processing in particular)
+and default settings like TX voltage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_cfg</strong> – path to the session configuration file</p></li>
+<li><p><strong>configure</strong> – ARRUS scheme factory function</p></li>
+<li><p><strong>log_file_level</strong> – ARRUS logging level (output: file)</p></li>
+<li><p><strong>log_file</strong> – output log file</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gui4us.model.envs.arrus.ArrusEnvConfiguration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gui4us.model.envs.arrus.</span></span><span class="sig-name descname"><span class="pre">ArrusEnvConfiguration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scheme</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Scheme</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#gui4us.model.envs.arrus.Curve" title="gui4us.model.envs.arrus.Curve"><span class="pre">Curve</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">medium</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Medium</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gui4us.model.envs.arrus.ArrusEnvConfiguration" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>ARRUS environment configuration.</p>
+<p>The instance of this class should be returned by the factory function
+<cite>configure</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scheme</strong> – arrus Scheme (TX/RX sequence and processing)</p></li>
+<li><p><strong>tgc</strong> – tgc settings to apply</p></li>
+<li><p><strong>medium</strong> – the assumed ARRUS medium</p></li>
+<li><p><strong>voltage</strong> – initial voltage [V]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="gui4us.model.envs.arrus.Curve">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gui4us.model.envs.arrus.</span></span><span class="sig-name descname"><span class="pre">Curve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#gui4us.model.envs.arrus.Curve" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>TGC curve defintion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>points</strong> – depth points [m]</p></li>
+<li><p><strong>values</strong> – curve values [dB]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 </section>
 </section>
