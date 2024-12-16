@@ -85,6 +85,14 @@ the latest release by running the command:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">gui4us</span>
 </pre></div>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If you encounter the following problem while launching gui4us on <strong>Windows</strong>:</p>
+<p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">PyQt5.QtWidgets</span> <span class="pre">import</span> <span class="pre">QApplication</span> <span class="pre">...</span> <span class="pre">ImportError:</span> <span class="pre">DLL</span> <span class="pre">load</span> <span class="pre">failed:</span> <span class="pre">The</span> <span class="pre">specified</span> <span class="pre">module</span> <span class="pre">could</span> <span class="pre">not</span> <span class="pre">be</span> <span class="pre">found.</span></code></p>
+<p>It means you need to execute the following additional commands in Conda:</p>
+<p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">uninstall</span> <span class="pre">PyQt5</span> <span class="pre">PyQt5-Qt5</span> <span class="pre">PyQt5_sip</span></code></p>
+<p><code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">pyqt</span></code></p>
+</div>
 </section>
 
 
