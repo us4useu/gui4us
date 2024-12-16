@@ -8,6 +8,9 @@ class Layer2D:
     """
     2D image layer settings.
 
+    Currently the only supported inputs are ``StreamDataId("default", i)``, where ``i`` is the pipeline
+    output number.
+
     :param input: input id
     :param cmap: color map to use; see color map names available in matplotlib
     :param value_range: dynamic range to apply (min, max) pair.
@@ -24,7 +27,7 @@ class Display2D:
 
     :param title: display title
     :param layers: layers to display
-    :param extents: physical extents: a tuple (min azimuth, max azimuth, min elevation, max elevation).
+    :param extents: physical extents: a tuple (min azimuth, max azimuth, min depth, max depth)
       Optional, if not provided, the extents will be determined from the metadata
       provided by the environemnt.
     :param ax_labels: axis labels to use; default: no labels
