@@ -13,7 +13,7 @@ class Layer2D:
 
     :param input: input id
     :param cmap: color map to use; see color map names available in matplotlib
-    :param value_range: dynamic range to apply (min, max) pair.
+    :param value_range: dynamic range to apply (min, max) pair
     """
     input: StreamDataId
     cmap: str
