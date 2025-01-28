@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("QtAgg")
 import sys
 import argparse
 

@@ -22,7 +22,7 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox
 )
 from matplotlib.backends.backend_qt5agg import (
-    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+    FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.backends.qt_compat import QtCore, QtWidgets
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
@@ -32,8 +32,6 @@ import matplotlib
 from gui4us.controller.env import EnvController
 from gui4us.common import ImageMetadata
 from gui4us.controller.task import Promise
-
-# matplotlib.use("tkagg")
 
 from gui4us.view.widgets import Panel
 from gui4us.view.common import *
@@ -107,7 +105,7 @@ class DisplayPanel(Panel):
         self.env = env
         # One ax -> one display
         self.fig, self.axes = self._create_ax_grid(self.cfg, displays)
-        img_canvas = FigureCanvas(self.fig)
+        img_canvas = FigureCanvasQTAgg(self.fig)
         self.layout.addWidget(img_canvas)
         self.layout.addWidget(NavigationToolbar(img_canvas, parent_window))
         self.unique_axes_list = []
@@ -265,7 +263,7 @@ class DisplayPanel(Panel):
 
     def start(self):
         self.is_started = True
-        self.anim = FuncAnimation(self.fig, self.update_display, interval=10e-3, blit=True)
+        self.anim = FuncAnimation(self.fig, self.update_display, interval=10, blit=True)
 
     def stop(self):
         self.is_started = False

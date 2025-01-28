@@ -101,7 +101,6 @@ class CaptureBufferComponent(Panel):
             print(e)
 
     def _on_capture_button_press(self):
-        print("Capture button pressed")
         self.state.do("capture")
 
     def _on_save_button_press(self):
@@ -116,16 +115,13 @@ class CaptureBufferComponent(Panel):
         self.save_button.enable()
 
     def on_save(self, event):
-        timestamp = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"data_{timestamp}.pkl"
+        filename, extension = QFileDialog.getSaveFileName(
+            parent=None, caption="Save File", directory=".",
+            filter=_FILE_EXTENSIONS)
+        if extension == "":
+            event.stop()
+            return
         pickle.dump(self.capture_buffer.data, open(filename, "wb"))
-        self.state_label.set_text(f"Saved data to {filename}")
-        # filename, extension = QFileDialog.getSaveFileName(
-        #     parent=None, caption="Save File", directory=".",
-        #     filter=_FILE_EXTENSIONS)
-        # if extension == "":
-        #     event.stop()
-        #     return
 
     def on_empty_buffer(self, event):
         self.save_button.disable()
