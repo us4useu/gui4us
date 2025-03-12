@@ -7,12 +7,14 @@ from gui4us.state_graph import *
 import numpy as np
 import queue
 from datetime import datetime
+import pathlib
+
+FILE_EXTENSIONS = {
+    "Python pickle dataset (*.pkl)": ".pkl"
+}
 
 # Supported file extensions
-_FILE_EXTENSIONS = ";;".join([
-    "Python pickle dataset (*.pkl)",
-    # "MATLAB file (*.mat)"
-])
+_FILE_EXTENSIONS = ";;".join(sorted(list(FILE_EXTENSIONS)))
 
 
 class CaptureBuffer:
@@ -121,6 +123,12 @@ class CaptureBufferComponent(Panel):
         if extension == "":
             event.stop()
             return
+
+        expected_suffix = FILE_EXTENSIONS[extension]
+
+        if pathlib.Path(filename).suffix != expected_suffix:
+            filename = f"{filename}{expected_suffix}"
+
         pickle.dump(self.capture_buffer.data, open(filename, "wb"))
 
     def on_empty_buffer(self, event):
