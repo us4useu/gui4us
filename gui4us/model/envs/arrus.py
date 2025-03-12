@@ -18,11 +18,15 @@ from typing import Iterable
 
 class ArrusStream(Stream):
 
-    def __init__(self):
+    def __init__(self, metadata):
         self.callbacks = []
+        self._metadata = metadata
 
     def append_on_new_data_callback(self, callback: Callable):
         self.callbacks.append(callback)
+
+    def get_metadata(self):
+        return self._metadata
 
 
 @dataclass(frozen=True)
@@ -136,13 +140,13 @@ class UltrasoundEnv(Env):
             "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
             "Voltage": lambda value: self.us4r.set_hv_voltage(int(value)),
         }
-        self.stream = ArrusStream()
         # Configure.
         if self.initial_voltage is not None:
             self.us4r.set_hv_voltage(self.initial_voltage)
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
         self.metadata = self.session.upload(self.scheme)
+        self.stream = ArrusStream(metadata=self.metadata)
         self.set_tgc(self.tgc_sampling_points, self.tgc_values)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )

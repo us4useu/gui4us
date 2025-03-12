@@ -18,10 +18,11 @@ _FILE_EXTENSIONS = ";;".join(sorted(list(FILE_EXTENSIONS)))
 
 
 class CaptureBuffer:
-    def __init__(self, capacity):
+    def __init__(self, capacity, metadata):
         self.capacity = capacity
         self._counter = 0
         self._data = [None]*self.capacity
+        self._metadata = metadata
 
     def append(self, data):
         if self.is_ready():
@@ -38,6 +39,10 @@ class CaptureBuffer:
     @property
     def data(self):
         return self._data
+
+    @property
+    def metadata(self):
+        return self._metadata
 
 
 class CaptureBufferComponent(Panel):
@@ -109,7 +114,10 @@ class CaptureBufferComponent(Panel):
         self.state.do("save")
 
     def on_capture_start(self, event):
-        self.capture_buffer = CaptureBuffer(self.capture_buffer_capacity)
+        self.capture_buffer = CaptureBuffer(
+            self.capture_buffer_capacity,
+            metadata=self.env.get_stream().get_metadata()
+        )
         self.capture_button.enable()
         self.save_button.disable()
 
@@ -129,7 +137,12 @@ class CaptureBufferComponent(Panel):
         if pathlib.Path(filename).suffix != expected_suffix:
             filename = f"{filename}{expected_suffix}"
 
-        pickle.dump(self.capture_buffer.data, open(filename, "wb"))
+        pickle.dump(
+            {
+                "data": self.capture_buffer.data,
+                "metadata": self.capture_buffer.metadata
+            },
+            open(filename, "wb"))
 
     def on_empty_buffer(self, event):
         self.save_button.disable()

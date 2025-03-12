@@ -36,6 +36,12 @@ class Stream(ABC):
         """
         raise NotImplementedError()
 
+    def get_metadata(self):
+        """
+        Returns metadata associated with the stream data.
+        """
+        return None
+
 
 class Metadata(ABC):
     pass
