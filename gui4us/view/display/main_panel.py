@@ -1,5 +1,6 @@
 import queue
 from collections import deque
+from typing import Iterable
 
 import time
 import traceback
@@ -89,8 +90,8 @@ class DisplayPanel(Panel):
         displays = cfg.displays
         if not isinstance(displays, Dict):
             if isinstance(displays, Iterable):
-                displays = ((f"Display:{i}", d) for d in displays)
-                displays = dict(*displays)
+                displays = ((f"Display:{i}", d) for i, d in enumerate(displays))
+                displays = dict(displays)
             else:
                 raise ValueError("ViewCfg.displays should be a Dict or Iterable")
 
