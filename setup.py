@@ -145,10 +145,11 @@ if __name__ == "__main__":
         install_requires=[
             "arrus>=0.10.0",
             "pyyaml==6.0",
-            "PyQt5==5.15.9",
-            "PyQt5-Qt5==5.15.2",
-            "PyQt5-sip==12.12.1",
-            "matplotlib==3.7.2"
+            # "PyQt5==5.15.9",
+            #"PyQt5-Qt5==5.15.2",
+           # "PyQt5-sip==12.12.1",
+            "matplotlib==3.7.2",
+            "pyqtgraph==0.13.7"
         ],
         python_requires='>=3.8'
     )

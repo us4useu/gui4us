@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction
 from PyQt5.QtWidgets import QMenu
 from PyQt5 import QtWidgets
+import qdarkstyle
 
 from gui4us.controller.app import *
 from gui4us.view.control import *
@@ -23,6 +24,7 @@ def start_view_app(env, **view_kwargs):
     global APP
     APP = QApplication(sys.argv)
     APP.setStyle("Fusion")
+    APP.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     view = View(**view_kwargs)
     view.set_environment("main", env)
     view.show()
@@ -71,7 +73,7 @@ class View(QtWidgets.QMainWindow):
         # height, width = screen_size.height(), screen_size.width()
         # height, width = 3 * height // 4, 3 * width // 4
         # self.setMinimumSize(width, height)
-        # self.showMaximized()
+        self.showMaximized()
         # self.showFullScreen()
 
     def set_environment(
