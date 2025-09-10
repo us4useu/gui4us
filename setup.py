@@ -149,7 +149,8 @@ if __name__ == "__main__":
             #"PyQt5-Qt5==5.15.2",
            # "PyQt5-sip==12.12.1",
             "matplotlib==3.7.2",
-            "pyqtgraph==0.13.7"
+            "pyqtgraph==0.13.7",
+            "qdarkstyle"
         ],
         python_requires='>=3.8'
     )
