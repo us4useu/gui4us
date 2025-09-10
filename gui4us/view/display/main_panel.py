@@ -1,5 +1,5 @@
 import queue
-from collections import deque
+from collections import deque, defaultdict
 
 import time
 import traceback
@@ -34,6 +34,10 @@ import gui4us.cfg
 from typing import Dict, Sequence
 from queue import Queue
 from PyQt5.QtGui import QTransform
+
+import matplotlib.cm as cm
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
+import numpy as np
 
 import pyqtgraph as pg
 
@@ -72,6 +76,11 @@ class DisplayPanel(Panel):
         self.layers = []
         metadata_promise: Promise = self.env.get_stream_metadata()
         self.metadata_collection: MetadataCollection = metadata_promise.get_result()
+        # NOTE: the below is the state managed during configuration
+        self._value_ranges = dict()
+        self._cmaps = dict()
+        self._preprocess_outputs = dict()
+        self._is_preprocess = dict()
 
         plot = self.plot_widget
         for i, (title, display_cfg) in enumerate(cfg.displays.items()):
@@ -96,9 +105,11 @@ class DisplayPanel(Panel):
                     extents = display_cfg.extents
 
                 for layer in display_cfg.layers:
+                    layer_nr = len(self.layers)
                     image = pg.ImageItem(axisOrder="row-major")
                     self.images.append(image)
                     self.layers.append(layer)
+
                     metadata: ImageMetadata = self.metadata_collection.output(layer.input)
                     input_shape = metadata.shape
                     dtype = metadata.dtype
@@ -115,10 +126,6 @@ class DisplayPanel(Panel):
                         ox_dx = (ox_max-ox_min) / nx
                         ox_dz = (oz_max-oz_min) / nz
 
-                        print(extents)
-                        print(input_shape)
-                        print(ox_dx)
-                        print(ox_dz)
                         transform = QTransform()
                         transform.scale(ox_dz, ox_dx)
                         transform.translate(oz_min, -(ox_max-ox_min)/2)  # TODO fix
@@ -139,7 +146,23 @@ class DisplayPanel(Panel):
                     ax_vmin, ax_vmax = None, None
                     if layer.value_range is not None:
                         ax_vmin, ax_vmax = layer.value_range
-                    cmap = layer.cmap  # TODO
+                    cmap = layer.cmap
+
+                    if len(input_shape) == 2:
+                        self._prepare_preprocess(
+                            layer_nr=layer_nr,
+                            vmin=ax_vmin, vmax=ax_vmax,
+                            cmap=cmap,
+                            input_shape=input_shape
+                        )
+                        self._is_preprocess[layer_nr] = True
+                    elif len(input_shape) == 3 and dtype == np.float32:
+                        # No pre-processing is needed.
+                        self._is_preprocess = False
+                    else:
+                        raise ValueError(f"Unsupported combination of data shape "
+                                         f"and type: {input_shape}, {dtype}")
+
 
                     # TODO avoid setting this multiple times (multiple layers per plot)
                     plot.setLabel("bottom", self.get_ax_label(axis_labels[0], units[0]))
@@ -187,9 +210,11 @@ class DisplayPanel(Panel):
                     # (e.g. when the save button was pressed).
                     return
 
-                for img, l in zip(self.images, self.layers):
+                for layer_nr, (img, l) in enumerate(zip(self.images, self.layers)):
                     d = data[l.input.ordinal]
-                    img.setImage(d, autoLevels=False)
+                    if self._is_preprocess[layer_nr]:
+                        d = self._preprocess(d, layer_nr)
+                    img.setImage(d, autoLevels=True)
         except Exception as e:
             self.logger.exception(e)
 
@@ -198,3 +223,75 @@ class DisplayPanel(Panel):
         if unit:
             label = f"{label} [{unit}]"
         return label
+
+    def _prepare_preprocess(self, layer_nr, vmin, vmax, cmap, input_shape):
+        # prepare dynamic range adjustment
+        self._value_ranges[layer_nr] = (vmin, vmax)
+        # prepare color map
+        cmap = self._extract_segmented_data_cmap(cmap)
+        _internal_cmap = dict()
+
+        for k, v in cmap.items():
+            _internal_cmap[k] = self._prepare_cmap_channel(v)
+        self._cmaps[layer_nr] = _internal_cmap
+        output_shape = input_shape + (3, )  # RGB array
+        self._preprocess_outputs[layer_nr] = np.zeros(output_shape, dtype=np.float32)
+
+    def _prepare_cmap_channel(self, cmap):
+        xs = np.array([x for x, _, _ in cmap])
+        ys0 = np.array([y0 for _, y0, _ in cmap])
+        ys1 = np.array([y1 for _, _, y1 in cmap])
+        return xs, ys0, ys1
+
+    def _preprocess(self, data, layer_nr):
+        data = data.astype(np.float32)
+        vmin, vmax = self._value_ranges[layer_nr]
+        cmap = self._cmaps[layer_nr]
+        output = self._preprocess_outputs[layer_nr]
+
+        # dynamic range adjustment
+        data = np.clip(data, a_min=vmin, a_max=vmax)
+        data = data - vmin
+        data = data / (vmax - vmin)  # [0, 1]
+
+        # color map
+        data = self._interpolate_to_cmap(output, data, cmap)
+        return data
+
+    def _extract_segmented_data_cmap(self, cmap):
+        if isinstance(cmap, str):
+            cmap = cm.get_cmap(cmap)
+
+        if isinstance(cmap, LinearSegmentedColormap):
+            return cmap._segmentdata
+
+        elif isinstance(cmap, ListedColormap):
+            x = np.linspace(0, 1, len(cmap.colors))
+            colors = np.array(cmap.colors)
+            red = [(float(xi), float(ri), float(ri)) for xi, ri in
+                   zip(x, colors[:, 0])]
+            green = [(float(xi), float(gi), float(gi)) for xi, gi in
+                     zip(x, colors[:, 1])]
+            blue = [(float(xi), float(bi), float(bi)) for xi, bi in
+                    zip(x, colors[:, 2])]
+            return {"red": red, "green": green, "blue": blue}
+        else:
+            raise ValueError(f"Unsupported cmap: {cmap}")
+
+    def _interpolate_to_cmap(self, output, data, cmap):
+        output[..., 0] = self._interpolate_channel(data, cmap["red"])
+        output[..., 1] = self._interpolate_channel(data, cmap["green"])
+        output[..., 2] = self._interpolate_channel(data, cmap["blue"])
+        return output
+
+    def _interpolate_channel(self, data, cmap):
+        xs, ys0, ys1 = cmap
+        indices = np.searchsorted(xs, data, side="right") - 1
+        indices = np.clip(indices, 0, len(xs) - 2)
+        x0 = xs[indices]
+        x1 = xs[indices + 1]
+        y0 = ys1[indices]
+        y1 = ys0[indices + 1]
+        t = (data - x0) / (x1 - x0 + 1e-8)
+        return y0 + (y1 - y0) * t
+
