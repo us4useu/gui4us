@@ -158,7 +158,7 @@ class DisplayPanel(Panel):
                         self._is_preprocess[layer_nr] = True
                     elif len(input_shape) == 3 and dtype == np.float32:
                         # No pre-processing is needed.
-                        self._is_preprocess = False
+                        self._is_preprocess[layer_nr] = False
                     else:
                         raise ValueError(f"Unsupported combination of data shape "
                                          f"and type: {input_shape}, {dtype}")
