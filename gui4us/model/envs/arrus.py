@@ -120,7 +120,7 @@ class UltrasoundEnv(Env):
         # Set processing callback.
         # In order to do that, it is necessary to wrap the input pipeline
         # into the Processing class instance.
-        if isinstance(self.scheme.processing, arrus.utils.imaging.Pipeline):
+        if isinstance(self.scheme.processing, (arrus.utils.imaging.Pipeline, arrus.utils.imaging.Graph)):
             pipeline = self.scheme.processing
             self.scheme = dataclasses.replace(
                     self.scheme,
