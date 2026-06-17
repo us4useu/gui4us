@@ -55,7 +55,7 @@ class ArrusEnvConfiguration:
     :param voltage: initial voltage [V]
     """
     scheme: arrus.ops.us4r.Scheme
-    tgc: Curve
+    tgc: Optional[Curve] = None
     medium: Optional[arrus.medium.Medium] = None
     voltage: Optional[float] = 5  # [V]
 
@@ -112,8 +112,13 @@ class UltrasoundEnv(Env):
 
         # Initial values:
         self.scheme = cfg.scheme
-        self.tgc_sampling_points = cfg.tgc.points
-        self.tgc_values = cfg.tgc.values
+        if cfg.tgc is not None:
+            self.tgc_sampling_points = cfg.tgc.points
+            self.tgc_values = cfg.tgc.values
+        else:
+            self.tgc_sampling_points = None
+            self.tgc_values = None
+
         self.initial_voltage = cfg.voltage
         self.medium = cfg.medium
 
@@ -137,9 +142,13 @@ class UltrasoundEnv(Env):
 
         # TODO replace the below with settings read via arrus
         self._us4r_actions = {
-            "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
+            # "TGC": lambda value: self.set_tgc(self.tgc_sampling_points, value),
             "Voltage": lambda value: self.us4r.set_hv_voltage(int(value)),
         }
+        
+        if self.tgc_sampling_points:
+            self._us4r_actions["TGC"] = lambda value: self.set_tgc(self.tgc_sampling_points, value)
+
         # Configure.
         if self.initial_voltage is not None:
             self.us4r.set_hv_voltage(self.initial_voltage)
@@ -147,7 +156,8 @@ class UltrasoundEnv(Env):
         self.session.medium = self.medium
         self.metadata = self.session.upload(self.scheme)
         self.stream = ArrusStream(metadata=self.metadata)
-        self.set_tgc(self.tgc_sampling_points, self.tgc_values)
+        if self.tgc_sampling_points:
+            self.set_tgc(self.tgc_sampling_points, self.tgc_values)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
 
@@ -190,27 +200,29 @@ class UltrasoundEnv(Env):
             arrus_processing_parameters,
             key=lambda setting: setting.name
         )
-        if self.medium is not None:
-            tgc_space = Box(
-                shape=(len(self.tgc_sampling_points),),
-                dtype=np.float32,
-                low=14,
-                high=54,
-                name=[f"{i*1e3:.0f} [mm]"
-                    for i in self.tgc_sampling_points],
-                unit=["dB"]*len(self.tgc_sampling_points)
-            )
-        else:
-            # Seconds
-            tgc_space = Box(
-                shape=(len(self.tgc_sampling_points),),
-                dtype=np.float32,
-                low=14,
-                high=54,
-                name=[f"{i*1e6:.0f} [us]"
-                    for i in self.tgc_sampling_points],
-                unit=["dB"]*len(self.tgc_sampling_points)
-            )
+        if self.tgc_sampling_points:
+
+            if self.medium is not None:
+                tgc_space = Box(
+                    shape=(len(self.tgc_sampling_points),),
+                    dtype=np.float32,
+                    low=14,
+                    high=54,
+                    name=[f"{i*1e3:.0f} [mm]"
+                        for i in self.tgc_sampling_points],
+                    unit=["dB"]*len(self.tgc_sampling_points)
+                )
+            else:
+                # Seconds
+                tgc_space = Box(
+                    shape=(len(self.tgc_sampling_points),),
+                    dtype=np.float32,
+                    low=14,
+                    high=54,
+                    name=[f"{i*1e6:.0f} [us]"
+                        for i in self.tgc_sampling_points],
+                    unit=["dB"]*len(self.tgc_sampling_points)
+                )
 
         parameters = arrus_processing_parameters
         # if self.initial_voltage is not None:
@@ -225,13 +237,15 @@ class UltrasoundEnv(Env):
         #         initial_value=self.initial_voltage,
         #         step=5
         #     ), ]
-        return parameters + [
-            SettingDef(
-                name="TGC",
-                space=tgc_space,
-                initial_value=self.tgc_values,
-            ),
-        ]
+        if self.tgc_sampling_points:
+            parameters = parameters + [
+                SettingDef(
+                    name="TGC",
+                    space=tgc_space,
+                    initial_value=self.tgc_values,
+                ),
+            ]
+        return parameters
 
     def set_tgc(self, z, value):
         # Medium, z -> time
