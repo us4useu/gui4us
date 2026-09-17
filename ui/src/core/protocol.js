@@ -42,7 +42,8 @@
  * @returns {DecodedFrame}
  */
 export function decodeFrame(message) {
-  const buffer = message instanceof Uint8Array ? message.buffer : message;
+  const buffer = /** @type {ArrayBuffer} */(
+    message instanceof Uint8Array ? message.buffer : message);
   const byteOffset = message instanceof Uint8Array ? message.byteOffset : 0;
   const view = new DataView(buffer, byteOffset);
   const headerLength = view.getUint32(0, /* littleEndian */ true);

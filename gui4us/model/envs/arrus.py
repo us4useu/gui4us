@@ -289,6 +289,10 @@ class UltrasoundEnv(Env):
             t = z/c*2
         else:
             t = z
+        # Plain Python floats: the ARRUS (SWIG) binding rejects numpy.float32 elements, which
+        # is what a setting coming from the web/notebook control panel is converted to.
+        t = [float(v) for v in np.ravel(t)]
+        value = [float(v) for v in np.ravel(value)]
         self.us4r.set_tgc((t, value))
 
     def get_stream(self) -> Stream:

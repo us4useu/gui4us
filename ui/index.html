@@ -7,12 +7,15 @@
     <style>
       :root { color-scheme: dark; }
       body { margin: 0; height: 100vh; display: grid; grid-template-columns: 20rem 1fr;
+             grid-template-rows: minmax(0, 1fr);
              background: #0d0d11; color: #e6e6e6; font-family: system-ui, sans-serif; }
       aside { display: flex; flex-direction: column; gap: 1px; background: #0d0d11;
               overflow-y: auto; border-right: 1px solid #26262e; }
-      main { padding: 1px; overflow: auto; }
+      main { padding: 1px; overflow: auto; min-height: 0; box-sizing: border-box; }
+      /* Displays share the window: rows split the height, so an image never overflows it. */
       #displays { display: grid; gap: 1px; height: 100%;
-                  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+                  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+                  grid-auto-rows: minmax(12rem, 1fr); }
       g4u-control-panel { flex: 1; }
     </style>
   </head>

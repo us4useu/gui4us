@@ -11,12 +11,15 @@ import { applyColormap, getColormap } from "../core/colormap.js";
 
 const STREAM_VIEW_STYLE = `
   :host { display: block; position: relative; background: #101014; color: #e6e6e6;
-          font-family: system-ui, sans-serif; }
+          font-family: system-ui, sans-serif; min-width: 0; min-height: 0; overflow: hidden; }
   .title { position: absolute; top: .35rem; left: .6rem; font-size: .85rem; opacity: .85;
            pointer-events: none; text-shadow: 0 1px 2px #000; }
   .axes { position: absolute; bottom: .35rem; right: .6rem; font-size: .75rem; opacity: .6;
           pointer-events: none; text-shadow: 0 1px 2px #000; }
-  canvas { width: 100%; height: 100%; display: block; image-rendering: auto; }
+  /* The element sets the size; the image is scaled to fit inside it, keeping its aspect ratio
+     (the canvas' pixel size is the frame size, its CSS size is the element's). */
+  canvas { width: 100%; height: 100%; display: block; object-fit: contain;
+           image-rendering: auto; }
   .empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: .85rem;
            opacity: .5; }
 `;
@@ -124,7 +127,10 @@ export class StreamView extends HTMLElement {
         this._rgbaCache.get(array.header.layer));
       this._rgbaCache.set(array.header.layer, rgba);
     }
-    const image = new ImageData(rgba, width, height);
+    // rgba is a Uint8ClampedArray over a plain ArrayBuffer; the cast is only for the checker,
+    // which also allows a SharedArrayBuffer backing here.
+    const image = new ImageData(/** @type {Uint8ClampedArray<ArrayBuffer>} */(rgba),
+                                width, height);
     if (clear) this._context.clearRect(0, 0, width, height);
     this._context.putImageData(image, 0, 0);
   }

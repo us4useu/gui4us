@@ -16,9 +16,14 @@ import { TYPE } from "../core/protocol.js";
 
 const transport = new WebSocketTransport();
 
-const controlPanel = document.querySelector("g4u-control-panel");
-const actionsPanel = document.querySelector("g4u-actions-panel");
-const capturePanel = document.querySelector("g4u-capture-panel");
+// The custom elements are declared in index.html; the casts give the JSDoc checker the element
+// type (querySelector only promises an Element, which has none of their properties).
+const controlPanel = /** @type {HTMLElement & Record<string, any>} */(
+  document.querySelector("g4u-control-panel"));
+const actionsPanel = /** @type {HTMLElement & Record<string, any>} */(
+  document.querySelector("g4u-actions-panel"));
+const capturePanel = /** @type {HTMLElement & Record<string, any>} */(
+  document.querySelector("g4u-capture-panel"));
 const displays = document.querySelector("#displays");
 
 /** @type {Array<any>} */
@@ -30,7 +35,8 @@ transport.onMessage((message) => {
   displays.replaceChildren();
   streamViews.splice(0);
   for (const display of message.displays || []) {
-    const view = document.createElement("g4u-stream-view");
+    const view = /** @type {HTMLElement & Record<string, any>} */(
+      document.createElement("g4u-stream-view"));
     view.setAttribute("display", display.id);
     view.descriptor = message;
     displays.append(view);
