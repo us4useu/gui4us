@@ -18,8 +18,10 @@ from typing import Iterable
 
 class ArrusStream(Stream):
 
-    def __init__(self, metadata):
-        self.callbacks = []
+    def __init__(self, metadata, callbacks=None):
+        # The callbacks are carried over when the stream is re-created (e.g. after selecting
+        # a new sub-sequence), so the views/capture stay connected.
+        self.callbacks = list(callbacks) if callbacks is not None else []
         self._metadata = metadata
 
     def append_on_new_data_callback(self, callback: Callable):
@@ -145,6 +147,7 @@ class UltrasoundEnv(Env):
             self.us4r.set_hv_voltage(self.initial_voltage)
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
+        self._is_running = False
         self.metadata = self.session.upload(self.scheme)
         self.stream = ArrusStream(metadata=self.metadata)
         self.set_tgc(self.tgc_sampling_points, self.tgc_values)
@@ -153,9 +156,11 @@ class UltrasoundEnv(Env):
 
     def start(self) -> None:
         self.session.start_scheme()
+        self._is_running = True
 
     def stop(self) -> None:
         self.session.stop_scheme()
+        self._is_running = False
 
     def close(self) -> None:
         self.stop()
@@ -232,6 +237,49 @@ class UltrasoundEnv(Env):
                 initial_value=self.tgc_values,
             ),
         ]
+
+    def set_subsequence(self, ops, sri=None, array_id: int = 0):
+        """Runs only the given TX/RXs of the uploaded sequence.
+
+        A thin wrapper around ``arrus.Session.set_subsequences`` that keeps this environment
+        consistent afterwards: the scheme is stopped while the sequencer is re-programmed, the
+        processing pipeline is reused (so this stream's callback survives), the metadata is
+        refreshed and the acquisition is resumed when it was running.
+
+        Call it through the controller so that it runs on the environment thread::
+
+            gui.call("set_subsequence", [2, 3, 5, 8, 13])
+
+        :param ops: the TX/RX ordinal numbers to run (increasing), or a slice
+        :param sri: sequence repetition interval to apply [s]
+        :param array_id: which uploaded TX/RX sequence to limit
+        :return: the new stream metadata collection
+        """
+        was_running = self._is_running
+        if was_running:
+            self.stop()
+        n_sequences = self._get_number_of_sequences()
+        subsequences = [[] for _ in range(n_sequences)]
+        sris = [None]*n_sequences
+        subsequences[array_id] = ops
+        sris[array_id] = sri
+        metadata = self.session.set_subsequences(
+            subsequences=subsequences, sris=sris,
+            processing=self.scheme.processing)
+        self.metadata = metadata
+        if not isinstance(self.metadata, Iterable):
+            self.metadata = (self.metadata, )
+        self.stream = ArrusStream(metadata=self.metadata,
+                                  callbacks=self.stream.callbacks)
+        if was_running:
+            self.start()
+        return self.get_stream_metadata()
+
+    def _get_number_of_sequences(self) -> int:
+        sequences = self.scheme.tx_rx_sequence
+        if isinstance(sequences, Iterable):
+            return len(sequences)
+        return 1
 
     def set_tgc(self, z, value):
         # Medium, z -> time

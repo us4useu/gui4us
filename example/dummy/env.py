@@ -20,6 +20,10 @@ class DummyStream(Stream):
         self.callbacks.append(callback)
 
     def stop(self):
+        if not self._is_running:
+            # Nothing to join: the stream was never started (e.g. the GUI was closed
+            # before pressing Start).
+            return
         self._is_running = False
         self.thread.join()
 

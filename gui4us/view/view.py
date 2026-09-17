@@ -29,15 +29,39 @@ def start_view_app(env, **view_kwargs):
     return APP.exec_()
 
 
+def start_view_app_for(env, view_cfg, capture_buffer_capacity: int, title: str):
+    """Starts the Qt view for already loaded configuration objects.
+
+    This is the entry point used by :class:`gui4us.Gui4us`; ``start_view_app`` (which loads the
+    configuration from a directory) is kept for the command line.
+    """
+    return start_view_app(env=env, title=title, view_cfg=view_cfg,
+                          capture_buffer_capacity=capture_buffer_capacity)
+
+
 class View(QtWidgets.QMainWindow):
     """
     Main window view.
     """
-    def __init__(self, title, cfg_path: str):
+    def __init__(self, title, cfg_path: str = None, view_cfg=None,
+                 capture_buffer_capacity: int = None):
+        """
+        :param title: window title
+        :param cfg_path: configuration directory (``display.py``, ``app.py``); the alternative
+          to passing the configuration objects directly
+        :param view_cfg: display configuration (``gui4us.cfg.ViewCfg``)
+        :param capture_buffer_capacity: capture buffer size
+        """
         super().__init__()
-        self.cfg = load_cfg(os.path.join(cfg_path, "display.py"), "display")
-        self.app_cfg = load_cfg(os.path.join(cfg_path, "app.py"), "app")
-        self.view_cfg = self.cfg.VIEW_CFG
+        if cfg_path is not None:
+            self.cfg = load_cfg(os.path.join(cfg_path, "display.py"), "display")
+            self.app_cfg = load_cfg(os.path.join(cfg_path, "app.py"), "app")
+            view_cfg = self.cfg.VIEW_CFG
+            capture_buffer_capacity = self.app_cfg.CAPTURE_BUFFER_SIZE
+        elif view_cfg is None:
+            raise ValueError("Provide either cfg_path or view_cfg.")
+        self.capture_buffer_capacity = capture_buffer_capacity
+        self.view_cfg = view_cfg
         self.env_views: Dict[EnvId, EnvironmentView] = {}
         self.text_format = Qt.MarkdownText
         self.statusBar().showMessage('Configuring...')
@@ -81,7 +105,7 @@ class View(QtWidgets.QMainWindow):
     ):
         env_view = EnvironmentView(
             self, view_cfg=self.view_cfg, env=env,
-            capture_buffer_capacity=self.app_cfg.CAPTURE_BUFFER_SIZE)
+            capture_buffer_capacity=self.capture_buffer_capacity)
         self.env_views[id] = env_view
         self.main_layout.replaceWidget(self.current_control_panel,
                                    env_view.control_panel.backend_widget)

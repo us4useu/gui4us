@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GUI4us</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; height: 100vh; display: grid; grid-template-columns: 20rem 1fr;
+             background: #0d0d11; color: #e6e6e6; font-family: system-ui, sans-serif; }
+      aside { display: flex; flex-direction: column; gap: 1px; background: #0d0d11;
+              overflow-y: auto; border-right: 1px solid #26262e; }
+      main { padding: 1px; overflow: auto; }
+      #displays { display: grid; gap: 1px; height: 100%;
+                  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+      g4u-control-panel { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <g4u-actions-panel></g4u-actions-panel>
+      <g4u-capture-panel></g4u-capture-panel>
+      <g4u-control-panel></g4u-control-panel>
+    </aside>
+    <main><div id="displays"></div></main>
+    <script type="module" src="/src/app/main.js"></script>
+  </body>
+</html>
