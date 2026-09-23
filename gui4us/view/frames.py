@@ -127,6 +127,10 @@ class FrameEncoder:
         chunks: List[bytes] = []
         offset = 0
         for layer in self.layers:
+            if layer.input.ordinal >= len(data):
+                # This layer's input is not in this frame -- e.g. a display fed by
+                # Gui4us.show() with arrays the stream does not produce. Skip it.
+                continue
             array = data[layer.input.ordinal]
             converted = self._convert(array, layer)
             payload = converted.tobytes()

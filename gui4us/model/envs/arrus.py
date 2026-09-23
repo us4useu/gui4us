@@ -275,6 +275,36 @@ class UltrasoundEnv(Env):
             self.start()
         return self.get_stream_metadata()
 
+    def prepare_subsequence(self, ops, sri=None, array_id: int = 0):
+        """Prepares the TX/RXs to run, without stopping the scheme.
+
+        NOTE: with the scheme running, the prepared TX/RXs are used starting from the SECOND :meth:`run` after
+        this call (the next run still acquires the current TX/RXs).
+
+        A thin wrapper around ``arrus.Session.prepare_subsequences`` (the sequencer double-buffering): the
+        MANUAL work mode is required, and the new TX/RXs must produce data of the same shape as the current
+        ones (e.g. the same number of TX/RXs). The processing pipeline is updated by ARRUS on the next run.
+        When the scheme is stopped, this is the same as :meth:`set_subsequence`.
+
+        Call it through the controller: ``gui.call("prepare_subsequence", [2, 3, 5])``.
+        """
+        if not self._is_running:
+            return self.set_subsequence(ops, sri=sri, array_id=array_id)
+        n_sequences = self._get_number_of_sequences()
+        subsequences = [[] for _ in range(n_sequences)]
+        sris = [None]*n_sequences
+        subsequences[array_id] = ops
+        sris[array_id] = sri
+        # NOTE: the output data shape does not change, the stream (and its metadata) is kept.
+        self.session.prepare_subsequences(subsequences=subsequences, sris=sris,
+                                          processing=self.scheme.processing)
+        return self.get_stream_metadata()
+
+    def run(self, sync: bool = False, timeout=None) -> None:
+        """Triggers the scheme (MANUAL work mode: a single acquisition); starts it, when stopped."""
+        self.session.run(sync=sync, timeout=timeout)
+        self._is_running = True
+
     def _get_number_of_sequences(self) -> int:
         sequences = self.scheme.tx_rx_sequence
         if isinstance(sequences, Iterable):

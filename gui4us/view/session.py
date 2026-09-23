@@ -67,6 +67,9 @@ class ViewSession:
         #: Only the newest frame is kept: a slow client must never block acquisition.
         self._latest = deque(maxlen=1)
         self._last_sent = 0.0
+        #: Optional ``fn(data) -> data | None`` applied to a frame before it is displayed (not
+        #: to what is captured); returning None skips displaying that frame.
+        self.display_transform: Optional[Callable[[Any], Any]] = None
 
         self.env.get_stream().append_on_new_data_callback(self._on_new_data)
 
@@ -77,6 +80,7 @@ class ViewSession:
             "type": "descriptor",
             "layers": [layer.to_dict() for layer in self.layers],
             "displays": self._displays_descriptor(),
+            "grid": self._grid_descriptor(),
             "settings": [self._setting_descriptor(s) for s in self.settings],
             "capture": {"capacity": self.capture_capacity},
             "state": self.state(),
@@ -98,6 +102,34 @@ class ViewSession:
                 displays.append(seen[layer.display_id])
             seen[layer.display_id]["n_layers"] += 1
         return displays
+
+    def _grid_descriptor(self) -> Optional[Dict[str, Any]]:
+        """The display layout (``ViewCfg.grid_spec``); None means the front end's default layout.
+
+        Each location is normalised to ``{"display", "rows": [start, end), "columns": [start,
+        end)}``; a location without ``display_id`` refers to the i-th display, as in the Qt view.
+        """
+        grid_spec = getattr(self.view_cfg, "grid_spec", None)
+        if grid_spec is None:
+            return None
+        display_ids = [d["id"] for d in self._displays_descriptor()]
+
+        def span(value):
+            return [int(value), int(value)+1] if isinstance(value, (int, np.integer)) \
+                else [int(value[0]), int(value[1])]
+
+        locations = []
+        for i, location in enumerate(grid_spec.locations):
+            display_id = location.display_id
+            if display_id is None:
+                if i >= len(display_ids):
+                    raise ValueError(f"Grid location {i} has no display_id and there is no "
+                                     f"display number {i}.")
+                display_id = display_ids[i]
+            locations.append({"display": display_id, "rows": span(location.rows),
+                              "columns": span(location.columns)})
+        return {"n_rows": int(grid_spec.n_rows), "n_columns": int(grid_spec.n_columns),
+                "locations": locations}
 
     @staticmethod
     def _setting_descriptor(setting: SettingDef) -> Dict[str, Any]:
@@ -162,16 +194,34 @@ class ViewSession:
             now = time.time()
             if self.min_frame_interval and (now-self._last_sent) < self.min_frame_interval:
                 return
+            transform = self.display_transform
+            if transform is not None:
+                data = transform(data)
+                if data is None:
+                    return
             self._last_sent = now
-            frame = self.encoder.encode(data)
-            self._latest.append(frame)
-            for callback in list(self._frame_callbacks):
-                try:
-                    callback(frame)
-                except Exception as e:  # noqa: BLE001
-                    self.logger.exception(e)
+            self._publish(data)
         except Exception as e:  # noqa: BLE001 - never propagate into the acquisition thread
             self.logger.exception(e)
+
+    def show(self, data) -> None:
+        """Displays ``data`` -- a tuple of arrays indexed like the stream's outputs.
+
+        For images computed by the caller rather than acquired (e.g. a reconstruction): each
+        display layer shows ``data[layer.input.ordinal]``, so a display may use ordinals the
+        environment's stream does not have. Not rate limited and not captured. Usually combined
+        with a display transform that returns None, so stream frames do not overwrite it.
+        """
+        self._publish(tuple(data))
+
+    def _publish(self, data) -> None:
+        frame = self.encoder.encode(data)
+        self._latest.append(frame)
+        for callback in list(self._frame_callbacks):
+            try:
+                callback(frame)
+            except Exception as e:  # noqa: BLE001
+                self.logger.exception(e)
 
     # ------------------------------------------------------------------ actions
     def start(self) -> None:

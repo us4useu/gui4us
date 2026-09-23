@@ -147,6 +147,24 @@ class Gui4us:
         """The raw data stream of the environment."""
         return self.env_controller.get_stream()
 
+    def set_display_transform(self, transform: Optional[Callable[[Tuple[np.ndarray, ...]], Any]]):
+        """Transforms each frame before it is DISPLAYED (captures keep the raw data).
+
+        :param transform: ``fn(data) -> data | None`` called on the acquisition thread with the
+          stream's tuple of arrays; return the tuple to display, or None to skip the frame.
+          Pass None to remove it.
+        """
+        self.session.display_transform = transform
+
+    def show(self, *arrays: np.ndarray) -> None:
+        """Displays arrays computed by the script (e.g. a reconstruction), not acquired ones.
+
+        ``arrays[i]`` is what display layers with ``input=StreamDataId(..., i)`` show. Pair it
+        with ``set_display_transform(lambda data: None)`` when the stream should not update the
+        same displays.
+        """
+        self.session.show(arrays)
+
     def on_new_data(self, callback: Callable[[Tuple[np.ndarray, ...]], Any]) -> None:
         """Registers a callback for every acquired frame (raw arrays, acquisition thread)."""
         self.get_stream().append_on_new_data_callback(callback)

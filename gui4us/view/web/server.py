@@ -140,6 +140,7 @@ async def _send_frames(websocket, session: ViewSession, outgoing: "asyncio.Queue
     """Pushes the newest frame (and any pending control message) to one client."""
     interval = session.min_frame_interval or 1/30
     last_seq = -1
+    sent = 0
     try:
         while True:
             while not outgoing.empty():
@@ -148,11 +149,15 @@ async def _send_frames(websocket, session: ViewSession, outgoing: "asyncio.Queue
             if frame is not None and frame.seq != last_seq:
                 last_seq = frame.seq
                 await websocket.send_bytes(frame.to_bytes())
+                sent += 1
+                if sent == 1:
+                    LOGGER.info("Sent the first frame to a web view client: "
+                                + ", ".join(f"{a.display}{list(a.shape)}" for a in frame.arrays))
             await asyncio.sleep(interval)
     except asyncio.CancelledError:
         raise
-    except Exception as e:  # noqa: BLE001 - the socket died; the receive loop reports it
-        LOGGER.debug(f"Frame sender finished: {e}")
+    except Exception as e:  # noqa: BLE001 - the socket died, or a frame could not be sent
+        LOGGER.warning(f"Frame sender stopped after {sent} frames: {e!r}")
 
 
 def _handle_client_message(session: ViewSession, message: Dict[str, Any]) -> None:

@@ -29,15 +29,38 @@ const displays = document.querySelector("#displays");
 /** @type {Array<any>} */
 const streamViews = [];
 
+/**
+ * Applies the descriptor's display layout (ViewCfg.grid_spec) to the #displays grid; without
+ * one the stylesheet's default (one row, wrapping on narrow windows) is kept.
+ * @param {HTMLElement} container @param {any} grid
+ */
+function applyGrid(container, grid) {
+  container.style.gridTemplateColumns = grid ? `repeat(${grid.n_columns}, minmax(0, 1fr))` : "";
+  container.style.gridTemplateRows = grid ? `repeat(${grid.n_rows}, minmax(0, 1fr))` : "";
+}
+
+/** @param {any} grid @param {string} displayId */
+function gridLocation(grid, displayId) {
+  if (!grid) return null;
+  return (grid.locations || []).find((/** @type {any} */ l) => l.display === displayId) || null;
+}
+
 // One <g4u-stream-view> per display in the descriptor.
 transport.onMessage((message) => {
   if (message.type !== TYPE.DESCRIPTOR) return;
   displays.replaceChildren();
   streamViews.splice(0);
+  applyGrid(/** @type {HTMLElement} */(displays), message.grid);
   for (const display of message.displays || []) {
     const view = /** @type {HTMLElement & Record<string, any>} */(
       document.createElement("g4u-stream-view"));
     view.setAttribute("display", display.id);
+    const location = gridLocation(message.grid, display.id);
+    if (location) {
+      // CSS grid lines are 1-based; the locations are [start, end) cell ranges.
+      view.style.gridRow = `${location.rows[0] + 1} / ${location.rows[1] + 1}`;
+      view.style.gridColumn = `${location.columns[0] + 1} / ${location.columns[1] + 1}`;
+    }
     view.descriptor = message;
     displays.append(view);
     streamViews.push(view);
