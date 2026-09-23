@@ -170,7 +170,7 @@ class Gui4us:
         self.get_stream().append_on_new_data_callback(callback)
 
     def capture(self, n_frames: Optional[int] = None, timeout: Optional[float] = None,
-                wait: bool = True) -> List[Tuple[np.ndarray, ...]]:
+                wait: bool = True, notify: bool = True) -> List[Tuple[np.ndarray, ...]]:
         """Captures ``n_frames`` frames and returns them as numpy arrays.
 
         The frames are exactly what the environment produced (the display's value range and
@@ -179,8 +179,11 @@ class Gui4us:
         :param n_frames: number of frames; ``None`` uses ``AppCfg.capture_buffer_size``
         :param timeout: how long to wait [s]; ``None`` waits indefinitely
         :param wait: when False, starts the capture and returns immediately
+        :param notify: when False, the views are not told about this capture -- for a script that
+          fetches frames through the capture buffer, so its captures do not appear (and flicker)
+          in the view's capture panel
         """
-        self.session.capture_start(n_frames)
+        self.session.capture_start(n_frames, notify=notify)
         if not wait:
             return []
         if not self.session.capture_wait(timeout):

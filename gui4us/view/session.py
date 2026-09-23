@@ -60,6 +60,8 @@ class ViewSession:
         self._hardware_state = STATE_STOPPED
         self._capture_state = CAPTURE_EMPTY
         self._capture_buffer: Optional[CaptureBuffer] = None
+        #: Whether the current capture reports its progress to the front ends (see capture_start).
+        self._capture_notify = True
         self._capture_metadata = None
         self._capture_done = threading.Event()
         self._frame_callbacks: List[Callable[[Frame], Any]] = []
@@ -252,15 +254,22 @@ class ViewSession:
         raise ValueError(f"Unknown setting: {name}")
 
     # ------------------------------------------------------------------ capture
-    def capture_start(self, n_frames: Optional[int] = None) -> None:
-        """Starts (or restarts) a capture of ``n_frames`` raw frames."""
+    def capture_start(self, n_frames: Optional[int] = None, notify: bool = True) -> None:
+        """Starts (or restarts) a capture of ``n_frames`` raw frames.
+
+        :param notify: whether the front ends are told about this capture. A script that uses the
+          capture buffer to fetch frames of its own (e.g. one frame per loop iteration) passes
+          False, so that its captures do not flicker through the view's capture panel.
+        """
         with self._state_lock:
             capacity = int(n_frames) if n_frames else self.capture_capacity
             self._capture_buffer = CaptureBuffer(capacity)
             self._capture_metadata = self.env.get_stream().get_metadata()
             self._capture_state = CAPTURE_CAPTURING
+            self._capture_notify = bool(notify)
             self._capture_done.clear()
-        self._notify_state()
+        if notify:
+            self._notify_state()
 
     def _append_to_capture(self, data) -> None:
         buffer = self._capture_buffer
@@ -273,7 +282,8 @@ class ViewSession:
             with self._state_lock:
                 self._capture_state = CAPTURE_CAPTURED
                 self._capture_done.set()
-        self._notify_state()
+        if self._capture_notify:
+            self._notify_state()
 
     def capture_wait(self, timeout: Optional[float] = None) -> bool:
         """Blocks until the capture is complete. Returns False on timeout."""
