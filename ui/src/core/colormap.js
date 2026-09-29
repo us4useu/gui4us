@@ -5,7 +5,14 @@
  * Python sends one byte per pixel (already clipped to the display's value range), so the colour
  * map is a pure client-side concern. The maps are the matplotlib ones GUI4us configurations
  * commonly use; unknown names fall back to grayscale.
+ *
+ * Data occupies the values 0..254; 255 (NO_DATA) marks a pixel without data (NaN on the Python
+ * side) and is transparent in every map -- this is what lets an overlay layer (colour Doppler
+ * over a B-mode) show the layers below it.
  */
+
+/** The encoded value of a pixel without data; see gui4us.view.frames.NO_DATA. */
+export const NO_DATA = 255;
 
 /** @typedef {Uint8ClampedArray} Lut A flat RGBA LUT of 256*4 bytes. */
 
@@ -17,8 +24,8 @@
 function interpolate(anchors) {
   const lut = new Uint8ClampedArray(256 * 4);
   const segments = anchors.length - 1;
-  for (let i = 0; i < 256; i++) {
-    const position = (i / 255) * segments;
+  for (let i = 0; i < NO_DATA; i++) {
+    const position = (i / (NO_DATA - 1)) * segments;
     const index = Math.min(Math.floor(position), segments - 1);
     const t = position - index;
     const from = anchors[index];
@@ -28,6 +35,8 @@ function interpolate(anchors) {
     lut[i * 4 + 2] = from[2] + (to[2] - from[2]) * t;
     lut[i * 4 + 3] = 255;
   }
+  // NO_DATA: fully transparent.
+  lut[NO_DATA * 4 + 3] = 0;
   return lut;
 }
 
@@ -43,6 +52,11 @@ const LUTS = {
   magma: interpolate([[0, 0, 4], [81, 18, 124], [183, 55, 121], [252, 137, 97], [252, 253, 191]]),
   viridis: interpolate([[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]]),
   jet: interpolate([[0, 0, 128], [0, 0, 255], [0, 255, 255], [255, 255, 0], [255, 0, 0], [128, 0, 0]]),
+  // Diverging maps, e.g. for the colour Doppler velocity.
+  bwr: interpolate([[0, 0, 255], [255, 255, 255], [255, 0, 0]]),
+  seismic: interpolate([[0, 0, 76], [0, 0, 255], [255, 255, 255], [255, 0, 0], [128, 0, 0]]),
+  coolwarm: interpolate([[59, 76, 192], [221, 221, 221], [180, 4, 38]]),
+  rdbu_r: interpolate([[5, 48, 97], [67, 147, 195], [247, 247, 247], [214, 96, 77], [103, 0, 31]]),
 };
 
 /**

@@ -97,6 +97,8 @@ class ViewSession:
                     "id": layer.display_id,
                     "title": layer.title,
                     "kind": layer.kind,
+                    "n_columns": layer.n_columns,
+                    "node_labels": list(layer.node_labels) if layer.node_labels else None,
                     "ax_labels": list(layer.ax_labels) if layer.ax_labels else None,
                     "extents": [list(e) for e in layer.extents] if layer.extents else None,
                     "n_layers": 0,
@@ -286,8 +288,19 @@ class ViewSession:
             self._notify_state()
 
     def capture_wait(self, timeout: Optional[float] = None) -> bool:
-        """Blocks until the capture is complete. Returns False on timeout."""
-        return self._capture_done.wait(timeout)
+        """Blocks until the capture is complete. Returns False on timeout.
+
+        Waits in short slices, so that Ctrl+C (KeyboardInterrupt) is handled while waiting -- a
+        single long wait can hold the main thread in the lock where the signal is not seen, and a
+        device that stopped (e.g. its watchdog fired) would then hang the script for good.
+        """
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            remaining = 0.25 if deadline is None else min(0.25, deadline - time.monotonic())
+            if remaining <= 0:
+                return self._capture_done.is_set()
+            if self._capture_done.wait(remaining):
+                return True
 
     def captured_arrays(self) -> List[Tuple[np.ndarray, ...]]:
         """The captured frames: one tuple of raw arrays per frame."""

@@ -1,66 +1,104 @@
-import { w as v } from "./_widget-_BnPWc-d.js";
-function h(s) {
-  const t = new Uint8ClampedArray(1024), e = s.length - 1;
-  for (let i = 0; i < 256; i++) {
-    const n = i / 255 * e, a = Math.min(Math.floor(n), e - 1), o = n - a, r = s[a], l = s[a + 1];
-    t[i * 4 + 0] = r[0] + (l[0] - r[0]) * o, t[i * 4 + 1] = r[1] + (l[1] - r[1]) * o, t[i * 4 + 2] = r[2] + (l[2] - r[2]) * o, t[i * 4 + 3] = 255;
+import { w as T } from "./_widget-_BnPWc-d.js";
+const g = { left: 58, right: 14, top: 26, bottom: 44 }, A = "#9aa0aa", C = "#d4d7dd", I = "11px system-ui, sans-serif";
+function v(e, t, s = 6) {
+  const i = Math.abs(t - e);
+  if (!(i > 0) || !Number.isFinite(i)) return [e];
+  const n = i / Math.max(2, s), h = Math.pow(10, Math.floor(Math.log10(n))), a = [1, 2, 2.5, 5, 10].map((l) => l * h).find((l) => l >= n) || 10 * h, r = Math.min(e, t), o = Math.max(e, t), d = [];
+  for (let l = Math.ceil(r / a) * a; l <= o + a * 1e-6; l += a)
+    d.push(Math.abs(l) < a * 1e-6 ? 0 : l);
+  return d;
+}
+function x(e, t) {
+  const s = t >= 10 || t >= 1 ? 0 : t >= 0.1 ? 1 : 2;
+  return e.toFixed(s);
+}
+function k(e, t) {
+  return {
+    x: g.left,
+    y: g.top,
+    width: Math.max(1, e - g.left - g.right),
+    height: Math.max(1, t - g.top - g.bottom)
+  };
+}
+function S(e, t, s) {
+  const { x: i, y: n } = s;
+  e.save(), e.font = I, e.strokeStyle = A, e.fillStyle = C, e.lineWidth = 1, e.strokeRect(t.x + 0.5, t.y + 0.5, t.width, t.height);
+  const h = v(i[0], i[1]), a = h.length > 1 ? Math.abs(h[1] - h[0]) : 1;
+  e.textAlign = "center", e.textBaseline = "top";
+  for (const d of h) {
+    const l = t.x + (d - i[0]) / (i[1] - i[0]) * t.width;
+    l < t.x - 1 || l > t.x + t.width + 1 || (e.beginPath(), e.moveTo(l, t.y + t.height), e.lineTo(l, t.y + t.height + 5), e.stroke(), e.fillText(x(d, a), l, t.y + t.height + 8));
   }
-  return t;
+  const r = v(n[0], n[1]), o = r.length > 1 ? Math.abs(r[1] - r[0]) : 1;
+  e.textAlign = "right", e.textBaseline = "middle";
+  for (const d of r) {
+    const l = t.y + (d - n[0]) / (n[1] - n[0]) * t.height;
+    l < t.y - 1 || l > t.y + t.height + 1 || (e.beginPath(), e.moveTo(t.x - 5, l), e.lineTo(t.x, l), e.stroke(), e.fillText(x(d, o), t.x - 8, l));
+  }
+  s.xLabel && (e.textAlign = "center", e.textBaseline = "bottom", e.fillText(s.xLabel, t.x + t.width / 2, t.y + t.height + g.bottom - 4)), s.yLabel && (e.save(), e.translate(12, t.y + t.height / 2), e.rotate(-Math.PI / 2), e.textAlign = "center", e.textBaseline = "top", e.fillText(s.yLabel, 0, 0), e.restore()), s.title && (e.textAlign = "left", e.textBaseline = "alphabetic", e.fillStyle = "#f0f2f5", e.fillText(s.title, t.x, t.y - 8)), e.restore();
 }
-const f = h([[0, 0, 0], [255, 255, 255]]), w = {
-  gray: f,
-  grey: f,
-  bone: h([[0, 0, 0], [84, 84, 116], [169, 201, 201], [255, 255, 255]]),
-  hot: h([[0, 0, 0], [255, 0, 0], [255, 255, 0], [255, 255, 255]]),
-  inferno: h([[0, 0, 4], [87, 16, 110], [188, 55, 84], [249, 142, 9], [252, 255, 164]]),
-  magma: h([[0, 0, 4], [81, 18, 124], [183, 55, 121], [252, 137, 97], [252, 253, 191]]),
-  viridis: h([[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]]),
-  jet: h([[0, 0, 128], [0, 0, 255], [0, 255, 255], [255, 255, 0], [255, 0, 0], [128, 0, 0]])
+const _ = 255;
+function c(e) {
+  const t = new Uint8ClampedArray(1024), s = e.length - 1;
+  for (let i = 0; i < _; i++) {
+    const n = i / (_ - 1) * s, h = Math.min(Math.floor(n), s - 1), a = n - h, r = e[h], o = e[h + 1];
+    t[i * 4 + 0] = r[0] + (o[0] - r[0]) * a, t[i * 4 + 1] = r[1] + (o[1] - r[1]) * a, t[i * 4 + 2] = r[2] + (o[2] - r[2]) * a, t[i * 4 + 3] = 255;
+  }
+  return t[_ * 4 + 3] = 0, t;
+}
+const p = c([[0, 0, 0], [255, 255, 255]]), L = {
+  gray: p,
+  grey: p,
+  bone: c([[0, 0, 0], [84, 84, 116], [169, 201, 201], [255, 255, 255]]),
+  hot: c([[0, 0, 0], [255, 0, 0], [255, 255, 0], [255, 255, 255]]),
+  inferno: c([[0, 0, 4], [87, 16, 110], [188, 55, 84], [249, 142, 9], [252, 255, 164]]),
+  magma: c([[0, 0, 4], [81, 18, 124], [183, 55, 121], [252, 137, 97], [252, 253, 191]]),
+  viridis: c([[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]]),
+  jet: c([[0, 0, 128], [0, 0, 255], [0, 255, 255], [255, 255, 0], [255, 0, 0], [128, 0, 0]]),
+  // Diverging maps, e.g. for the colour Doppler velocity.
+  bwr: c([[0, 0, 255], [255, 255, 255], [255, 0, 0]]),
+  seismic: c([[0, 0, 76], [0, 0, 255], [255, 255, 255], [255, 0, 0], [128, 0, 0]]),
+  coolwarm: c([[59, 76, 192], [221, 221, 221], [180, 4, 38]]),
+  rdbu_r: c([[5, 48, 97], [67, 147, 195], [247, 247, 247], [214, 96, 77], [103, 0, 31]])
 };
-function x(s) {
-  return s && w[s.toLowerCase()] || f;
+function O(e) {
+  return e && L[e.toLowerCase()] || p;
 }
-function b(s, t, e) {
-  const i = e && e.length === s.length * 4 ? e : new Uint8ClampedArray(s.length * 4);
-  for (let n = 0; n < s.length; n++) {
-    const a = s[n] * 4, o = n * 4;
-    i[o] = t[a], i[o + 1] = t[a + 1], i[o + 2] = t[a + 2], i[o + 3] = t[a + 3];
+function R(e, t, s) {
+  const i = s && s.length === e.length * 4 ? s : new Uint8ClampedArray(e.length * 4);
+  for (let n = 0; n < e.length; n++) {
+    const h = e[n] * 4, a = n * 4;
+    i[a] = t[h], i[a + 1] = t[h + 1], i[a + 2] = t[h + 2], i[a + 3] = t[h + 3];
   }
   return i;
 }
-const C = `
+const E = `
   :host { display: block; position: relative; background: #101014; color: #e6e6e6;
           font-family: system-ui, sans-serif; min-width: 0; min-height: 0; overflow: hidden; }
-  .title { position: absolute; top: .35rem; left: .6rem; font-size: .85rem; opacity: .85;
-           pointer-events: none; text-shadow: 0 1px 2px #000; }
-  .axes { position: absolute; bottom: .35rem; right: .6rem; font-size: .75rem; opacity: .6;
-          pointer-events: none; text-shadow: 0 1px 2px #000; }
-  /* The element sets the size; the image is scaled to fit inside it, keeping its aspect ratio
-     (the canvas' pixel size is the frame size, its CSS size is the element's). */
-  canvas { width: 100%; height: 100%; display: block; object-fit: contain;
-           image-rendering: auto; }
+  /* The canvas covers the element; the image is drawn inside the axes (see core/axes.js), so
+     the ticks and labels are part of the same drawing. */
+  canvas { width: 100%; height: 100%; display: block; }
   .empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: .85rem;
            opacity: .5; }
 `;
-class I extends HTMLElement {
+class D extends HTMLElement {
   constructor() {
     super();
     const t = this.attachShadow({ mode: "open" });
-    t.innerHTML = `<style>${C}</style>
+    t.innerHTML = `<style>${E}</style>
       <canvas></canvas>
-      <div class="title"></div>
-      <div class="axes"></div>
       <div class="empty">waiting for data…</div>`, this._canvas = /** @type {HTMLCanvasElement} */
-    t.querySelector("canvas"), this._context = this._canvas.getContext("2d"), this._titleElement = /** @type {HTMLElement} */
-    t.querySelector(".title"), this._axesElement = /** @type {HTMLElement} */
-    t.querySelector(".axes"), this._emptyElement = /** @type {HTMLElement} */
-    t.querySelector(".empty"), this._descriptor = null, this._rgbaCache = /* @__PURE__ */ new Map(), this._displayId = "", this._hasData = !1;
+    t.querySelector("canvas"), this._context = this._canvas.getContext("2d"), this._emptyElement = /** @type {HTMLElement} */
+    t.querySelector(".empty"), this._descriptor = null, this._rgbaCache = /* @__PURE__ */ new Map(), this._displayId = "", this._hasData = !1, this._layerCanvases = /* @__PURE__ */ new Map(), this._lastArrays = [], this._resizeObserver = new ResizeObserver(() => this._render()), this._resizeObserver.observe(this);
+  }
+  disconnectedCallback() {
+    this._resizeObserver.disconnect();
   }
   static get observedAttributes() {
     return ["display"];
   }
   /** @param {string} name @param {string} _old @param {string} value */
-  attributeChangedCallback(t, e, i) {
+  attributeChangedCallback(t, s, i) {
     t === "display" && (this._displayId = i);
   }
   /** The display this view renders (defaults to the first one in the descriptor). */
@@ -75,17 +113,15 @@ class I extends HTMLElement {
     return this._descriptor;
   }
   set descriptor(t) {
-    this._descriptor = t, !this._displayId && t && t.displays && t.displays.length && (this._displayId = t.displays[0].id);
-    const e = this._display();
-    this._titleElement.textContent = e ? e.title || e.id : "", this._axesElement.textContent = e ? A(e) : "";
+    this._descriptor = t, !this._displayId && t && t.displays && t.displays.length && (this._displayId = t.displays[0].id), this._render();
   }
   _display() {
     return !this._descriptor || !this._descriptor.displays ? null : this._descriptor.displays.find((t) => t.id === this._displayId) || this._descriptor.displays[0];
   }
   /** @param {string} display @param {number} layer */
-  _layerDescriptor(t, e) {
+  _layerDescriptor(t, s) {
     return !this._descriptor || !this._descriptor.layers ? null : this._descriptor.layers.find(
-      (i) => i.display === t && i.layer === e
+      (i) => i.display === t && i.layer === s
     ) || null;
   }
   /**
@@ -93,105 +129,149 @@ class I extends HTMLElement {
    * @param {import("../core/protocol.js").DecodedFrame} frame
    */
   update(t) {
-    const e = t.arrays.filter((n) => n.header.display === this._displayId);
-    if (e.length === 0) return;
-    this._hasData || (this._hasData = !0, this._emptyElement.remove()), e.sort((n, a) => n.header.layer - a.header.layer);
-    const i = this._layerDescriptor(this._displayId, e[0].header.layer);
-    if (i && i.kind === "1d") {
-      this._drawPlot(e[0], i);
-      return;
+    const s = t.arrays.filter((i) => i.header.display === this._displayId);
+    s.length !== 0 && (this._hasData || (this._hasData = !0, this._emptyElement.remove()), s.sort((i, n) => i.header.layer - n.header.layer), this._lastArrays = s, this._render());
+  }
+  /** Draws the axes and the newest frame; also called when the element is resized. */
+  _render() {
+    const t = this._lastArrays, s = window.devicePixelRatio || 1, i = Math.max(1, Math.round(this.clientWidth * s)), n = Math.max(1, Math.round(this.clientHeight * s));
+    (this._canvas.width !== i || this._canvas.height !== n) && (this._canvas.width = i, this._canvas.height = n);
+    const h = this._context;
+    h.setTransform(s, 0, 0, s, 0, 0), h.clearRect(0, 0, this.clientWidth, this.clientHeight);
+    const a = k(this.clientWidth, this.clientHeight), r = this._display();
+    if (t.length > 0) {
+      const o = this._layerDescriptor(this._displayId, t[0].header.layer);
+      if (o && o.kind === "1d")
+        this._drawPlot(t[0], o, a);
+      else {
+        h.imageSmoothingEnabled = !0;
+        for (const d of t) {
+          const l = this._drawImage(
+            d,
+            this._layerDescriptor(this._displayId, d.header.layer)
+          );
+          h.drawImage(l, a.x, a.y, a.width, a.height);
+        }
+      }
     }
-    e.forEach((n, a) => {
-      this._drawImage(
-        n,
-        this._layerDescriptor(this._displayId, n.header.layer),
-        /* clear */
-        a === 0
-      );
-    });
+    S(h, a, z(r, t));
   }
   /**
    * @param {import("../core/protocol.js").DecodedArray} array
    * @param {any} descriptor
-   * @param {boolean} clear
+   * @returns {HTMLCanvasElement} the layer's canvas
    */
-  _drawImage(t, e, i) {
-    const [n, a] = t.header.shape;
-    (this._canvas.width !== a || this._canvas.height !== n) && (this._canvas.width = a, this._canvas.height = n, this._rgbaCache.clear());
-    const o = t.header.shape.length === 3;
-    let r;
-    if (o)
-      r = E(
+  _drawImage(t, s) {
+    const [i, n] = t.header.shape, h = t.header.layer;
+    let a = this._layerCanvases.get(h);
+    if (!a) {
+      const l = document.createElement("canvas");
+      a = { canvas: l, context: (
+        /** @type {CanvasRenderingContext2D} */
+        l.getContext("2d")
+      ) }, this._layerCanvases.set(h, a);
+    }
+    (a.canvas.width !== n || a.canvas.height !== i) && (a.canvas.width = n, a.canvas.height = i, this._rgbaCache.delete(h));
+    const r = t.header.shape.length === 3;
+    let o;
+    if (r)
+      o = U(
         /** @type {Uint8Array} */
         t.data,
         t.header.shape[2]
       );
     else {
-      const c = x(e && e.cmap);
-      r = b(
+      const l = O(s && s.cmap);
+      o = R(
         /** @type {Uint8Array} */
         t.data,
-        c,
+        l,
         this._rgbaCache.get(t.header.layer)
-      ), this._rgbaCache.set(t.header.layer, r);
+      ), this._rgbaCache.set(t.header.layer, o);
     }
-    const l = new ImageData(
+    const d = new ImageData(
       /** @type {Uint8ClampedArray<ArrayBuffer>} */
-      r,
-      a,
-      n
+      o,
+      n,
+      i
     );
-    i && this._context.clearRect(0, 0, a, n), this._context.putImageData(l, 0, 0);
+    return a.context.putImageData(d, 0, 0), a.canvas;
   }
   /**
    * @param {import("../core/protocol.js").DecodedArray} array
    * @param {any} descriptor
    */
-  _drawPlot(t, e) {
-    const [i, n] = t.header.shape, a = Math.max(n, 256), o = 240;
-    (this._canvas.width !== a || this._canvas.height !== o) && (this._canvas.width = a, this._canvas.height = o);
-    const r = this._context;
-    r.fillStyle = "#101014", r.fillRect(0, 0, a, o);
-    const l = (
+  _drawPlot(t, s, i) {
+    const [n, h] = t.header.shape, a = i.width, r = i.height, o = this._context;
+    o.save(), o.translate(i.x, i.y), o.fillStyle = "#101014", o.fillRect(0, 0, a, r);
+    const d = (
       /** @type {Float32Array} */
       t.data
     );
-    let [c, g] = e && e.value_range || S(l);
-    g > c || (c -= 1, g += 1);
-    const y = ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"];
-    for (let p = 0; p < i; p++) {
-      r.beginPath(), r.strokeStyle = y[p % y.length], r.lineWidth = 1.5;
-      for (let d = 0; d < n; d++) {
-        const u = l[p * n + d], _ = d / (n - 1 || 1) * a, m = o - (u - c) / (g - c) * o;
-        d === 0 ? r.moveTo(_, m) : r.lineTo(_, m);
+    let [l, m] = s && s.value_range || P(d);
+    m > l || (l -= 1, m += 1);
+    const u = ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"];
+    for (let y = 0; y < n; y++) {
+      o.beginPath(), o.strokeStyle = u[y % u.length], o.lineWidth = 1.5;
+      for (let f = 0; f < h; f++) {
+        const M = d[y * h + f], b = f / (h - 1 || 1) * a, w = r - (M - l) / (m - l) * r;
+        f === 0 ? o.moveTo(b, w) : o.lineTo(b, w);
       }
-      r.stroke();
+      o.stroke();
     }
+    o.restore();
   }
 }
-function S(s) {
-  let t = 1 / 0, e = -1 / 0;
-  for (let i = 0; i < s.length; i++)
-    s[i] < t && (t = s[i]), s[i] > e && (e = s[i]);
-  return [t, e];
+function P(e) {
+  let t = 1 / 0, s = -1 / 0;
+  for (let i = 0; i < e.length; i++)
+    e[i] < t && (t = e[i]), e[i] > s && (s = e[i]);
+  return [t, s];
 }
-function E(s, t) {
-  if (t === 4) return new Uint8ClampedArray(s);
-  const e = new Uint8ClampedArray(s.length / 3 * 4);
-  for (let i = 0, n = 0; i < s.length; i += 3, n += 4)
-    e[n] = s[i], e[n + 1] = s[i + 1], e[n + 2] = s[i + 2], e[n + 3] = 255;
-  return e;
+function U(e, t) {
+  if (t === 4) return new Uint8ClampedArray(e);
+  const s = new Uint8ClampedArray(e.length / 3 * 4);
+  for (let i = 0, n = 0; i < e.length; i += 3, n += 4)
+    s[n] = e[i], s[n + 1] = e[i + 1], s[n + 2] = e[i + 2], s[n + 3] = 255;
+  return s;
 }
-function A(s) {
-  if (!s.extents) return "";
-  const [t, e] = s.extents, i = s.ax_labels || ["OZ", "OX"];
-  return `${i[0]}: ${t[0]}…${t[1]}   ${i[1]}: ${e[0]}…${e[1]}`;
+function z(e, t) {
+  const s = e ? e.title || e.id : "", i = e && e.ax_labels || ["OZ", "OX"], n = t.length > 0 ? t[0].header.shape : null;
+  if (e && e.extents && e.extents.length >= 2) {
+    const [h, a] = e.extents, r = Math.max(Math.abs(h[1]), Math.abs(a[1])) < 1 ? 1e3 : 1, o = r === 1e3 ? " [mm]" : "";
+    return {
+      x: (
+        /** @type {[number, number]} */
+        [a[0] * r, a[1] * r]
+      ),
+      y: (
+        /** @type {[number, number]} */
+        [h[0] * r, h[1] * r]
+      ),
+      xLabel: (i[1] || "OX") + o,
+      yLabel: (i[0] || "OZ") + o,
+      title: s
+    };
+  }
+  return {
+    x: (
+      /** @type {[number, number]} */
+      [0, n ? n[1] : 1]
+    ),
+    y: (
+      /** @type {[number, number]} */
+      [0, n ? n[0] : 1]
+    ),
+    xLabel: i[1] || "OX",
+    yLabel: i[0] || "OZ",
+    title: s
+  };
 }
-customElements.get("g4u-stream-view") || customElements.define("g4u-stream-view", I);
-const z = v("g4u-stream-view", (s, t) => {
-  const e = t.get("display_id");
-  e && s.setAttribute("display", e), s.style.height = `${t.get("height") || 320}px`;
+customElements.get("g4u-stream-view") || customElements.define("g4u-stream-view", D);
+const W = T("g4u-stream-view", (e, t) => {
+  const s = t.get("display_id");
+  s && e.setAttribute("display", s), e.style.height = `${t.get("height") || 320}px`;
 });
 export {
-  z as default
+  W as default
 };

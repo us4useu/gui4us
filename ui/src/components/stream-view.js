@@ -7,19 +7,15 @@
  * calls `update(frame)`.
  */
 
+import { drawAxes, plotRect } from "../core/axes.js";
 import { applyColormap, getColormap } from "../core/colormap.js";
 
 const STREAM_VIEW_STYLE = `
   :host { display: block; position: relative; background: #101014; color: #e6e6e6;
           font-family: system-ui, sans-serif; min-width: 0; min-height: 0; overflow: hidden; }
-  .title { position: absolute; top: .35rem; left: .6rem; font-size: .85rem; opacity: .85;
-           pointer-events: none; text-shadow: 0 1px 2px #000; }
-  .axes { position: absolute; bottom: .35rem; right: .6rem; font-size: .75rem; opacity: .6;
-          pointer-events: none; text-shadow: 0 1px 2px #000; }
-  /* The element sets the size; the image is scaled to fit inside it, keeping its aspect ratio
-     (the canvas' pixel size is the frame size, its CSS size is the element's). */
-  canvas { width: 100%; height: 100%; display: block; object-fit: contain;
-           image-rendering: auto; }
+  /* The canvas covers the element; the image is drawn inside the axes (see core/axes.js), so
+     the ticks and labels are part of the same drawing. */
+  canvas { width: 100%; height: 100%; display: block; }
   .empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: .85rem;
            opacity: .5; }
 `;
@@ -30,20 +26,26 @@ export class StreamView extends HTMLElement {
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STREAM_VIEW_STYLE}</style>
       <canvas></canvas>
-      <div class="title"></div>
-      <div class="axes"></div>
       <div class="empty">waiting for data…</div>`;
     /** @type {HTMLCanvasElement} */
     this._canvas = /** @type {HTMLCanvasElement} */ (root.querySelector("canvas"));
     this._context = this._canvas.getContext("2d");
-    this._titleElement = /** @type {HTMLElement} */ (root.querySelector(".title"));
-    this._axesElement = /** @type {HTMLElement} */ (root.querySelector(".axes"));
     this._emptyElement = /** @type {HTMLElement} */ (root.querySelector(".empty"));
     /** @type {any} */ this._descriptor = null;
     /** @type {Map<number, Uint8ClampedArray>} */ this._rgbaCache = new Map();
     /** @type {string} */ this._displayId = "";
     this._hasData = false;
+    //: layer -> the canvas its latest frame is drawn into, before it is scaled into the plot.
+    //: Each layer has its own, so that an overlay (e.g. colour Doppler) can be alpha-blended
+    //: over the layers below it: its NO_DATA pixels are transparent.
+    /** @type {Map<number, {canvas: HTMLCanvasElement, context: CanvasRenderingContext2D}>} */
+    this._layerCanvases = new Map();
+    /** @type {any[]} */ this._lastArrays = [];
+    this._resizeObserver = new ResizeObserver(() => this._render());
+    this._resizeObserver.observe(this);
   }
+
+  disconnectedCallback() { this._resizeObserver.disconnect(); }
 
   static get observedAttributes() { return ["display"]; }
 
@@ -63,9 +65,7 @@ export class StreamView extends HTMLElement {
     if (!this._displayId && descriptor && descriptor.displays && descriptor.displays.length) {
       this._displayId = descriptor.displays[0].id;
     }
-    const display = this._display();
-    this._titleElement.textContent = display ? (display.title || display.id) : "";
-    this._axesElement.textContent = display ? formatAxes(display) : "";
+    this._render();
   }
 
   _display() {
@@ -92,30 +92,62 @@ export class StreamView extends HTMLElement {
       this._hasData = true;
       this._emptyElement.remove();
     }
-    // Layers are drawn in order; the first one sizes the canvas.
+    // Layers are drawn in order; the first one sizes the frame.
     arrays.sort((a, b) => a.header.layer - b.header.layer);
-    const descriptor = this._layerDescriptor(this._displayId, arrays[0].header.layer);
-    if (descriptor && descriptor.kind === "1d") {
-      this._drawPlot(arrays[0], descriptor);
-      return;
+    this._lastArrays = arrays;
+    this._render();
+  }
+
+  /** Draws the axes and the newest frame; also called when the element is resized. */
+  _render() {
+    const arrays = this._lastArrays;
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round(this.clientWidth*ratio));
+    const height = Math.max(1, Math.round(this.clientHeight*ratio));
+    if (this._canvas.width !== width || this._canvas.height !== height) {
+      this._canvas.width = width;
+      this._canvas.height = height;
     }
-    arrays.forEach((array, index) => {
-      this._drawImage(array, this._layerDescriptor(this._displayId, array.header.layer),
-        /* clear */ index === 0);
-    });
+    const context = this._context;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, this.clientWidth, this.clientHeight);
+    const rect = plotRect(this.clientWidth, this.clientHeight);
+    const display = this._display();
+    if (arrays.length > 0) {
+      const descriptor = this._layerDescriptor(this._displayId, arrays[0].header.layer);
+      if (descriptor && descriptor.kind === "1d") {
+        this._drawPlot(arrays[0], descriptor, rect);
+      } else {
+        // Layers in order, each alpha-blended over the ones before it.
+        context.imageSmoothingEnabled = true;
+        for (const array of arrays) {
+          const layer = this._drawImage(
+            array, this._layerDescriptor(this._displayId, array.header.layer));
+          context.drawImage(layer, rect.x, rect.y, rect.width, rect.height);
+        }
+      }
+    }
+    drawAxes(context, rect, axesOf(display, arrays));
   }
 
   /**
    * @param {import("../core/protocol.js").DecodedArray} array
    * @param {any} descriptor
-   * @param {boolean} clear
+   * @returns {HTMLCanvasElement} the layer's canvas
    */
-  _drawImage(array, descriptor, clear) {
+  _drawImage(array, descriptor) {
     const [height, width] = array.header.shape;
-    if (this._canvas.width !== width || this._canvas.height !== height) {
-      this._canvas.width = width;
-      this._canvas.height = height;
-      this._rgbaCache.clear();
+    const key = array.header.layer;
+    let target = this._layerCanvases.get(key);
+    if (!target) {
+      const canvas = document.createElement("canvas");
+      target = { canvas, context: /** @type {CanvasRenderingContext2D} */ (canvas.getContext("2d")) };
+      this._layerCanvases.set(key, target);
+    }
+    if (target.canvas.width !== width || target.canvas.height !== height) {
+      target.canvas.width = width;
+      target.canvas.height = height;
+      this._rgbaCache.delete(key);
     }
     const isColour = array.header.shape.length === 3;
     let rgba;
@@ -131,23 +163,23 @@ export class StreamView extends HTMLElement {
     // which also allows a SharedArrayBuffer backing here.
     const image = new ImageData(/** @type {Uint8ClampedArray<ArrayBuffer>} */(rgba),
                                 width, height);
-    if (clear) this._context.clearRect(0, 0, width, height);
-    this._context.putImageData(image, 0, 0);
+    // putImageData copies the pixels as they are (alpha included); the blending happens when
+    // the layer canvas is drawn into the plot.
+    target.context.putImageData(image, 0, 0);
+    return target.canvas;
   }
 
   /**
    * @param {import("../core/protocol.js").DecodedArray} array
    * @param {any} descriptor
    */
-  _drawPlot(array, descriptor) {
+  _drawPlot(array, descriptor, rect) {
     const [nCurves, nSamples] = array.header.shape;
-    const width = Math.max(nSamples, 256);
-    const height = 240;
-    if (this._canvas.width !== width || this._canvas.height !== height) {
-      this._canvas.width = width;
-      this._canvas.height = height;
-    }
+    const width = rect.width;
+    const height = rect.height;
     const context = this._context;
+    context.save();
+    context.translate(rect.x, rect.y);
     context.fillStyle = "#101014";
     context.fillRect(0, 0, width, height);
     const values = /** @type {Float32Array} */ (array.data);
@@ -166,6 +198,7 @@ export class StreamView extends HTMLElement {
       }
       context.stroke();
     }
+    context.restore();
   }
 }
 
@@ -193,12 +226,32 @@ function toRgba(data, channels) {
   return rgba;
 }
 
-/** @param {any} display */
-function formatAxes(display) {
-  if (!display.extents) return "";
-  const [z, x] = display.extents;
-  const labels = display.ax_labels || ["OZ", "OX"];
-  return `${labels[0]}: ${z[0]}…${z[1]}   ${labels[1]}: ${x[0]}…${x[1]}`;
+/**
+ * The axis ranges and labels of a display: the extents come from the environment's metadata
+ * (metres are shown as millimetres); without them the axes count samples.
+ * @param {any} display @param {any[]} arrays
+ * @returns {{x: [number, number], y: [number, number], xLabel: string, yLabel: string, title: string}}
+ */
+function axesOf(display, arrays) {
+  const title = display ? (display.title || display.id) : "";
+  const labels = (display && display.ax_labels) || ["OZ", "OX"];
+  const shape = arrays.length > 0 ? arrays[0].header.shape : null;
+  if (display && display.extents && display.extents.length >= 2) {
+    const [z, x] = display.extents;
+    // Extents in metres (an ultrasound image is a few centimetres): show millimetres.
+    const scale = Math.max(Math.abs(z[1]), Math.abs(x[1])) < 1 ? 1e3 : 1;
+    const unit = scale === 1e3 ? " [mm]" : "";
+    return {
+      x: /** @type {[number, number]} */([x[0]*scale, x[1]*scale]),
+      y: /** @type {[number, number]} */([z[0]*scale, z[1]*scale]),
+      xLabel: (labels[1] || "OX") + unit, yLabel: (labels[0] || "OZ") + unit, title,
+    };
+  }
+  return {
+    x: /** @type {[number, number]} */([0, shape ? shape[1] : 1]),
+    y: /** @type {[number, number]} */([0, shape ? shape[0] : 1]),
+    xLabel: labels[1] || "OX", yLabel: labels[0] || "OZ", title,
+  };
 }
 
 if (!customElements.get("g4u-stream-view")) {

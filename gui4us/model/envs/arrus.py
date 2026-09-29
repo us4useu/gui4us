@@ -16,6 +16,85 @@ import numpy as np
 from typing import Iterable
 
 
+def supports_arbitrary_subsequences(session) -> bool:
+    """Whether ``Session.set_subsequences`` takes lists of (possibly non-consecutive) TX/RXs.
+
+    The released ARRUS 0.14 selects contiguous ranges only (``slices=[slice(start, end)]``); the
+    development branch with the us4OEM+ sequencer re-programming takes any increasing list
+    (``subsequences=[[2, 3, 5, 8]]``).
+    """
+    import inspect
+    try:
+        parameters = inspect.signature(session.set_subsequences).parameters
+    except (TypeError, ValueError, AttributeError):
+        return False
+    return "subsequences" in parameters
+
+
+def supports_subsequence_double_buffering(session) -> bool:
+    """Whether the next sub-sequence can be prepared while the scheme is running."""
+    return callable(getattr(session, "prepare_subsequences", None))
+
+
+def _as_contiguous_slice(ops):
+    """``ops`` as a ``slice`` when it is one contiguous range of TX/RXs, else None."""
+    if isinstance(ops, slice):
+        return ops
+    ops = [int(op) for op in ops]
+    if not ops:
+        return slice(0, 0)
+    if ops == list(range(ops[0], ops[-1] + 1)):
+        return slice(ops[0], ops[-1] + 1)
+    return None
+
+
+def _n_ops_per_sequence(scheme, metadata):
+    """The number of TX/RXs of each TX/RX sequence of the scheme (None where it is not known).
+
+    Counted from the scheme, not from the metadata: the metadata has one entry per pipeline
+    OUTPUT (e.g. an ``Output()`` step in the middle of the pipeline adds one), not per sequence.
+    """
+    sequences = scheme.tx_rx_sequence
+    if not isinstance(sequences, (list, tuple)):
+        sequences = [sequences]
+    counts = [len(seq.ops) if getattr(seq, "ops", None) is not None else None
+              for seq in sequences]
+    if len(counts) == 1 and counts[0] is None:
+        # A simple sequence (e.g. LinSequence): ARRUS reports the TX/RXs it was converted to.
+        first = next(iter(metadata)) if isinstance(metadata, Iterable) else metadata
+        counts[0] = len(first.context.raw_sequence.ops)
+    return counts
+
+
+def _set_subsequences(session, ops, sri, array_id, n_ops_per_sequence, processing):
+    """``session.set_subsequences`` for the given sequence, in the form the installed ARRUS takes.
+
+    :param n_ops_per_sequence: the number of TX/RXs of each uploaded sequence (the released ARRUS
+      needs an explicit range for every sequence; the ones not being limited run in full)
+    """
+    n_sequences = len(n_ops_per_sequence)
+    sris = [None]*n_sequences
+    sris[array_id] = sri
+    if supports_arbitrary_subsequences(session):
+        subsequences = [[] for _ in range(n_sequences)]
+        subsequences[array_id] = ops
+        return session.set_subsequences(subsequences=subsequences, sris=sris, processing=processing)
+    selected = _as_contiguous_slice(ops)
+    if selected is None:
+        raise NotImplementedError(
+            f"ARRUS {arrus.__version__} can only select a contiguous range of TX/RXs, got {list(ops)}. "
+            f"Selecting arbitrary TX/RXs needs an ARRUS build with the us4OEM+ sub-sequence support.")
+    # Explicit [start, stop) for every sequence; the other sequences keep running in full.
+    if any(n is None for i, n in enumerate(n_ops_per_sequence) if i != array_id):
+        raise NotImplementedError(
+            f"ARRUS {arrus.__version__} needs the number of TX/RXs of every sequence to limit one "
+            f"of them; use raw TxRxSequences for the other sequences.")
+    slices = [slice(0, n) for n in n_ops_per_sequence]
+    start, stop, _ = selected.indices(n_ops_per_sequence[array_id])
+    slices[array_id] = slice(start, stop)
+    return session.set_subsequences(slices, processing=processing, sris=sris)
+
+
 class ArrusStream(Stream):
 
     def __init__(self, metadata, callbacks=None):
@@ -150,6 +229,8 @@ class UltrasoundEnv(Env):
         self._is_running = False
         self.metadata = self.session.upload(self.scheme)
         self.stream = ArrusStream(metadata=self.metadata)
+        # The number of TX/RXs of each uploaded sequence (the full ones, before any sub-sequence).
+        self._n_ops_per_sequence = _n_ops_per_sequence(self.scheme, self.metadata)
         self.set_tgc(self.tgc_sampling_points, self.tgc_values)
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
@@ -258,14 +339,8 @@ class UltrasoundEnv(Env):
         was_running = self._is_running
         if was_running:
             self.stop()
-        n_sequences = self._get_number_of_sequences()
-        subsequences = [[] for _ in range(n_sequences)]
-        sris = [None]*n_sequences
-        subsequences[array_id] = ops
-        sris[array_id] = sri
-        metadata = self.session.set_subsequences(
-            subsequences=subsequences, sris=sris,
-            processing=self.scheme.processing)
+        metadata = _set_subsequences(self.session, ops, sri, array_id,
+                                     self._n_ops_per_sequence, self.scheme.processing)
         self.metadata = metadata
         if not isinstance(self.metadata, Iterable):
             self.metadata = (self.metadata, )
@@ -290,6 +365,10 @@ class UltrasoundEnv(Env):
         """
         if not self._is_running:
             return self.set_subsequence(ops, sri=sri, array_id=array_id)
+        if not supports_subsequence_double_buffering(self.session):
+            raise NotImplementedError(
+                f"Preparing a sub-sequence while the scheme is running (sequencer double-buffering) is not "
+                f"available in ARRUS {arrus.__version__}; stop the scheme and use set_subsequence instead.")
         n_sequences = self._get_number_of_sequences()
         subsequences = [[] for _ in range(n_sequences)]
         sris = [None]*n_sequences

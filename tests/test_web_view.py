@@ -25,7 +25,7 @@ from gui4us.model import (  # noqa: E402
     Stream,
     StreamDataId,
 )
-from gui4us.view.frames import create_layers  # noqa: E402
+from gui4us.view.frames import NO_DATA, create_layers  # noqa: E402
 from gui4us.view.protocol import (  # noqa: E402
     decode_frame,
     decode_frame_arrays,
@@ -192,7 +192,32 @@ class FrameEncodingTest(unittest.TestCase):
         session.on_frame(frames.append)
         env.stream.produce(value=1e6)
         _, arrays = decode_frame_arrays(frames[0].to_bytes())
-        self.assertTrue(np.all(arrays[0] == 255))
+        # The largest data value; NO_DATA (255) is reserved for pixels without data.
+        self.assertTrue(np.all(arrays[0] == NO_DATA - 1))
+
+
+class NoDataTest(unittest.TestCase):
+    """NaN pixels are encoded as NO_DATA, which the front end draws transparent (overlays)."""
+
+    def test_nan_becomes_no_data(self):
+        from gui4us.view.frames import _to_uint8
+        array = np.array([[0.0, np.nan], [1.0, 0.5]], dtype=np.float32)
+        encoded = _to_uint8(array, (0.0, 1.0))
+        self.assertEqual(encoded[0, 1], NO_DATA)
+        self.assertEqual(encoded[0, 0], 0)
+        self.assertEqual(encoded[1, 0], NO_DATA - 1)
+        self.assertTrue(np.all(encoded[~np.isnan(array)] < NO_DATA))
+
+    def test_all_nan_frame(self):
+        from gui4us.view.frames import _to_uint8
+        encoded = _to_uint8(np.full((3, 4), np.nan, dtype=np.float32), None)
+        self.assertTrue(np.all(encoded == NO_DATA))
+
+    def test_data_never_collides_with_no_data(self):
+        from gui4us.view.frames import _to_uint8
+        values = np.linspace(-10, 10, 1000, dtype=np.float32).reshape(10, 100)
+        encoded = _to_uint8(values, (-5.0, 5.0))
+        self.assertLess(int(encoded.max()), NO_DATA)
 
 
 class SessionTest(unittest.TestCase):

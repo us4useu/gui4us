@@ -1,0 +1,3 @@
+# The built front end is part of the Python package (see ui/, npm run build:package).
+recursive-include gui4us/view/web/static *
+recursive-include gui4us/view/jupyter/static *.js

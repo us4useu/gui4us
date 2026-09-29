@@ -7,6 +7,7 @@
  */
 
 import "../components/stream-view.js";
+import "../components/sequence-view.js";
 import "../components/control-panel.js";
 import "../components/actions-panel.js";
 import "../components/capture-panel.js";
@@ -52,8 +53,10 @@ transport.onMessage((message) => {
   streamViews.splice(0);
   applyGrid(/** @type {HTMLElement} */(displays), message.grid);
   for (const display of message.displays || []) {
-    const view = /** @type {HTMLElement & Record<string, any>} */(
-      document.createElement("g4u-stream-view"));
+    // The display's kind picks the component: images and line plots are drawn by
+    // <g4u-stream-view>, a sequence of TX/RXs by <g4u-sequence-view>.
+    const tag = display.kind === "sequence" ? "g4u-sequence-view" : "g4u-stream-view";
+    const view = /** @type {HTMLElement & Record<string, any>} */(document.createElement(tag));
     view.setAttribute("display", display.id);
     const location = gridLocation(message.grid, display.id);
     if (location) {

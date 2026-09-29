@@ -107,9 +107,20 @@ def write_version_file(version):
 
 
 
+def read_version_file():
+    namespace = {}
+    with open(os.path.join(project_name, "version.py")) as f:
+        exec(f.read(), namespace)
+    return namespace["__version__"]
+
+
 if __name__ == "__main__":
-    git_version = get_git_version()
-    write_version_file(git_version)
+    # The version comes from git when building from a checkout; a copied source tree (e.g. a
+    # Docker build context, an sdist) keeps the version file it already has.
+    try:
+        write_version_file(get_git_version())
+    except Exception as e:  # noqa: BLE001 - no git, not a checkout, detached HEAD, ...
+        print(f"gui4us: not taking the version from git ({e}); using {read_version_file()}")
 
     version_namespace = {}
     with open("gui4us/version.py") as f:
@@ -142,23 +153,32 @@ if __name__ == "__main__":
                 "gui4us = gui4us:main"
             ]
         },
+        # ARRUS is not a requirement: it is distributed as wheels on GitHub (not on PyPI), it is
+        # only needed by the ARRUS environment, and it has to match the system's drivers --
+        # install it first, e.g. the release wheel for your platform.
         install_requires=[
-            "arrus>=0.10.0",
-            "pyyaml==6.0",
-            # "PyQt5==5.15.9",
-            # "PyQt5-Qt5==5.15.2",
-            # "PyQt5-sip==12.12.1",
-            "matplotlib==3.7.2"
+            "numpy",
+            "pyyaml>=6.0",
+            "matplotlib>=3.5",
+            # The browser view -- the default front end; its assets ship with the package.
+            "fastapi>=0.100",
+            "uvicorn>=0.23",
+            "websockets>=11",
         ],
         extras_require={
-            # Browser view: gui4us --view web
-            "web": ["fastapi>=0.100", "uvicorn>=0.23", "websockets>=11"],
             # Notebook view: gui4us.view.jupyter.NotebookView
             "jupyter": ["anywidget>=0.9", "ipywidgets>=8"],
+            # The PyQt window (gui4us --view qt)
+            "qt": ["PyQt5>=5.15"],
+            # Kept for older installation instructions: the web dependencies are required now.
+            "web": [],
         },
         package_data={
-            # The Jupyter widget bundles (npm run build:widgets), when they were built.
-            "gui4us": ["view/jupyter/static/*.js", "view/web/static/*"],
+            # The built front end (npm run build:package): the browser app and the widget bundles.
+            "gui4us": ["view/jupyter/static/*.js",
+                       "view/web/static/*",
+                       "view/web/static/assets/*"],
         },
+        include_package_data=True,
         python_requires='>=3.8'
     )

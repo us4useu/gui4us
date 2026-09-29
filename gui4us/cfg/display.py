@@ -52,6 +52,28 @@ class Display1D:
 
 
 @dataclass(frozen=True)
+class DisplaySequence:
+    """
+    Displays a sequence of values as a row (or grid) of nodes, e.g. the TX/RXs of an ultrasound
+    sequence: the nodes that are currently acquired are highlighted.
+
+    The input is a 1-D array with one value per node; 0 means "inactive", any non-zero value
+    means "active" (values between 0 and 1 fade between the two colours).
+
+    :param title: display title
+    :param input: input id -- a 1-D array, one value per node
+    :param n_columns: nodes per row; None: a single row, wrapped to the display width
+    :param labels: (inactive, active) legend labels
+    :param ax_label: label of the node axis (e.g. "TX/RX")
+    """
+    title: str
+    input: StreamDataId
+    n_columns: Optional[int] = None
+    labels: Tuple[str, str] = ("not acquired", "acquired")
+    ax_label: str = ""
+
+
+@dataclass(frozen=True)
 class DisplayLocation:
     """
     Defines a location of a single display in the grid.

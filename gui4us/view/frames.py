@@ -26,13 +26,14 @@ class LayerSpec:
     :param display_id: the display (canvas) this layer belongs to
     :param layer: the layer number within the display
     :param input: the stream output the data is taken from
-    :param kind: "2d" (image) or "1d" (line plot)
+    :param kind: "2d" (image), "1d" (line plot) or "sequence" (nodes, see cfg.DisplaySequence)
     :param cmap: colour map name, applied by the client
     :param value_range: (min, max) mapped onto 0..255; None means per-metadata/auto
     """
 
     def __init__(self, display_id: str, layer: int, input: StreamDataId, kind: str,
                  cmap: Optional[str] = None, value_range: Optional[Tuple[float, float]] = None,
+                 n_columns: Optional[int] = None, node_labels: Optional[Tuple[str, str]] = None,
                  metadata: Optional[ImageMetadata] = None,
                  title: Optional[str] = None, ax_labels: Optional[Sequence[str]] = None,
                  extents: Optional[Sequence[Sequence[float]]] = None,
@@ -41,6 +42,8 @@ class LayerSpec:
         self.layer = layer
         self.input = input
         self.kind = kind
+        self.n_columns = n_columns
+        self.node_labels = node_labels
         self.cmap = cmap
         self.value_range = value_range
         self.metadata = metadata
@@ -55,6 +58,8 @@ class LayerSpec:
             "layer": self.layer,
             "input": {"name": self.input.name, "ordinal": self.input.ordinal},
             "kind": self.kind,
+            "n_columns": self.n_columns,
+            "node_labels": list(self.node_labels) if self.node_labels is not None else None,
             "cmap": self.cmap,
             "value_range": list(self.value_range) if self.value_range is not None else None,
             "title": self.title,
@@ -87,6 +92,13 @@ def create_layers(view_cfg: gui4us.cfg.ViewCfg,
                 metadata=_get_metadata(metadata, display_cfg.input),
                 title=display_cfg.title, ax_labels=display_cfg.ax_labels,
                 labels=display_cfg.labels,
+            ))
+        elif isinstance(display_cfg, gui4us.cfg.DisplaySequence):
+            layers.append(LayerSpec(
+                display_id=display_id, layer=0, input=display_cfg.input, kind="sequence",
+                metadata=_get_metadata(metadata, display_cfg.input),
+                title=display_cfg.title, ax_labels=(display_cfg.ax_label, ""),
+                n_columns=display_cfg.n_columns, node_labels=display_cfg.labels,
             ))
         elif isinstance(display_cfg, gui4us.cfg.Display2D):
             for i, layer_cfg in enumerate(display_cfg.layers):
@@ -147,7 +159,7 @@ class FrameEncoder:
 
     def _convert(self, array: np.ndarray, layer: LayerSpec) -> np.ndarray:
         array = np.asarray(array)
-        if layer.kind == "1d":
+        if layer.kind in ("1d", "sequence"):
             # Line plots need the actual values; they are small (one scan line), so float32
             # costs nothing and saves the client from undoing a quantisation.
             return np.ascontiguousarray(np.atleast_2d(array), dtype=np.float32)
@@ -163,16 +175,32 @@ class FrameEncoder:
         return _to_uint8(array, layer.value_range)
 
 
+#: The encoded value of a pixel without data (NaN): the front end draws it transparent, which is
+#: how an overlay layer (e.g. colour Doppler over a B-mode) shows the layers below it -- the same
+#: convention matplotlib follows for NaN. Data is encoded as 0..NO_DATA-1.
+NO_DATA = 255
+_MAX_VALUE = NO_DATA - 1
+
+
 def _to_uint8(array: np.ndarray, value_range: Optional[Tuple[float, float]]) -> np.ndarray:
-    """Clips to the display's value range and rescales to 0..255."""
+    """Clips to the display's value range and rescales to 0..254; NaN becomes NO_DATA."""
     if array.dtype == np.uint8 and value_range is None:
-        return np.ascontiguousarray(array)
+        return np.ascontiguousarray(np.minimum(array, _MAX_VALUE))
+    array = np.asarray(array, dtype=np.float32)
+    missing = np.isnan(array)
+    has_missing = bool(missing.any())
     if value_range is None:
+        if has_missing and missing.all():
+            return np.full(array.shape, NO_DATA, dtype=np.uint8)
         low, high = float(np.nanmin(array)), float(np.nanmax(array))
     else:
         low, high = float(value_range[0]), float(value_range[1])
     if not np.isfinite(low) or not np.isfinite(high) or high <= low:
         # Degenerate range (e.g. a constant frame): show it as black rather than dividing by 0.
-        return np.zeros(array.shape, dtype=np.uint8)
-    scaled = (np.asarray(array, dtype=np.float32) - low)*(255.0/(high-low))
-    return np.ascontiguousarray(np.clip(scaled, 0, 255).astype(np.uint8))
+        result = np.zeros(array.shape, dtype=np.uint8)
+    else:
+        scaled = (array - low)*(_MAX_VALUE/(high - low))
+        result = np.clip(np.nan_to_num(scaled, nan=0.0), 0, _MAX_VALUE).astype(np.uint8)
+    if has_missing:
+        result[missing] = NO_DATA
+    return np.ascontiguousarray(result)

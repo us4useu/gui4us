@@ -15,18 +15,18 @@ from gui4us.view.session import ViewSession
 
 LOGGER = get_logger(__name__)
 
-#: Where the built single page app is looked up (ui/dist in a source checkout, then the
-#: package's own copy for an installed gui4us).
+#: Where the built single page app is looked up: the package's own copy (what `pip install`
+#: ships; `npm run build` writes it there), then ui/dist of an older source checkout.
 _UI_DIST_CANDIDATES = (
-    pathlib.Path(__file__).resolve().parents[3]/"ui"/"dist",
     pathlib.Path(__file__).resolve().parent/"static",
+    pathlib.Path(__file__).resolve().parents[3]/"ui"/"dist",
 )
 
 _NO_UI_MESSAGE = """<!doctype html>
 <html><body style="font-family: sans-serif; margin: 3rem">
 <h2>GUI4us web view</h2>
-<p>The front end has not been built yet. From the repository root run:</p>
-<pre>cd ui &amp;&amp; npm ci &amp;&amp; npm run build</pre>
+<p>The front end is missing from this installation. From a source checkout run:</p>
+<pre>cd ui &amp;&amp; npm run build:package</pre>
 <p>The REST API and the <code>/ws/stream</code> WebSocket are already serving
 (see <a href="/api/descriptor">/api/descriptor</a>).</p>
 </body></html>"""
@@ -201,8 +201,8 @@ def serve_app(app, host: str = "127.0.0.1", port: int = 7777, background: bool =
 
     if find_ui_dist() is None:
         LOGGER.warning(
-            "The web UI has not been built (ui/dist is missing); serving the API only. "
-            "Run: cd ui && npm ci && npm run build")
+            "The web UI is missing from this installation (gui4us/view/web/static); serving the "
+            "API only. From a source checkout: cd ui && npm run build:package")
     config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
     server = uvicorn.Server(config)
     LOGGER.info(f"GUI4us web view: http://{host}:{port}")

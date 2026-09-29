@@ -45,7 +45,8 @@ class JupyterWidgetsTest(unittest.TestCase):
         self.assertTrue(display.frame, "no frame was pushed to the widget")
         header, arrays = decode_frame_arrays(display.frame)
         self.assertEqual(header["type"], "frame")
-        self.assertTrue(np.all(arrays[0] == 255))
+        # The largest data value; 255 (NO_DATA) is reserved for pixels without data.
+        self.assertTrue(np.all(arrays[0] == 254))
 
     def test_panels_expose_their_own_component(self):
         cases = {

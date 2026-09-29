@@ -78,7 +78,8 @@ class WebServerTest(unittest.TestCase):
                     header, arrays = decode_frame_arrays(message["bytes"])
                     self.assertEqual(header["type"], "frame")
                     self.assertEqual(arrays[0].shape, (8, 6))
-                    self.assertTrue(np.all(arrays[0] == 255))
+                    # The largest data value; 255 (NO_DATA) is reserved for pixels without data.
+                    self.assertTrue(np.all(arrays[0] == 254))
                     break
             else:  # pragma: no cover - only on a broken implementation
                 self.fail("No binary frame was received.")

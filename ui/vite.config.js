@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
+import { resolve } from "path";
 
+// The build goes straight into the Python package (gui4us/view/web/static), next to the widget
+// bundles, so that `pip install gui4us` ships a working browser view -- no Node needed by users.
 // The dev server proxies the API to a running `gui4us --view web`, so `npm run dev` gives
 // hot reload against real hardware.
 export default defineConfig({
@@ -10,7 +13,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist",
+    outDir: resolve(__dirname, "../gui4us/view/web/static"),
     emptyOutDir: true,
   },
 });
