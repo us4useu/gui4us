@@ -1,3 +1,7 @@
 # The built front end is part of the Python package (see ui/, npm run build:package).
 recursive-include gui4us/view/web/static *
 recursive-include gui4us/view/jupyter/static *.js
+# The front end sources, so that a wheel built from the sdist can rebuild it (setup.py build_ui).
+recursive-include ui *.js *.json *.html *.ts *.css
+prune ui/node_modules
+prune ui/dist

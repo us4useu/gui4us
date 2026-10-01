@@ -217,15 +217,22 @@ def serve_app(app, host: str = "127.0.0.1", port: int = 7777, background: bool =
 
 def start_view_app(cfg_path: str, host: str = "127.0.0.1", port: int = 7777,
                    max_fps: float = 30.0, session: Optional[ViewSession] = None,
+                   headless: bool = False, window: str = "auto", title: str = "gui4us",
                    **kwargs) -> int:
-    """Starts the web view; the signature mirrors ``gui4us.view.start_view_app``."""
+    """Starts the web view; the signature mirrors ``gui4us.view.start_view_app``.
+
+    By default the view is shown in a window (see ``gui4us.view.web.window``); ``headless=True`` only starts
+    the server (connect with a browser).
+    """
     from gui4us.view.session import create_session
+    from gui4us.view.web.window import run_app
 
     own_session = session is None
     if session is None:
         session = create_session(cfg_path, max_fps=max_fps)
     try:
-        return serve_app(create_app(session), host=host, port=port, background=False)
+        return run_app(create_app(session), host=host, port=port, title=title,
+                       headless=headless, window=window)
     finally:
         if own_session:
             session.close()

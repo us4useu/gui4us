@@ -223,7 +223,8 @@ class UltrasoundEnv(Env):
         }
         # Configure.
         if self.initial_voltage is not None:
-            self.us4r.set_hv_voltage(self.initial_voltage)
+            # int: the ARRUS (SWIG) binding rejects float voltages
+            self.us4r.set_hv_voltage(int(self.initial_voltage))
         # NOTE: medium should be set before uploading the sequence.
         self.session.medium = self.medium
         self._is_running = False

@@ -3,6 +3,9 @@ import setuptools
 import subprocess
 import datetime
 import os
+import shutil
+from setuptools.command.build_py import build_py
+from setuptools.command.develop import develop
 
 project_name = "gui4us"
 dev_branch_pattern = r"^v\d+\.\d+\.\d+-dev$"
@@ -114,6 +117,72 @@ def read_version_file():
     return namespace["__version__"]
 
 
+UI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
+UI_OUTPUTS = [os.path.join(project_name, "view", "web", "static", "index.html"),
+              os.path.join(project_name, "view", "jupyter", "static", "display.js")]
+
+
+class BuildUi(setuptools.Command):
+    """
+    Builds the front end (ui/, npm) into the Python package (gui4us/view/web/static, gui4us/view/jupyter/static).
+
+    Runs as a part of every build of the package, i.e. `pip install .`, `pip install -e .`, `pip wheel .`:
+    `npm ci` (only when ui/node_modules is missing or older than ui/package-lock.json), then `npm run build:all`.
+    When npm is not available, the already built front end is used (a warning is printed). Set
+    GUI4US_SKIP_UI_BUILD=1 to skip this step.
+    """
+    description = "build the gui4us web front end (npm)"
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        if os.environ.get("GUI4US_SKIP_UI_BUILD", "0") not in ("", "0"):
+            print("gui4us: GUI4US_SKIP_UI_BUILD is set, not building the web front end.")
+            return
+        if not os.path.isfile(os.path.join(UI_DIR, "package.json")):
+            # E.g. a wheel built from an sdist without the ui/ sources: the built front end is already there.
+            return
+        npm = shutil.which("npm")
+        if npm is None:
+            has_outputs = all(os.path.isfile(p) for p in UI_OUTPUTS)
+            print("gui4us: WARNING: npm not found, the web front end is not rebuilt; "
+                  + ("using the already built one." if has_outputs else
+                     "the browser view will NOT be available (install Node.js >= 18 and reinstall)."))
+            return
+        node_modules = os.path.join(UI_DIR, "node_modules")
+        lock_file = os.path.join(UI_DIR, "package-lock.json")
+        if (not os.path.isdir(node_modules)
+                or os.path.getmtime(lock_file) > os.path.getmtime(node_modules)):
+            self._npm(npm, "ci")
+        self._npm(npm, "run", "build:all")
+
+    @staticmethod
+    def _npm(npm, *args):
+        print(f"gui4us: npm {' '.join(args)} (in {UI_DIR})", flush=True)
+        subprocess.run([npm, *args], cwd=UI_DIR, check=True)
+
+
+class BuildPyWithUi(build_py):
+    """build_py (also used for the editable installs, PEP 660) + the front end build."""
+
+    def run(self):
+        self.run_command("build_ui")
+        super().run()
+
+
+class DevelopWithUi(develop):
+    """The legacy `setup.py develop` + the front end build."""
+
+    def run(self):
+        self.run_command("build_ui")
+        super().run()
+
+
 if __name__ == "__main__":
     # The version comes from git when building from a checkout; a copied source tree (e.g. a
     # Docker build context, an sdist) keeps the version file it already has.
@@ -164,6 +233,13 @@ if __name__ == "__main__":
             "fastapi>=0.100",
             "uvicorn>=0.23",
             "websockets>=11",
+            # The application window of the web view (an embedded web engine; without it, the browser
+            # is used): pywebview uses WebView2 on Windows, Qt WebEngine (or WebKitGTK) on Linux.
+            # PyQtWebEngine has no aarch64 (e.g. Jetson) wheels: there, a browser window is used.
+            "pywebview>=5",
+            "qtpy>=2; sys_platform == 'linux' and platform_machine == 'x86_64'",
+            "PyQt5>=5.15; sys_platform == 'linux' and platform_machine == 'x86_64'",
+            "PyQtWebEngine>=5.15; sys_platform == 'linux' and platform_machine == 'x86_64'",
         ],
         extras_require={
             # Notebook view: gui4us.view.jupyter.NotebookView
@@ -180,5 +256,10 @@ if __name__ == "__main__":
                        "view/web/static/assets/*"],
         },
         include_package_data=True,
-        python_requires='>=3.8'
+        python_requires='>=3.8',
+        cmdclass={
+            "build_ui": BuildUi,
+            "build_py": BuildPyWithUi,
+            "develop": DevelopWithUi,
+        },
     )

@@ -78,7 +78,7 @@ class ViewSession:
     # ------------------------------------------------------------------ descriptor
     def view_descriptor(self) -> Dict[str, Any]:
         """The JSON description of this view: what to render and what can be controlled."""
-        return {
+        return _to_jsonable({
             "type": "descriptor",
             "layers": [layer.to_dict() for layer in self.layers],
             "displays": self._displays_descriptor(),
@@ -86,7 +86,7 @@ class ViewSession:
             "settings": [self._setting_descriptor(s) for s in self.settings],
             "capture": {"capacity": self.capture_capacity},
             "state": self.state(),
-        }
+        })
 
     def _displays_descriptor(self) -> List[Dict[str, Any]]:
         displays: List[Dict[str, Any]] = []
@@ -361,15 +361,24 @@ def _wait(promise):
 
 
 def _to_jsonable(value):
-    """numpy scalars/arrays -> plain Python, so that the descriptor is JSON serialisable."""
+    """numpy scalars/arrays -> plain Python, so that the descriptor is JSON serialisable.
+
+    Non-finite floats (e.g. the unbounded ``Box(low=-np.inf, high=np.inf)`` of an ARRUS pipeline parameter)
+    become None: JSON has no Infinity/NaN, and Python's json writes them as bare ``Infinity``/``NaN`` tokens,
+    which the browser's JSON.parse rejects (the whole message is lost).
+    """
     if value is None:
         return None
     if isinstance(value, np.ndarray):
-        return value.tolist()
+        return _to_jsonable(value.tolist())
     if isinstance(value, (np.integer, np.floating, np.bool_)):
-        return value.item()
+        return _to_jsonable(value.item())
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
     if isinstance(value, (list, tuple)):
         return [_to_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _to_jsonable(v) for k, v in value.items()}
     return value
 
 

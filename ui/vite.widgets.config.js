@@ -6,6 +6,8 @@ import { resolve } from "path";
 // Output goes straight into the Python package, from where widgets.py loads it.
 export default defineConfig({
   build: {
+    // Chromium 83: the Qt 5.15 WebEngine of the gui4us application window (gui4us.view.web.window).
+    target: ["es2020", "chrome83"],
     outDir: resolve(__dirname, "../gui4us/view/jupyter/static"),
     emptyOutDir: true,
     lib: {

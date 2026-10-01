@@ -215,8 +215,8 @@ class Gui4us:
     def run(self, view: Optional[str] = None, **kwargs) -> int:
         """Runs a view; blocks until it is closed.
 
-        :param view: "qt", "web" or None (no view -- returns immediately);
-          defaults to ``AppCfg.view``
+        :param view: "web" (the browser UI in its own window; ``headless=True``: the server only), "qt",
+          or None (no view -- returns immediately); defaults to ``AppCfg.view``
         """
         view = view if view is not None else self.app_cfg.view
         if view is None or view == "none":
@@ -224,8 +224,19 @@ class Gui4us:
         if view == "qt":
             return self._run_qt(**kwargs)
         if view == "web":
-            return self.serve(background=False, **kwargs)
+            return self._run_web(**kwargs)
         raise ValueError(f"Unknown view: {view}")
+
+    def _run_web(self, host: Optional[str] = None, port: Optional[int] = None, headless: bool = False,
+                 window: str = "auto", **kwargs) -> int:
+        from gui4us.view.web.server import create_app
+        from gui4us.view.web.window import run_app
+
+        host = host if host is not None else self.app_cfg.host
+        port = port if port is not None else self.app_cfg.port
+        title = self.app_cfg.title or f"gui4us {gui4us.__version__}"
+        return run_app(create_app(self.session), host=host, port=port, title=title,
+                       headless=headless, window=window, **kwargs)
 
     def _run_qt(self, **kwargs) -> int:
         import matplotlib

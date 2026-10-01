@@ -51,6 +51,28 @@ export function plotRect(width, height) {
 }
 
 /**
+ * The largest rectangle with the given aspect ratio (width/height) that fits in `rect`, centred in it:
+ * an image keeps its proportions when the display is resized.
+ * @param {{x: number, y: number, width: number, height: number}} rect
+ * @param {number} aspect width/height; a non-positive or non-finite value: `rect` as it is
+ */
+export function fitAspect(rect, aspect) {
+  if (!(aspect > 0) || !Number.isFinite(aspect)) return rect;
+  let width = rect.width;
+  let height = width/aspect;
+  if (height > rect.height) {
+    height = rect.height;
+    width = height*aspect;
+  }
+  return {
+    x: rect.x + (rect.width - width)/2,
+    y: rect.y + (rect.height - height)/2,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  };
+}
+
+/**
  * Draws the axes around `rect`: a frame, ticks with labels and the axis names.
  *
  * @param {CanvasRenderingContext2D} context

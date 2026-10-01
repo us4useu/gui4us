@@ -49,7 +49,8 @@ function gridLocation(grid, displayId) {
 // One <g4u-stream-view> per display in the descriptor.
 transport.onMessage((message) => {
   if (message.type !== TYPE.DESCRIPTOR) return;
-  displays.replaceChildren();
+  // Not replaceChildren(): the Qt WebEngine window (Chromium 83) does not have it.
+  displays.textContent = "";
   streamViews.splice(0);
   applyGrid(/** @type {HTMLElement} */(displays), message.grid);
   for (const display of message.displays || []) {

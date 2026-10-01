@@ -17,15 +17,15 @@ class AppCfg:
     :param title: window/page title
     :param max_fps: upper bound on the frame rate pushed to a view; the acquisition itself is
       not slowed down by it
-    :param view: which view :meth:`gui4us.Gui4us.run` starts: "qt", "web" or None (no view --
-      useful for scripts that only capture data)
+    :param view: which view :meth:`gui4us.Gui4us.run` starts: "web" (the browser UI in its own window),
+      "qt" or None (no view -- useful for scripts that only capture data)
     :param host: web view: address to bind to
     :param port: web view: port to listen on
     """
     capture_buffer_size: int = 100
     title: Optional[str] = None
     max_fps: float = 30.0
-    view: Optional[str] = "qt"
+    view: Optional[str] = "web"
     host: str = "127.0.0.1"
     port: int = 7777
 

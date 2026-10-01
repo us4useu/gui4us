@@ -7,7 +7,7 @@
  * calls `update(frame)`.
  */
 
-import { drawAxes, plotRect } from "../core/axes.js";
+import { drawAxes, fitAspect, plotRect } from "../core/axes.js";
 import { applyColormap, getColormap } from "../core/colormap.js";
 
 const STREAM_VIEW_STYLE = `
@@ -111,10 +111,19 @@ export class StreamView extends HTMLElement {
     const context = this._context;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, this.clientWidth, this.clientHeight);
-    const rect = plotRect(this.clientWidth, this.clientHeight);
+    let rect = plotRect(this.clientWidth, this.clientHeight);
     const display = this._display();
+    const firstDescriptor = arrays.length > 0
+      ? this._layerDescriptor(this._displayId, arrays[0].header.layer) : null;
+    const axes = firstDescriptor && firstDescriptor.kind === "1d"
+      ? plotAxesOf(display, arrays[0], firstDescriptor) : axesOf(display, arrays);
     if (arrays.length > 0) {
-      const descriptor = this._layerDescriptor(this._displayId, arrays[0].header.layer);
+      const descriptor = firstDescriptor;
+      if (!(descriptor && descriptor.kind === "1d")) {
+        // An image keeps its aspect ratio: the physical one (x/z extents: 1 mm across = 1 mm down),
+        // or the pixel one when there are no extents.
+        rect = fitAspect(rect, Math.abs(axes.x[1] - axes.x[0])/Math.abs(axes.y[1] - axes.y[0]));
+      }
       if (descriptor && descriptor.kind === "1d") {
         this._drawPlot(arrays[0], descriptor, rect);
       } else {
@@ -127,7 +136,7 @@ export class StreamView extends HTMLElement {
         }
       }
     }
-    drawAxes(context, rect, axesOf(display, arrays));
+    drawAxes(context, rect, axes);
   }
 
   /**
@@ -186,17 +195,43 @@ export class StreamView extends HTMLElement {
     let [low, high] = (descriptor && descriptor.value_range) || minMax(values);
     if (!(high > low)) { low -= 1; high += 1; }
     const colours = ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"];
+    const xOf = (/** @type {number} */ i) => (i / (nSamples - 1 || 1)) * width;
+    const yOf = (/** @type {number} */ value) => height - ((value - low) / (high - low)) * height;
     for (let curve = 0; curve < nCurves; curve++) {
+      const colour = colours[curve % colours.length];
+      const valueAt = (/** @type {number} */ i) => values[curve * nSamples + i];
       context.beginPath();
-      context.strokeStyle = colours[curve % colours.length];
+      context.strokeStyle = colour;
       context.lineWidth = 1.5;
+      // Non-finite values (NaN: no data) break the line, instead of being bridged.
+      let penDown = false;
       for (let i = 0; i < nSamples; i++) {
-        const value = values[curve * nSamples + i];
-        const x = (i / (nSamples - 1 || 1)) * width;
-        const y = height - ((value - low) / (high - low)) * height;
-        if (i === 0) context.moveTo(x, y); else context.lineTo(x, y);
+        const value = valueAt(i);
+        if (!Number.isFinite(value)) { penDown = false; continue; }
+        if (penDown) context.lineTo(xOf(i), yOf(value)); else context.moveTo(xOf(i), yOf(value));
+        penDown = true;
       }
       context.stroke();
+      // Isolated points (no finite neighbour) would draw nothing: mark them.
+      context.fillStyle = colour;
+      for (let i = 0; i < nSamples; i++) {
+        const value = valueAt(i);
+        if (!Number.isFinite(value)) continue;
+        const isolated = !(i > 0 && Number.isFinite(valueAt(i - 1)))
+          && !(i < nSamples - 1 && Number.isFinite(valueAt(i + 1)));
+        if (isolated) context.fillRect(xOf(i) - 1.5, yOf(value) - 1.5, 3, 3);
+      }
+    }
+    // Legend (Display1D labels).
+    const labels = (descriptor && descriptor.labels) || [];
+    context.font = "11px system-ui, sans-serif";
+    context.textBaseline = "middle";
+    for (let curve = 0; curve < Math.min(nCurves, labels.length); curve++) {
+      const y = 10 + 14 * curve;
+      context.fillStyle = colours[curve % colours.length];
+      context.fillRect(8, y - 1, 14, 3);
+      context.fillStyle = "#d4d7dd";
+      context.fillText(String(labels[curve]), 28, y);
     }
     context.restore();
   }
@@ -207,6 +242,7 @@ function minMax(values) {
   let low = Infinity;
   let high = -Infinity;
   for (let i = 0; i < values.length; i++) {
+    if (!Number.isFinite(values[i])) continue;
     if (values[i] < low) low = values[i];
     if (values[i] > high) high = values[i];
   }
@@ -251,6 +287,26 @@ function axesOf(display, arrays) {
     x: /** @type {[number, number]} */([0, shape ? shape[1] : 1]),
     y: /** @type {[number, number]} */([0, shape ? shape[0] : 1]),
     xLabel: labels[1] || "OX", yLabel: labels[0] || "OZ", title,
+  };
+}
+
+/**
+ * The axes of a line plot (Display1D): the sample number across, the value range upwards (the top of the
+ * plotting area is the maximum). ax_labels are (x, y), as in the Qt view.
+ * @param {any} display @param {any} array @param {any} descriptor
+ * @returns {{x: [number, number], y: [number, number], xLabel: string, yLabel: string, title: string}}
+ */
+function plotAxesOf(display, array, descriptor) {
+  const title = display ? (display.title || display.id) : "";
+  const labels = (display && display.ax_labels) || ["", ""];
+  const nSamples = array.header.shape[array.header.shape.length - 1];
+  let [low, high] = (descriptor && descriptor.value_range)
+    || minMax(/** @type {Float32Array} */ (array.data));
+  if (!(high > low)) { low -= 1; high += 1; }
+  return {
+    x: [0, Math.max(1, nSamples - 1)],
+    y: [high, low],
+    xLabel: labels[0] || "", yLabel: labels[1] || "", title,
   };
 }
 
